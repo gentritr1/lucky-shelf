@@ -1,0 +1,778 @@
+[
+  {
+    "id": "wine-bottle",
+    "name": "Wine Bottle",
+    "tier": 1,
+    "baseValue": 4,
+    "tags": [
+      "drink",
+      "fancy"
+    ],
+    "rules": [
+      {
+        "ruleId": "wine-adjacent-cheese-flat",
+        "kind": "perAdjacent",
+        "target": {
+          "kind": "tag",
+          "tag": "cheese"
+        },
+        "delta": {
+          "flat": 3
+        }
+      }
+    ],
+    "upgradesToItemId": "crystal-decanter"
+  },
+  {
+    "id": "cheese-wheel",
+    "name": "Cheese Wheel",
+    "tier": 1,
+    "baseValue": 3,
+    "tags": [
+      "food",
+      "perishable",
+      "cheese"
+    ],
+    "rules": [
+      {
+        "ruleId": "cheese-ages-daily",
+        "kind": "agesDaily",
+        "flatPerDay": 1,
+        "maxValue": 6
+      }
+    ],
+    "upgradesToItemId": "cheese-wheel-tier-2"
+  },
+  {
+    "id": "honey-jar",
+    "name": "Honey Jar",
+    "tier": 1,
+    "baseValue": 2,
+    "tags": [
+      "food",
+      "sweet",
+      "sticky"
+    ],
+    "rules": [
+      {
+        "ruleId": "honey-adjacent-sticky-bonus",
+        "kind": "grantsAdjacent",
+        "delta": {
+          "flat": 4
+        },
+        "makesSticky": true
+      }
+    ]
+  },
+  {
+    "id": "lucky-bamboo",
+    "name": "Lucky Bamboo",
+    "tier": 1,
+    "baseValue": 1,
+    "tags": [
+      "lucky",
+      "plant"
+    ],
+    "rules": [
+      {
+        "ruleId": "bamboo-grows-adjacent",
+        "kind": "growsEachDay",
+        "intervalDays": 3
+      }
+    ]
+  },
+  {
+    "id": "coupon-stack",
+    "name": "Coupon Stack",
+    "tier": 1,
+    "baseValue": 1,
+    "tags": [
+      "paper",
+      "deal"
+    ],
+    "rules": [
+      {
+        "ruleId": "coupon-decays",
+        "kind": "agesDaily",
+        "flatPerDay": -1,
+        "minValue": 0
+      },
+      {
+        "ruleId": "coupon-final-day-blowout",
+        "kind": "countdownVanish",
+        "days": 1,
+        "grantAdjacent": {
+          "flat": 5
+        }
+      }
+    ]
+  },
+  {
+    "id": "bread-loaf",
+    "name": "Bread Loaf",
+    "tier": 1,
+    "baseValue": 3,
+    "tags": [
+      "food",
+      "perishable"
+    ],
+    "rules": [
+      {
+        "ruleId": "bread-per-food",
+        "kind": "perAdjacent",
+        "target": {
+          "kind": "tag",
+          "tag": "food"
+        },
+        "delta": {
+          "flat": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "candle",
+    "name": "Candle",
+    "tier": 1,
+    "baseValue": 2,
+    "tags": [
+      "light",
+      "wax"
+    ],
+    "rules": [
+      {
+        "ruleId": "candle-warm-glow",
+        "kind": "adjacentTo",
+        "target": {
+          "kind": "tag",
+          "tag": "antique"
+        },
+        "delta": {
+          "flat": 3
+        }
+      }
+    ],
+    "upgradesToItemId": "lantern"
+  },
+  {
+    "id": "flower-vase",
+    "name": "Flower Vase",
+    "tier": 1,
+    "baseValue": 2,
+    "tags": [
+      "plant",
+      "fragile"
+    ],
+    "rules": [
+      {
+        "ruleId": "vase-charm",
+        "kind": "grantsAdjacent",
+        "delta": {
+          "flat": 1
+        }
+      }
+    ],
+    "upgradesToItemId": "terrarium"
+  },
+  {
+    "id": "penny-jar",
+    "name": "Penny Jar",
+    "tier": 1,
+    "baseValue": 1,
+    "tags": [
+      "lucky"
+    ],
+    "rules": [
+      {
+        "ruleId": "penny-jar-savings",
+        "kind": "agesDaily",
+        "flatPerDay": 1,
+        "maxValue": 5
+      }
+    ]
+  },
+  {
+    "id": "apple-basket",
+    "name": "Apple Basket",
+    "tier": 1,
+    "baseValue": 2,
+    "tags": [
+      "food",
+      "perishable"
+    ],
+    "rules": [
+      {
+        "ruleId": "apples-market-stall",
+        "kind": "perAdjacent",
+        "target": {
+          "kind": "tag",
+          "tag": "perishable"
+        },
+        "delta": {
+          "flat": 2
+        }
+      }
+    ],
+    "upgradesToItemId": "jam-jars"
+  },
+  {
+    "id": "tea-tin",
+    "name": "Tea Tin",
+    "tier": 1,
+    "baseValue": 3,
+    "tags": [
+      "drink"
+    ],
+    "rules": [
+      {
+        "ruleId": "tea-likes-sweets",
+        "kind": "adjacentTo",
+        "target": {
+          "kind": "tag",
+          "tag": "sweet"
+        },
+        "delta": {
+          "flat": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "dice-cup",
+    "name": "Dice Cup",
+    "tier": 1,
+    "baseValue": 1,
+    "tags": [
+      "lucky",
+      "toy"
+    ],
+    "rules": [
+      {
+        "ruleId": "dice-hot-streak",
+        "kind": "adjacentTo",
+        "target": {
+          "kind": "tag",
+          "tag": "lucky"
+        },
+        "delta": {
+          "mult": 1.5
+        }
+      }
+    ]
+  },
+  {
+    "id": "postcard-rack",
+    "name": "Postcard Rack",
+    "tier": 1,
+    "baseValue": 2,
+    "tags": [
+      "paper"
+    ],
+    "rules": [
+      {
+        "ruleId": "postcards-collection",
+        "kind": "perAdjacent",
+        "target": {
+          "kind": "tag",
+          "tag": "paper"
+        },
+        "delta": {
+          "flat": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "soap-bar",
+    "name": "Soap Bar",
+    "tier": 1,
+    "baseValue": 2,
+    "tags": [
+      "utility"
+    ],
+    "rules": [
+      {
+        "ruleId": "soap-fresh-scent",
+        "kind": "lonerBonus",
+        "delta": {
+          "flat": 4
+        }
+      }
+    ]
+  },
+  {
+    "id": "mirror",
+    "name": "Mirror",
+    "tier": 2,
+    "baseValue": 0,
+    "tags": [
+      "fragile",
+      "utility"
+    ],
+    "rules": [
+      {
+        "ruleId": "mirror-copy-left",
+        "kind": "copiesNeighbor",
+        "direction": "left"
+      }
+    ]
+  },
+  {
+    "id": "shop-cat",
+    "name": "Shop Cat",
+    "tier": 2,
+    "baseValue": 0,
+    "tags": [
+      "lucky",
+      "mascot"
+    ],
+    "rules": [
+      {
+        "ruleId": "shop-cat-row-blessing",
+        "kind": "blocksSlot",
+        "shelfWideEffect": {
+          "kind": "rowMultiplier",
+          "mult": 1.5
+        }
+      }
+    ]
+  },
+  {
+    "id": "price-gun",
+    "name": "Price Gun",
+    "tier": 2,
+    "baseValue": 1,
+    "tags": [
+      "utility",
+      "deal"
+    ],
+    "rules": [
+      {
+        "ruleId": "price-gun-column-flat",
+        "kind": "auraColumn",
+        "delta": {
+          "flat": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "fishbowl",
+    "name": "Fishbowl",
+    "tier": 2,
+    "baseValue": 3,
+    "tags": [
+      "fragile",
+      "water"
+    ],
+    "rules": [
+      {
+        "ruleId": "fishbowl-loner-bonus",
+        "kind": "lonerBonus",
+        "delta": {
+          "flat": 6
+        }
+      }
+    ]
+  },
+  {
+    "id": "ice-box",
+    "name": "Ice Box",
+    "tier": 2,
+    "baseValue": 2,
+    "tags": [
+      "utility",
+      "cold"
+    ],
+    "rules": [
+      {
+        "ruleId": "ice-box-preserves",
+        "kind": "grantsAdjacent",
+        "target": {
+          "kind": "tag",
+          "tag": "perishable"
+        },
+        "delta": {
+          "mult": 1.5
+        },
+        "preventsAging": true
+      }
+    ]
+  },
+  {
+    "id": "cheese-wheel-tier-2",
+    "name": "Aged Cheese Wheel",
+    "tier": 2,
+    "baseValue": 6,
+    "tags": [
+      "food",
+      "perishable",
+      "cheese"
+    ],
+    "rules": [
+      {
+        "ruleId": "aged-cheese-ages-daily",
+        "kind": "agesDaily",
+        "flatPerDay": 1,
+        "maxValue": 10
+      }
+    ]
+  },
+  {
+    "id": "chocolate-box",
+    "name": "Chocolate Box",
+    "tier": 2,
+    "baseValue": 4,
+    "tags": [
+      "sweet",
+      "food",
+      "fancy"
+    ],
+    "rules": [
+      {
+        "ruleId": "chocolate-pairing",
+        "kind": "adjacentTo",
+        "target": {
+          "kind": "tag",
+          "tag": "drink"
+        },
+        "delta": {
+          "mult": 1.5
+        }
+      }
+    ]
+  },
+  {
+    "id": "record-crate",
+    "name": "Record Crate",
+    "tier": 2,
+    "baseValue": 3,
+    "tags": [
+      "music",
+      "paper"
+    ],
+    "rules": [
+      {
+        "ruleId": "records-need-player",
+        "kind": "adjacentTo",
+        "target": {
+          "kind": "tag",
+          "tag": "music"
+        },
+        "delta": {
+          "mult": 2
+        }
+      }
+    ]
+  },
+  {
+    "id": "music-box",
+    "name": "Music Box",
+    "tier": 2,
+    "baseValue": 3,
+    "tags": [
+      "music",
+      "antique",
+      "toy"
+    ],
+    "rules": [
+      {
+        "ruleId": "music-box-playtime",
+        "kind": "perAdjacent",
+        "target": {
+          "kind": "tag",
+          "tag": "toy"
+        },
+        "delta": {
+          "flat": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "jam-jars",
+    "name": "Jam Jars",
+    "tier": 2,
+    "baseValue": 3,
+    "tags": [
+      "food",
+      "sweet"
+    ],
+    "rules": [
+      {
+        "ruleId": "jam-matures",
+        "kind": "agesDaily",
+        "flatPerDay": 1,
+        "maxValue": 6
+      }
+    ]
+  },
+  {
+    "id": "lantern",
+    "name": "Lantern",
+    "tier": 2,
+    "baseValue": 3,
+    "tags": [
+      "light",
+      "utility"
+    ],
+    "rules": [
+      {
+        "ruleId": "lantern-soft-glow",
+        "kind": "auraRow",
+        "delta": {
+          "flat": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "terrarium",
+    "name": "Terrarium",
+    "tier": 2,
+    "baseValue": 4,
+    "tags": [
+      "plant",
+      "fragile",
+      "water"
+    ],
+    "rules": [
+      {
+        "ruleId": "terrarium-ecosystem",
+        "kind": "adjacentTo",
+        "target": {
+          "kind": "tag",
+          "tag": "plant"
+        },
+        "delta": {
+          "flat": 4
+        }
+      }
+    ]
+  },
+  {
+    "id": "antique-clock",
+    "name": "Antique Clock",
+    "tier": 3,
+    "baseValue": 6,
+    "tags": [
+      "antique",
+      "clock"
+    ],
+    "rules": [
+      {
+        "ruleId": "clock-scores-last",
+        "kind": "scoresLast"
+      },
+      {
+        "ruleId": "clock-double-if-neighbors-rich",
+        "kind": "multIfAdjacentMinTotal",
+        "threshold": 5,
+        "mult": 2
+      }
+    ]
+  },
+  {
+    "id": "vintage-radio",
+    "name": "Vintage Radio",
+    "tier": 3,
+    "baseValue": 5,
+    "tags": [
+      "antique",
+      "music"
+    ],
+    "rules": [
+      {
+        "ruleId": "radio-leftmost-echo",
+        "kind": "echoLeftmostInRow"
+      }
+    ]
+  },
+  {
+    "id": "oil-painting",
+    "name": "Oil Painting",
+    "tier": 3,
+    "baseValue": 5,
+    "tags": [
+      "antique",
+      "fancy",
+      "fragile"
+    ],
+    "rules": [
+      {
+        "ruleId": "painting-gallery-wall",
+        "kind": "perAdjacent",
+        "target": {
+          "kind": "tag",
+          "tag": "fancy"
+        },
+        "delta": {
+          "mult": 1.25
+        }
+      }
+    ]
+  },
+  {
+    "id": "samovar",
+    "name": "Samovar",
+    "tier": 3,
+    "baseValue": 6,
+    "tags": [
+      "drink",
+      "antique",
+      "fancy"
+    ],
+    "rules": [
+      {
+        "ruleId": "samovar-steam-column",
+        "kind": "auraColumn",
+        "delta": {
+          "mult": 1.25
+        }
+      }
+    ]
+  },
+  {
+    "id": "crystal-decanter",
+    "name": "Crystal Decanter",
+    "tier": 3,
+    "baseValue": 5,
+    "tags": [
+      "drink",
+      "fancy",
+      "fragile"
+    ],
+    "rules": [
+      {
+        "ruleId": "decanter-fine-pour",
+        "kind": "adjacentTo",
+        "target": {
+          "kind": "tag",
+          "tag": "drink"
+        },
+        "delta": {
+          "mult": 1.75
+        }
+      }
+    ]
+  },
+  {
+    "id": "antique-register",
+    "name": "Antique Register",
+    "tier": 3,
+    "baseValue": 7,
+    "tags": [
+      "antique",
+      "tool"
+    ],
+    "rules": [
+      {
+        "ruleId": "register-ka-ching",
+        "kind": "adjacentTo",
+        "target": {
+          "kind": "tag",
+          "tag": "deal"
+        },
+        "delta": {
+          "flat": 5
+        }
+      },
+      {
+        "ruleId": "register-cash-out",
+        "kind": "onSell",
+        "delta": {
+          "flat": 10
+        }
+      }
+    ]
+  },
+  {
+    "id": "observation-hive",
+    "name": "Observation Hive",
+    "tier": 3,
+    "baseValue": 4,
+    "tags": [
+      "plant",
+      "sweet"
+    ],
+    "rules": [
+      {
+        "ruleId": "hive-fresh-honey",
+        "kind": "grantsAdjacent",
+        "target": {
+          "kind": "tag",
+          "tag": "sweet"
+        },
+        "delta": {
+          "flat": 3
+        }
+      }
+    ]
+  },
+  {
+    "id": "golden-scale",
+    "name": "Golden Scale",
+    "tier": 4,
+    "baseValue": 8,
+    "tags": [
+      "tool",
+      "fancy",
+      "lucky"
+    ],
+    "rules": [
+      {
+        "ruleId": "scale-weighs-last",
+        "kind": "scoresLast"
+      },
+      {
+        "ruleId": "scale-golden-ratio",
+        "kind": "multIfAdjacentMinTotal",
+        "threshold": 8,
+        "mult": 2
+      }
+    ]
+  },
+  {
+    "id": "maneki-neko",
+    "name": "Maneki-neko",
+    "tier": 4,
+    "baseValue": 6,
+    "tags": [
+      "lucky",
+      "mascot",
+      "toy"
+    ],
+    "rules": [
+      {
+        "ruleId": "maneki-beckons-row",
+        "kind": "auraRow",
+        "delta": {
+          "mult": 1.5
+        }
+      }
+    ]
+  },
+  {
+    "id": "orrery",
+    "name": "Orrery",
+    "tier": 4,
+    "baseValue": 7,
+    "tags": [
+      "antique",
+      "fancy",
+      "tool"
+    ],
+    "rules": [
+      {
+        "ruleId": "orrery-echo-left",
+        "kind": "copiesNeighbor",
+        "direction": "left"
+      },
+      {
+        "ruleId": "orrery-echo-right",
+        "kind": "copiesNeighbor",
+        "direction": "right"
+      }
+    ]
+  }
+]

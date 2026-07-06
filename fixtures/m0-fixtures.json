@@ -1,0 +1,1542 @@
+[
+  {
+    "fixtureId": "m0-basic-wine-cheese",
+    "title": "Basic Wine and Cheese",
+    "laneBUse": "Animate base scoring plus a simple adjacent flat bonus.",
+    "notes": [
+      "Wine Bottle gains +3 from one adjacent Cheese Wheel.",
+      "Resolution order is left to right, top to bottom."
+    ],
+    "gameState": {
+      "schemaVersion": 1,
+      "runId": "run-m0-basic-wine-cheese",
+      "seed": "m0-basic-wine-cheese",
+      "phase": "openShop",
+      "day": 1,
+      "coins": 0,
+      "shelf": {
+        "size": {
+          "rows": 3,
+          "cols": 4
+        },
+        "slots": [
+          {
+            "slot": {
+              "row": 0,
+              "col": 0
+            },
+            "item": {
+              "instanceId": "wine-001",
+              "itemId": "wine-bottle",
+              "name": "Wine Bottle",
+              "tier": 1,
+              "baseValue": 4,
+              "tags": [
+                "drink",
+                "fancy"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 1
+            },
+            "item": {
+              "instanceId": "cheese-001",
+              "itemId": "cheese-wheel",
+              "name": "Cheese Wheel",
+              "tier": 1,
+              "baseValue": 3,
+              "tags": [
+                "food",
+                "perishable",
+                "cheese"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 3
+            },
+            "item": null
+          }
+        ]
+      },
+      "rent": {
+        "amount": 25,
+        "dueInDays": 3,
+        "cycle": 1
+      },
+      "moves": {
+        "freeRemaining": 3,
+        "paidMoveCost": 2
+      },
+      "currentOffers": [],
+      "heldItem": null,
+      "lastScoringTrace": null,
+      "runStats": {
+        "totalCoinsEarned": 0,
+        "deepestRentSurvived": 0,
+        "daysSurvived": 0,
+        "bestDayTotal": 0,
+        "bestComboIds": []
+      },
+      "catalogDelta": {
+        "discoveredItemIds": [
+          "wine-bottle",
+          "cheese-wheel"
+        ],
+        "discoveredComboIds": []
+      }
+    },
+    "scoringTrace": {
+      "traceId": "trace-m0-basic-wine-cheese-d1",
+      "day": 1,
+      "seed": "m0-basic-wine-cheese",
+      "events": [
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "value": 4
+        },
+        {
+          "kind": "ruleFire",
+          "sourceSlot": {
+            "row": 0,
+            "col": 0
+          },
+          "targetSlot": {
+            "row": 0,
+            "col": 1
+          },
+          "ruleId": "wine-adjacent-cheese-flat",
+          "delta": {
+            "flat": 3
+          },
+          "runningTotal": 7
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "total": 7
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "value": 3
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "total": 3
+        },
+        {
+          "kind": "dayTotal",
+          "coins": 10
+        }
+      ]
+    }
+  },
+  {
+    "fixtureId": "m0-wine-dine-combo",
+    "title": "Named Combo Wine and Dine",
+    "laneBUse": "Animate a named combo banner after the contributing item totals.",
+    "notes": [
+      "Wine Bottle touches three Cheese Wheels.",
+      "ComboNamed does not change the total in this fixture; it is catalog/meta feedback."
+    ],
+    "gameState": {
+      "schemaVersion": 1,
+      "runId": "run-m0-wine-dine-combo",
+      "seed": "m0-wine-dine-combo",
+      "phase": "openShop",
+      "day": 2,
+      "coins": 10,
+      "shelf": {
+        "size": {
+          "rows": 3,
+          "cols": 4
+        },
+        "slots": [
+          {
+            "slot": {
+              "row": 0,
+              "col": 0
+            },
+            "item": {
+              "instanceId": "cheese-101",
+              "itemId": "cheese-wheel",
+              "name": "Cheese Wheel",
+              "tier": 1,
+              "baseValue": 3,
+              "tags": [
+                "food",
+                "perishable",
+                "cheese"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 1
+            },
+            "item": {
+              "instanceId": "wine-101",
+              "itemId": "wine-bottle",
+              "name": "Wine Bottle",
+              "tier": 1,
+              "baseValue": 4,
+              "tags": [
+                "drink",
+                "fancy"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 2
+            },
+            "item": {
+              "instanceId": "cheese-102",
+              "itemId": "cheese-wheel",
+              "name": "Cheese Wheel",
+              "tier": 1,
+              "baseValue": 3,
+              "tags": [
+                "food",
+                "perishable",
+                "cheese"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 1
+            },
+            "item": {
+              "instanceId": "cheese-103",
+              "itemId": "cheese-wheel",
+              "name": "Cheese Wheel",
+              "tier": 1,
+              "baseValue": 3,
+              "tags": [
+                "food",
+                "perishable",
+                "cheese"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 3
+            },
+            "item": null
+          }
+        ]
+      },
+      "rent": {
+        "amount": 25,
+        "dueInDays": 2,
+        "cycle": 1
+      },
+      "moves": {
+        "freeRemaining": 1,
+        "paidMoveCost": 2
+      },
+      "currentOffers": [],
+      "heldItem": null,
+      "lastScoringTrace": null,
+      "runStats": {
+        "totalCoinsEarned": 10,
+        "deepestRentSurvived": 0,
+        "daysSurvived": 1,
+        "bestDayTotal": 10,
+        "bestComboIds": []
+      },
+      "catalogDelta": {
+        "discoveredItemIds": [
+          "wine-bottle",
+          "cheese-wheel"
+        ],
+        "discoveredComboIds": []
+      }
+    },
+    "scoringTrace": {
+      "traceId": "trace-m0-wine-dine-combo-d2",
+      "day": 2,
+      "seed": "m0-wine-dine-combo",
+      "events": [
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "value": 3
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "total": 3
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "value": 4
+        },
+        {
+          "kind": "ruleFire",
+          "sourceSlot": {
+            "row": 0,
+            "col": 1
+          },
+          "targetSlot": {
+            "row": 0,
+            "col": 0
+          },
+          "ruleId": "wine-adjacent-cheese-flat",
+          "delta": {
+            "flat": 3
+          },
+          "runningTotal": 7
+        },
+        {
+          "kind": "ruleFire",
+          "sourceSlot": {
+            "row": 0,
+            "col": 1
+          },
+          "targetSlot": {
+            "row": 0,
+            "col": 2
+          },
+          "ruleId": "wine-adjacent-cheese-flat",
+          "delta": {
+            "flat": 3
+          },
+          "runningTotal": 10
+        },
+        {
+          "kind": "ruleFire",
+          "sourceSlot": {
+            "row": 0,
+            "col": 1
+          },
+          "targetSlot": {
+            "row": 1,
+            "col": 1
+          },
+          "ruleId": "wine-adjacent-cheese-flat",
+          "delta": {
+            "flat": 3
+          },
+          "runningTotal": 13
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "total": 13
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 2
+          },
+          "value": 3
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 2
+          },
+          "total": 3
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 1,
+            "col": 1
+          },
+          "value": 3
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 1,
+            "col": 1
+          },
+          "total": 3
+        },
+        {
+          "kind": "comboNamed",
+          "comboId": "wine-and-dine",
+          "slots": [
+            {
+              "row": 0,
+              "col": 0
+            },
+            {
+              "row": 0,
+              "col": 1
+            },
+            {
+              "row": 0,
+              "col": 2
+            },
+            {
+              "row": 1,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "kind": "dayTotal",
+          "coins": 22
+        }
+      ]
+    }
+  },
+  {
+    "fixtureId": "m0-mirror-copy",
+    "title": "Mirror Copies Left Neighbor",
+    "laneBUse": "Animate a zero-base item copying a resolved neighbor score.",
+    "notes": [
+      "Mirror copies the scoring of the Cheese Wheel to its left.",
+      "The copied value is represented as a ruleFire flat delta."
+    ],
+    "gameState": {
+      "schemaVersion": 1,
+      "runId": "run-m0-mirror-copy",
+      "seed": "m0-mirror-copy",
+      "phase": "openShop",
+      "day": 3,
+      "coins": 22,
+      "shelf": {
+        "size": {
+          "rows": 3,
+          "cols": 4
+        },
+        "slots": [
+          {
+            "slot": {
+              "row": 0,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 1
+            },
+            "item": {
+              "instanceId": "cheese-201",
+              "itemId": "cheese-wheel",
+              "name": "Cheese Wheel",
+              "tier": 1,
+              "baseValue": 4,
+              "tags": [
+                "food",
+                "perishable",
+                "cheese"
+              ],
+              "state": {
+                "ageDays": 1,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 2
+            },
+            "item": {
+              "instanceId": "mirror-201",
+              "itemId": "mirror",
+              "name": "Mirror",
+              "tier": 2,
+              "baseValue": 0,
+              "tags": [
+                "fragile",
+                "utility"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 3
+            },
+            "item": null
+          }
+        ]
+      },
+      "rent": {
+        "amount": 25,
+        "dueInDays": 1,
+        "cycle": 1
+      },
+      "moves": {
+        "freeRemaining": 0,
+        "paidMoveCost": 2
+      },
+      "currentOffers": [],
+      "heldItem": null,
+      "lastScoringTrace": null,
+      "runStats": {
+        "totalCoinsEarned": 22,
+        "deepestRentSurvived": 0,
+        "daysSurvived": 2,
+        "bestDayTotal": 22,
+        "bestComboIds": [
+          "wine-and-dine"
+        ]
+      },
+      "catalogDelta": {
+        "discoveredItemIds": [
+          "cheese-wheel",
+          "mirror"
+        ],
+        "discoveredComboIds": []
+      }
+    },
+    "scoringTrace": {
+      "traceId": "trace-m0-mirror-copy-d3",
+      "day": 3,
+      "seed": "m0-mirror-copy",
+      "events": [
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "value": 4
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "total": 4
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 2
+          },
+          "value": 0
+        },
+        {
+          "kind": "ruleFire",
+          "sourceSlot": {
+            "row": 0,
+            "col": 2
+          },
+          "targetSlot": {
+            "row": 0,
+            "col": 1
+          },
+          "ruleId": "mirror-copy-left",
+          "delta": {
+            "flat": 4
+          },
+          "runningTotal": 4
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 2
+          },
+          "total": 4
+        },
+        {
+          "kind": "dayTotal",
+          "coins": 8
+        }
+      ]
+    }
+  },
+  {
+    "fixtureId": "m0-shop-cat-row-aura",
+    "title": "Shop Cat Row Aura",
+    "laneBUse": "Animate a row-wide multiplier before row item totals land.",
+    "notes": [
+      "Shop Cat blocks its slot and applies x1.5 to the row.",
+      "Row aura is emitted when the source slot resolves.",
+      "Honey Jar grants +4 to the adjacent Wine Bottle; the ruleFire is emitted during the wine's resolution window (freeze ruling R-6).",
+      "Per-slot order is base, then flat adds, then multipliers: wine (4+4)x1.5=12.",
+      "Wine becomes sticky starting next arrange phase (freeze ruling R-5); this state snapshot predates that."
+    ],
+    "gameState": {
+      "schemaVersion": 1,
+      "runId": "run-m0-shop-cat-row-aura",
+      "seed": "m0-shop-cat-row-aura",
+      "phase": "openShop",
+      "day": 4,
+      "coins": 5,
+      "shelf": {
+        "size": {
+          "rows": 3,
+          "cols": 4
+        },
+        "slots": [
+          {
+            "slot": {
+              "row": 0,
+              "col": 0
+            },
+            "item": {
+              "instanceId": "cat-301",
+              "itemId": "shop-cat",
+              "name": "Shop Cat",
+              "tier": 2,
+              "baseValue": 0,
+              "tags": [
+                "lucky",
+                "mascot"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": true,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 1
+            },
+            "item": {
+              "instanceId": "wine-301",
+              "itemId": "wine-bottle",
+              "name": "Wine Bottle",
+              "tier": 1,
+              "baseValue": 4,
+              "tags": [
+                "drink",
+                "fancy"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 2
+            },
+            "item": {
+              "instanceId": "honey-301",
+              "itemId": "honey-jar",
+              "name": "Honey Jar",
+              "tier": 1,
+              "baseValue": 2,
+              "tags": [
+                "food",
+                "sticky"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 3
+            },
+            "item": null
+          }
+        ]
+      },
+      "rent": {
+        "amount": 36,
+        "dueInDays": 3,
+        "cycle": 2
+      },
+      "moves": {
+        "freeRemaining": 3,
+        "paidMoveCost": 3
+      },
+      "currentOffers": [],
+      "heldItem": null,
+      "lastScoringTrace": null,
+      "runStats": {
+        "totalCoinsEarned": 52,
+        "deepestRentSurvived": 1,
+        "daysSurvived": 3,
+        "bestDayTotal": 22,
+        "bestComboIds": [
+          "wine-and-dine"
+        ]
+      },
+      "catalogDelta": {
+        "discoveredItemIds": [
+          "shop-cat",
+          "wine-bottle",
+          "honey-jar"
+        ],
+        "discoveredComboIds": []
+      }
+    },
+    "scoringTrace": {
+      "traceId": "trace-m0-shop-cat-row-aura-d4",
+      "day": 4,
+      "seed": "m0-shop-cat-row-aura",
+      "events": [
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "value": 0
+        },
+        {
+          "kind": "rowAura",
+          "sourceSlot": {
+            "row": 0,
+            "col": 0
+          },
+          "row": 0,
+          "mult": 1.5
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "total": 0
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "value": 4
+        },
+        {
+          "kind": "ruleFire",
+          "sourceSlot": {
+            "row": 0,
+            "col": 2
+          },
+          "targetSlot": {
+            "row": 0,
+            "col": 1
+          },
+          "ruleId": "honey-adjacent-sticky-bonus",
+          "delta": {
+            "flat": 4
+          },
+          "runningTotal": 8
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "total": 12
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 2
+          },
+          "value": 2
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 2
+          },
+          "total": 3
+        },
+        {
+          "kind": "dayTotal",
+          "coins": 15
+        }
+      ]
+    }
+  },
+  {
+    "fixtureId": "m0-scores-last-clock",
+    "title": "Antique Clock Scores Last",
+    "laneBUse": "Show that scoresLast items wait until normal slots resolve.",
+    "notes": [
+      "Antique Clock is in the first slot but resolves after Fishbowl.",
+      "The clock does not double because an adjacent item scored below 5."
+    ],
+    "gameState": {
+      "schemaVersion": 1,
+      "runId": "run-m0-scores-last-clock",
+      "seed": "m0-scores-last-clock",
+      "phase": "openShop",
+      "day": 5,
+      "coins": 14,
+      "shelf": {
+        "size": {
+          "rows": 3,
+          "cols": 4
+        },
+        "slots": [
+          {
+            "slot": {
+              "row": 0,
+              "col": 0
+            },
+            "item": {
+              "instanceId": "clock-401",
+              "itemId": "antique-clock",
+              "name": "Antique Clock",
+              "tier": 3,
+              "baseValue": 6,
+              "tags": [
+                "antique",
+                "clock"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 1
+            },
+            "item": {
+              "instanceId": "fishbowl-401",
+              "itemId": "fishbowl",
+              "name": "Fishbowl",
+              "tier": 2,
+              "baseValue": 3,
+              "tags": [
+                "fragile",
+                "water"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 3
+            },
+            "item": null
+          }
+        ]
+      },
+      "rent": {
+        "amount": 36,
+        "dueInDays": 2,
+        "cycle": 2
+      },
+      "moves": {
+        "freeRemaining": 2,
+        "paidMoveCost": 3
+      },
+      "currentOffers": [],
+      "heldItem": null,
+      "lastScoringTrace": null,
+      "runStats": {
+        "totalCoinsEarned": 61,
+        "deepestRentSurvived": 1,
+        "daysSurvived": 4,
+        "bestDayTotal": 22,
+        "bestComboIds": [
+          "wine-and-dine"
+        ]
+      },
+      "catalogDelta": {
+        "discoveredItemIds": [
+          "antique-clock",
+          "fishbowl"
+        ],
+        "discoveredComboIds": []
+      }
+    },
+    "scoringTrace": {
+      "traceId": "trace-m0-scores-last-clock-d5",
+      "day": 5,
+      "seed": "m0-scores-last-clock",
+      "events": [
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "value": 3
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "total": 3
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "value": 6
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "total": 6
+        },
+        {
+          "kind": "dayTotal",
+          "coins": 9
+        }
+      ]
+    }
+  },
+  {
+    "fixtureId": "m0-bamboo-transform",
+    "title": "Lucky Bamboo Transform",
+    "laneBUse": "Animate a transform event after scoring completes.",
+    "notes": [
+      "Lucky Bamboo reaches its three-day growth trigger.",
+      "The transform upgrades an adjacent Cheese Wheel into its aged variant for future days."
+    ],
+    "gameState": {
+      "schemaVersion": 1,
+      "runId": "run-m0-bamboo-transform",
+      "seed": "m0-bamboo-transform",
+      "phase": "openShop",
+      "day": 6,
+      "coins": 23,
+      "shelf": {
+        "size": {
+          "rows": 3,
+          "cols": 4
+        },
+        "slots": [
+          {
+            "slot": {
+              "row": 0,
+              "col": 0
+            },
+            "item": {
+              "instanceId": "bamboo-501",
+              "itemId": "lucky-bamboo",
+              "name": "Lucky Bamboo",
+              "tier": 1,
+              "baseValue": 1,
+              "tags": [
+                "lucky",
+                "plant"
+              ],
+              "state": {
+                "ageDays": 0,
+                "growthDays": 3,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 1
+            },
+            "item": {
+              "instanceId": "cheese-501",
+              "itemId": "cheese-wheel",
+              "name": "Cheese Wheel",
+              "tier": 1,
+              "baseValue": 5,
+              "tags": [
+                "food",
+                "perishable",
+                "cheese"
+              ],
+              "state": {
+                "ageDays": 2,
+                "growthDays": 0,
+                "countdown": null,
+                "sticky": false,
+                "blocked": false,
+                "transformedFromItemId": null
+              }
+            }
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 0,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 1,
+              "col": 3
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 0
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 1
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 2
+            },
+            "item": null
+          },
+          {
+            "slot": {
+              "row": 2,
+              "col": 3
+            },
+            "item": null
+          }
+        ]
+      },
+      "rent": {
+        "amount": 36,
+        "dueInDays": 1,
+        "cycle": 2
+      },
+      "moves": {
+        "freeRemaining": 1,
+        "paidMoveCost": 3
+      },
+      "currentOffers": [],
+      "heldItem": null,
+      "lastScoringTrace": null,
+      "runStats": {
+        "totalCoinsEarned": 70,
+        "deepestRentSurvived": 1,
+        "daysSurvived": 5,
+        "bestDayTotal": 22,
+        "bestComboIds": [
+          "wine-and-dine"
+        ]
+      },
+      "catalogDelta": {
+        "discoveredItemIds": [
+          "lucky-bamboo",
+          "cheese-wheel"
+        ],
+        "discoveredComboIds": []
+      }
+    },
+    "scoringTrace": {
+      "traceId": "trace-m0-bamboo-transform-d6",
+      "day": 6,
+      "seed": "m0-bamboo-transform",
+      "events": [
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "value": 1
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 0
+          },
+          "total": 1
+        },
+        {
+          "kind": "itemBase",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "value": 5
+        },
+        {
+          "kind": "itemTotal",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "total": 5
+        },
+        {
+          "kind": "transform",
+          "slot": {
+            "row": 0,
+            "col": 1
+          },
+          "fromItem": "cheese-wheel",
+          "toItem": "cheese-wheel-tier-2"
+        },
+        {
+          "kind": "dayTotal",
+          "coins": 6
+        }
+      ]
+    }
+  }
+]

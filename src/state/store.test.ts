@@ -1,0 +1,133 @@
+import { describe, expect, it } from 'vitest';
+
+import { createRun } from '../sim';
+import { hashState } from '../sim/hash';
+import { makeState } from '../sim/testkit';
+import { loadCombos, loadItemTable } from '../items';
+import {
+  ActiveRunSaveKey,
+  SaveSchemaVersion,
+  createRunPersistence,
+  type KeyValueStorage,
+} from '../persistence';
+import { createRunStore } from './store';
+
+class MemoryStorage implements KeyValueStorage {
+  readonly values = new Map<string, string>();
+
+  async getItem(key: string): Promise<string | null> {
+    return this.values.get(key) ?? null;
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    this.values.set(key, value);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    this.values.delete(key);
+  }
+}
+
+const deps = { table: loadItemTable(), combos: loadCombos() };
+
+describe('run store', () => {
+  it('dispatches accepted actions through the engine and autosaves the new state', async () => {
+    const storage = new MemoryStorage();
+    const persistence = createRunPersistence(storage);
+    const store = createRunStore({
+      deps,
+      persistence,
+      initialState: makeState(
+        [{ slot: { row: 1, col: 1 }, itemId: 'wine-bottle' }],
+        { phase: 'arrange' },
+      ),
+      seedFactory: () => 'store-accepted',
+    });
+
+    const result = store
+      .getState()
+      .dispatchAction({ type: 'moveItem', from: { row: 1, col: 1 }, to: { row: 1, col: 0 } });
+
+    expect(result.accepted).toBe(true);
+    if (!result.accepted) throw new Error(result.rejected.message);
+    await result.save;
+
+    const saved = await persistence.loadActiveRun(createRun('fallback', deps));
+    expect(saved.status).toBe('loaded');
+    expect(hashState(saved.gameState)).toBe(hashState(result.gameState));
+    expect(saved.gameState.moves.freeRemaining).toBe(2);
+  });
+
+  it('rejects illegal engine actions without changing state', () => {
+    const storage = new MemoryStorage();
+    const store = createRunStore({
+      deps,
+      persistence: createRunPersistence(storage),
+      initialState: makeState(
+        [{ slot: { row: 0, col: 0 }, itemId: 'cheese-wheel', state: { sticky: true } }],
+        { phase: 'arrange' },
+      ),
+    });
+    const before = hashState(store.getState().gameState);
+
+    const result = store
+      .getState()
+      .dispatchAction({ type: 'moveItem', from: { row: 0, col: 0 }, to: { row: 2, col: 3 } });
+
+    expect(result.accepted).toBe(false);
+    expect(hashState(store.getState().gameState)).toBe(before);
+    expect(store.getState().lastRejectedAction?.message).toMatch(/Sticky items cannot be moved/);
+    expect(storage.values.has(ActiveRunSaveKey)).toBe(false);
+  });
+
+  it('continues from the active autosave exactly', async () => {
+    const storage = new MemoryStorage();
+    const persistence = createRunPersistence(storage);
+    const savedState = makeState(
+      [{ slot: { row: 0, col: 0 }, itemId: 'wine-bottle' }],
+      { phase: 'arrange', seed: 'store-continue', runId: 'run-store-continue' },
+    );
+    await storage.setItem(
+      ActiveRunSaveKey,
+      JSON.stringify({
+        schemaVersion: SaveSchemaVersion,
+        savedAt: new Date().toISOString(),
+        gameState: savedState,
+      }),
+    );
+
+    const store = createRunStore({
+      deps,
+      persistence,
+      initialState: createRun('placeholder', deps),
+      seedFactory: () => 'fallback',
+    });
+    const continued = await store.getState().continueRun();
+
+    expect(hashState(continued)).toBe(hashState(savedState));
+    expect(hashState(store.getState().gameState)).toBe(hashState(savedState));
+    expect(store.getState().loadStatus).toBe('loaded');
+  });
+
+  it('starts new runs from pure day-1 delivery with real seeded offers', async () => {
+    const storage = new MemoryStorage();
+    const persistence = createRunPersistence(storage);
+    const store = createRunStore({
+      deps,
+      persistence,
+      initialState: makeState([], { phase: 'gameOver' }),
+      seedFactory: () => 'm3-new-run',
+    });
+
+    const result = store.getState().startNewRun();
+    await result.save;
+
+    expect(result.gameState.phase).toBe('delivery');
+    expect(result.gameState.day).toBe(1);
+    expect(result.gameState.shelf.slots.every((slot) => slot.item === null)).toBe(true);
+    expect(result.gameState.currentOffers).toHaveLength(3);
+    expect(result.gameState.currentOffers.map((offer) => offer.offerId)).toEqual(
+      createRun('m3-new-run', deps).currentOffers.map((offer) => offer.offerId),
+    );
+  });
+});

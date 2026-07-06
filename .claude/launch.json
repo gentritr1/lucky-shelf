@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "expo-web",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=/Users/gentlegen/.nvm/versions/node/v20.19.4/bin:$PATH && exec node node_modules/expo/bin/cli start --web --port 8090"
+      ],
+      "port": 8090,
+      "autoPort": false
+    },
+    {
+      "name": "expo-web-b",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=/Users/gentlegen/.nvm/versions/node/v20.19.4/bin:$PATH && exec node node_modules/expo/bin/cli start --web --port 8091"
+      ],
+      "port": 8091,
+      "autoPort": false
+    },
+    {
+      "name": "expo-web-b3",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=/Users/gentlegen/.nvm/versions/node/v20.19.4/bin:$PATH && exec node node_modules/expo/bin/cli start --web --port 8092"
+      ],
+      "port": 8092,
+      "autoPort": false
+    }
+  ]
+}

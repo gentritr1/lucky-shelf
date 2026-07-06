@@ -1,0 +1,30 @@
+/** Lane B juice surface: Skia scene, drag feel, haptics, motion. */
+
+export { ShelfScene } from './ShelfScene';
+export { ItemSprite } from './ItemSprite';
+export { DraggableItem, type SceneShared } from './DraggableItem';
+// SkiaShelfFrame is intentionally NOT re-exported: importing it pulls in
+// @shopify/react-native-skia, which auto-inits CanvasKit (wasm) on web. It is
+// loaded native-only via a guarded require inside ShelfScene.
+export { haptic, cascadeStepHaptic } from './haptics';
+export { easings, spring, timing } from './motion';
+export { ITEM_GLYPHS, glyphFor } from './glyphs';
+export { goldenFixtures, stickyArrangeState } from './goldens';
+export { useSkiaReady, ensureSkiaLoaded } from './skiaWeb';
+export {
+  CascadeLayer,
+  SpeedControl,
+  useCascadePlayer,
+  buildKeyframes,
+  type CascadeFrame,
+  type CascadePlayer,
+  type CascadeSpeed,
+} from './cascade';
+export {
+  computeShelfLayout,
+  slotCenter,
+  slotTopLeft,
+  pointToSlot,
+  slotIndex,
+  type ShelfLayout,
+} from './layout';

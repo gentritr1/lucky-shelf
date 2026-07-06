@@ -1,0 +1,577 @@
+import { z } from 'zod';
+
+export const ContractSchemaVersion = 1;
+
+const idSchema = z.string().min(1);
+const moneySchema = z.number().int();
+const positiveMoneySchema = z.number().int().min(0);
+const nonNegativeIntSchema = z.number().int().min(0);
+const positiveIntSchema = z.number().int().positive();
+
+export const ItemTierSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+]);
+
+export const SlotSchema = z
+  .object({
+    row: nonNegativeIntSchema,
+    col: nonNegativeIntSchema,
+  })
+  .strict();
+
+export const ShelfSizeSchema = z
+  .object({
+    rows: z.number().int().min(1).max(4),
+    cols: z.number().int().min(1).max(5),
+  })
+  .strict();
+
+export const ItemInstanceStateSchema = z
+  .object({
+    ageDays: nonNegativeIntSchema.default(0),
+    growthDays: nonNegativeIntSchema.default(0),
+    countdown: nonNegativeIntSchema.nullable().default(null),
+    sticky: z.boolean().default(false),
+    blocked: z.boolean().default(false),
+    transformedFromItemId: idSchema.nullable().default(null),
+  })
+  .strict();
+
+export const ItemInstanceSchema = z
+  .object({
+    instanceId: idSchema,
+    itemId: idSchema,
+    name: idSchema,
+    tier: ItemTierSchema,
+    baseValue: moneySchema,
+    tags: z.array(idSchema),
+    state: ItemInstanceStateSchema,
+  })
+  .strict();
+
+export const SlotStateSchema = z
+  .object({
+    slot: SlotSchema,
+    item: ItemInstanceSchema.nullable(),
+  })
+  .strict();
+
+export const ShelfSchema = z
+  .object({
+    size: ShelfSizeSchema,
+    slots: z.array(SlotStateSchema),
+  })
+  .strict()
+  .superRefine((shelf, ctx) => {
+    const expectedSlotCount = shelf.size.rows * shelf.size.cols;
+    if (shelf.slots.length !== expectedSlotCount) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Shelf has ${shelf.slots.length} slots, expected ${expectedSlotCount}.`,
+        path: ['slots'],
+      });
+    }
+
+    const seenSlots = new Set<string>();
+    const seenInstances = new Set<string>();
+    for (const [index, slotState] of shelf.slots.entries()) {
+      const { row, col } = slotState.slot;
+      if (row >= shelf.size.rows || col >= shelf.size.cols) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Slot ${row},${col} is outside ${shelf.size.rows}x${shelf.size.cols}.`,
+          path: ['slots', index, 'slot'],
+        });
+      }
+
+      const slotKey = toSlotKey(slotState.slot);
+      if (seenSlots.has(slotKey)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Duplicate slot ${slotKey}.`,
+          path: ['slots', index, 'slot'],
+        });
+      }
+      seenSlots.add(slotKey);
+
+      if (slotState.item) {
+        if (seenInstances.has(slotState.item.instanceId)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `Duplicate item instance ${slotState.item.instanceId}.`,
+            path: ['slots', index, 'item', 'instanceId'],
+          });
+        }
+        seenInstances.add(slotState.item.instanceId);
+      }
+    }
+  });
+
+export const RuleDeltaSchema = z
+  .object({
+    flat: moneySchema.optional(),
+    mult: z.number().positive().optional(),
+  })
+  .strict()
+  .refine((delta) => delta.flat !== undefined || delta.mult !== undefined, {
+    message: 'A rule delta must include flat, mult, or both.',
+  });
+
+export const RuleTargetSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('tag'),
+      tag: idSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('item'),
+      itemId: idSchema,
+    })
+    .strict(),
+]);
+
+export const DirectionSchema = z.enum(['left', 'right', 'up', 'down']);
+
+export const ShelfWideEffectSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('rowMultiplier'),
+      mult: z.number().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('shelfMultiplier'),
+      mult: z.number().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('moveLock'),
+    })
+    .strict(),
+]);
+
+export const ItemRuleSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('adjacentTo'),
+      target: RuleTargetSchema,
+      delta: RuleDeltaSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('perAdjacent'),
+      target: RuleTargetSchema,
+      delta: RuleDeltaSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('copiesNeighbor'),
+      direction: DirectionSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('auraRow'),
+      delta: RuleDeltaSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('auraColumn'),
+      delta: RuleDeltaSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('scoresLast'),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('transformsAdjacent'),
+      target: RuleTargetSchema,
+      afterDays: positiveIntSchema,
+      toItemId: idSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('blocksSlot'),
+      shelfWideEffect: ShelfWideEffectSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('onSell'),
+      delta: RuleDeltaSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('growsEachDay'),
+      intervalDays: positiveIntSchema,
+      target: RuleTargetSchema.optional(),
+    })
+    .strict(),
+  // --- CCR-1 additions (Fable-approved 2026-07-06): primitives required by the
+  // exemplar-12 that the M0 vocabulary could not express. All additive. ---
+  z
+    .object({
+      ruleId: idSchema,
+      // Mutates instance baseValue at day rollover (freeze R-8). Cheese +1, Coupon -1.
+      kind: z.literal('agesDaily'),
+      flatPerDay: z.number().int(),
+      minValue: moneySchema.optional(),
+      // R-10: table-side cap so aging items plateau instead of compounding forever.
+      maxValue: moneySchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      // Benefits adjacent items (not the source): Honey Jar, Ice Box. The ruleFire
+      // is emitted in the beneficiary's resolution window (freeze R-6).
+      kind: z.literal('grantsAdjacent'),
+      target: RuleTargetSchema.optional(),
+      delta: RuleDeltaSchema,
+      makesSticky: z.boolean().optional(),
+      preventsAging: z.boolean().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      // Fires only when the item has zero occupied orthogonal neighbors. Fishbowl.
+      kind: z.literal('lonerBonus'),
+      delta: RuleDeltaSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      // Requires >=1 adjacent scored item and all adjacent totals >= threshold.
+      // Only meaningful alongside scoresLast. Antique Clock.
+      kind: z.literal('multIfAdjacentMinTotal'),
+      threshold: positiveIntSchema,
+      mult: z.number().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      // The row's leftmost occupied slot scores twice (x2 in its window). Vintage Radio.
+      kind: z.literal('echoLeftmostInRow'),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      // instance.countdown initialized to days, decremented at rollover; at zero the
+      // item grants adjacent items grantAdjacent during scoring, then vanishes. Coupon Stack.
+      kind: z.literal('countdownVanish'),
+      days: positiveIntSchema,
+      grantAdjacent: RuleDeltaSchema,
+    })
+    .strict(),
+]);
+
+export const ItemDefinitionSchema = z
+  .object({
+    id: idSchema,
+    name: idSchema,
+    tier: ItemTierSchema,
+    baseValue: moneySchema,
+    tags: z.array(idSchema),
+    rules: z.array(ItemRuleSchema),
+    // Fable-authored upgrade graph: tier upgrades (e.g. Lucky Bamboo) resolve to
+    // this concrete item id. Items without it are not upgradeable. (Freeze R-4)
+    upgradesToItemId: idSchema.optional(),
+  })
+  .strict();
+
+export const DeliveryOfferSchema = z
+  .object({
+    offerId: idSchema,
+    item: ItemDefinitionSchema,
+    cost: positiveMoneySchema.default(0),
+  })
+  .strict();
+
+export const RentStateSchema = z
+  .object({
+    amount: positiveIntSchema,
+    dueInDays: nonNegativeIntSchema,
+    cycle: positiveIntSchema,
+  })
+  .strict();
+
+export const MoveStateSchema = z
+  .object({
+    freeRemaining: nonNegativeIntSchema,
+    paidMoveCost: positiveIntSchema,
+  })
+  .strict();
+
+export const RunStatsSchema = z
+  .object({
+    totalCoinsEarned: positiveMoneySchema,
+    deepestRentSurvived: nonNegativeIntSchema,
+    daysSurvived: nonNegativeIntSchema,
+    bestDayTotal: positiveMoneySchema,
+    bestComboIds: z.array(idSchema),
+  })
+  .strict();
+
+export const CatalogDeltaSchema = z
+  .object({
+    discoveredItemIds: z.array(idSchema),
+    discoveredComboIds: z.array(idSchema),
+  })
+  .strict();
+
+export const TraceEventSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('itemBase'),
+      slot: SlotSchema,
+      value: moneySchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('ruleFire'),
+      sourceSlot: SlotSchema,
+      targetSlot: SlotSchema,
+      ruleId: idSchema,
+      delta: RuleDeltaSchema,
+      runningTotal: moneySchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('comboNamed'),
+      comboId: idSchema,
+      slots: z.array(SlotSchema).min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('rowAura'),
+      sourceSlot: SlotSchema,
+      row: nonNegativeIntSchema,
+      mult: z.number().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('itemTotal'),
+      slot: SlotSchema,
+      total: moneySchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('dayTotal'),
+      coins: moneySchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('transform'),
+      slot: SlotSchema,
+      fromItem: idSchema,
+      toItem: idSchema,
+    })
+    .strict(),
+  // CCR-1: an item leaves the shelf (Coupon Stack at countdown zero). Emitted with
+  // transforms, after itemTotals and before dayTotal.
+  z
+    .object({
+      kind: z.literal('vanish'),
+      slot: SlotSchema,
+      itemId: idSchema,
+    })
+    .strict(),
+]);
+
+export const ScoringTraceSchema = z
+  .object({
+    traceId: idSchema,
+    day: positiveIntSchema,
+    seed: idSchema,
+    events: z.array(TraceEventSchema).min(1),
+  })
+  .strict()
+  .superRefine((trace, ctx) => {
+    const lastEvent = trace.events.at(-1);
+    if (lastEvent?.kind !== 'dayTotal') {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'A scoring trace must end with a dayTotal event.',
+        path: ['events', trace.events.length - 1],
+      });
+    }
+  });
+
+export const GamePhaseSchema = z.enum([
+  'delivery',
+  'arrange',
+  'openShop',
+  'restock',
+  'gameOver',
+]);
+
+export const GameStateSchema = z
+  .object({
+    schemaVersion: z.literal(ContractSchemaVersion),
+    runId: idSchema,
+    seed: idSchema,
+    phase: GamePhaseSchema,
+    day: positiveIntSchema,
+    coins: positiveMoneySchema,
+    shelf: ShelfSchema,
+    rent: RentStateSchema,
+    moves: MoveStateSchema,
+    currentOffers: z.array(DeliveryOfferSchema),
+    heldItem: ItemInstanceSchema.nullable(),
+    lastScoringTrace: ScoringTraceSchema.nullable(),
+    runStats: RunStatsSchema,
+    catalogDelta: CatalogDeltaSchema,
+  })
+  .strict();
+
+export const ActionSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      type: z.literal('draftItem'),
+      offerIndex: nonNegativeIntSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('placeItem'),
+      slot: SlotSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('moveItem'),
+      from: SlotSchema,
+      to: SlotSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('sellItem'),
+      slot: SlotSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('openShop'),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('buyOffer'),
+      offerIndex: nonNegativeIntSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('reroll'),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('endRestock'),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('abandonRun'),
+    })
+    .strict(),
+]);
+
+export const FixtureSchema = z
+  .object({
+    fixtureId: idSchema,
+    title: idSchema,
+    laneBUse: idSchema,
+    notes: z.array(idSchema),
+    gameState: GameStateSchema,
+    scoringTrace: ScoringTraceSchema,
+  })
+  .strict();
+
+export const FixtureCollectionSchema = z.array(FixtureSchema).length(6);
+
+export type ItemTier = z.infer<typeof ItemTierSchema>;
+export type Slot = z.infer<typeof SlotSchema>;
+export type ShelfSize = z.infer<typeof ShelfSizeSchema>;
+export type ItemInstanceState = z.infer<typeof ItemInstanceStateSchema>;
+export type ItemInstance = z.infer<typeof ItemInstanceSchema>;
+export type SlotState = z.infer<typeof SlotStateSchema>;
+export type Shelf = z.infer<typeof ShelfSchema>;
+export type RuleDelta = z.infer<typeof RuleDeltaSchema>;
+export type RuleTarget = z.infer<typeof RuleTargetSchema>;
+export type Direction = z.infer<typeof DirectionSchema>;
+export type ShelfWideEffect = z.infer<typeof ShelfWideEffectSchema>;
+export type ItemRule = z.infer<typeof ItemRuleSchema>;
+export type ItemDefinition = z.infer<typeof ItemDefinitionSchema>;
+export type DeliveryOffer = z.infer<typeof DeliveryOfferSchema>;
+export type RentState = z.infer<typeof RentStateSchema>;
+export type MoveState = z.infer<typeof MoveStateSchema>;
+export type RunStats = z.infer<typeof RunStatsSchema>;
+export type CatalogDelta = z.infer<typeof CatalogDeltaSchema>;
+export type TraceEvent = z.infer<typeof TraceEventSchema>;
+export type ScoringTrace = z.infer<typeof ScoringTraceSchema>;
+export type GamePhase = z.infer<typeof GamePhaseSchema>;
+export type GameState = z.infer<typeof GameStateSchema>;
+export type Action = z.infer<typeof ActionSchema>;
+export type Fixture = z.infer<typeof FixtureSchema>;
+export type FixtureCollection = z.infer<typeof FixtureCollectionSchema>;
+
+export function toSlotKey(slot: Slot): string {
+  return `${slot.row}:${slot.col}`;
+}
+
+export function parseGameState(value: unknown): GameState {
+  return GameStateSchema.parse(value);
+}
+
+export function parseAction(value: unknown): Action {
+  return ActionSchema.parse(value);
+}
+
+export function parseScoringTrace(value: unknown): ScoringTrace {
+  return ScoringTraceSchema.parse(value);
+}
+
+export function parseFixture(value: unknown): Fixture {
+  return FixtureSchema.parse(value);
+}
+
+export function parseFixtureCollection(value: unknown): FixtureCollection {
+  return FixtureCollectionSchema.parse(value);
+}

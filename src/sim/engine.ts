@@ -1,0 +1,363 @@
+import type {
+  Action,
+  DeliveryOffer,
+  GameState,
+  ItemInstance,
+  Slot,
+} from '../contracts';
+import { ContractSchemaVersion, toSlotKey } from '../contracts';
+import type { ItemTable, NamedCombo } from '../items';
+import { itemDefinition } from '../items';
+
+import {
+  FREE_MOVES_PER_DAY,
+  RENT_PERIOD_DAYS,
+  REROLL_COST,
+  STARTING_RENT,
+  generateOffers,
+  nextRentAmount,
+  paidMoveCost,
+  sellPrice,
+} from './economy';
+import { buildSlotMap, occupiedNeighbors, rowMajorSlots, slotStateAt } from './grid';
+import { resolveOpenShop } from './scoring';
+
+/**
+ * The dispatcher: `dispatch(state, action) → GameState` is the only mutation
+ * surface (kickoff §4). Pure — the input state is never modified; illegal
+ * actions throw EngineError so bots and the UI can distinguish bugs from
+ * disallowed moves.
+ */
+
+export class EngineError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EngineError';
+  }
+}
+
+export interface EngineDeps {
+  table: ItemTable;
+  combos: readonly NamedCombo[];
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function instantiate(offer: DeliveryOffer, deps: EngineDeps): ItemInstance {
+  const definition = itemDefinition(deps.table, offer.item.id);
+  const countdownRule = definition.rules.find((rule) => rule.kind === 'countdownVanish');
+  return {
+    instanceId: `${offer.offerId}-inst`,
+    itemId: definition.id,
+    name: definition.name,
+    tier: definition.tier,
+    baseValue: definition.baseValue,
+    tags: [...definition.tags],
+    state: {
+      ageDays: 0,
+      growthDays: 0,
+      countdown: countdownRule?.kind === 'countdownVanish' ? countdownRule.days : null,
+      sticky: false,
+      blocked: definition.rules.some((rule) => rule.kind === 'blocksSlot'),
+      transformedFromItemId: null,
+    },
+  };
+}
+
+export function createRun(seed: string, deps: EngineDeps): GameState {
+  return {
+    schemaVersion: ContractSchemaVersion,
+    runId: `run-${seed}`,
+    seed,
+    phase: 'delivery',
+    day: 1,
+    coins: 0,
+    shelf: {
+      size: { rows: 3, cols: 4 },
+      slots: rowMajorSlots({ rows: 3, cols: 4 }).map((slot) => ({ slot, item: null })),
+    },
+    rent: { amount: STARTING_RENT, dueInDays: RENT_PERIOD_DAYS, cycle: 1 },
+    moves: { freeRemaining: FREE_MOVES_PER_DAY, paidMoveCost: paidMoveCost(1) },
+    currentOffers: generateOffers(seed, 1, 'delivery', deps.table, ''),
+    heldItem: null,
+    lastScoringTrace: null,
+    runStats: {
+      totalCoinsEarned: 0,
+      deepestRentSurvived: 0,
+      daysSurvived: 0,
+      bestDayTotal: 0,
+      bestComboIds: [],
+    },
+    catalogDelta: { discoveredItemIds: [], discoveredComboIds: [] },
+  };
+}
+
+function requirePhase(state: GameState, ...phases: GameState['phase'][]): void {
+  if (!phases.includes(state.phase)) {
+    throw new EngineError(`Action not legal in phase ${state.phase}.`);
+  }
+}
+
+function addUnique(list: string[], values: readonly string[]): string[] {
+  const merged = new Set(list);
+  for (const value of values) merged.add(value);
+  return [...merged];
+}
+
+export function dispatch(state: GameState, action: Action, deps: EngineDeps): GameState {
+  if (state.phase === 'gameOver') {
+    throw new EngineError('Run is over.');
+  }
+  const next = clone(state);
+
+  switch (action.type) {
+    case 'draftItem': {
+      requirePhase(next, 'delivery');
+      const offer = next.currentOffers[action.offerIndex];
+      if (!offer) throw new EngineError(`No offer at index ${action.offerIndex}.`);
+      next.heldItem = instantiate(offer, deps);
+      next.currentOffers = [];
+      next.phase = 'arrange';
+      return next;
+    }
+
+    case 'placeItem': {
+      requirePhase(next, 'arrange', 'restock');
+      if (!next.heldItem) throw new EngineError('No held item to place.');
+      const slotState = slotStateAt(buildSlotMap(next.shelf), action.slot);
+      if (!slotState) throw new EngineError(`Slot ${toSlotKey(action.slot)} is off the shelf.`);
+      if (slotState.item) throw new EngineError(`Slot ${toSlotKey(action.slot)} is occupied.`);
+      slotState.item = next.heldItem;
+      next.heldItem = null;
+      return next;
+    }
+
+    case 'moveItem': {
+      requirePhase(next, 'arrange', 'restock');
+      const map = buildSlotMap(next.shelf);
+      const from = slotStateAt(map, action.from);
+      const to = slotStateAt(map, action.to);
+      if (!from?.item) throw new EngineError(`No item at ${toSlotKey(action.from)}.`);
+      if (!to) throw new EngineError(`Slot ${toSlotKey(action.to)} is off the shelf.`);
+      if (to.item) throw new EngineError(`Slot ${toSlotKey(action.to)} is occupied.`);
+      if (from.item.state.sticky) throw new EngineError('Sticky items cannot be moved.');
+      if (next.moves.freeRemaining > 0) {
+        next.moves.freeRemaining -= 1;
+      } else if (next.coins >= next.moves.paidMoveCost) {
+        next.coins -= next.moves.paidMoveCost;
+      } else {
+        throw new EngineError('No free moves left and not enough coins for a paid move.');
+      }
+      to.item = from.item;
+      from.item = null;
+      return next;
+    }
+
+    case 'sellItem': {
+      requirePhase(next, 'arrange', 'restock');
+      const slotState = slotStateAt(buildSlotMap(next.shelf), action.slot);
+      if (!slotState?.item) throw new EngineError(`No item at ${toSlotKey(action.slot)}.`);
+      const definition = itemDefinition(deps.table, slotState.item.itemId);
+      next.coins += sellPrice(slotState.item.baseValue, definition);
+      slotState.item = null;
+      return next;
+    }
+
+    case 'openShop': {
+      requirePhase(next, 'arrange');
+      if (next.heldItem) throw new EngineError('Place the held item before opening the shop.');
+
+      const result = resolveOpenShop(next, deps.table, deps.combos);
+      const scoredDay = next.day;
+      next.lastScoringTrace = result.trace;
+      next.coins += result.dayTotal;
+      next.shelf = result.shelfAfter;
+
+      next.runStats.totalCoinsEarned += result.dayTotal;
+      next.runStats.bestDayTotal = Math.max(next.runStats.bestDayTotal, result.dayTotal);
+      next.runStats.daysSurvived = scoredDay;
+      next.runStats.bestComboIds = addUnique(next.runStats.bestComboIds, result.discoveredComboIds);
+
+      const shelfItemIds = next.shelf.slots
+        .map((entry) => entry.item?.itemId)
+        .filter((id): id is string => Boolean(id));
+      next.catalogDelta.discoveredItemIds = addUnique(
+        next.catalogDelta.discoveredItemIds,
+        shelfItemIds,
+      );
+      next.catalogDelta.discoveredComboIds = addUnique(
+        next.catalogDelta.discoveredComboIds,
+        result.discoveredComboIds,
+      );
+
+      // Rent sawtooth.
+      next.rent.dueInDays -= 1;
+      if (next.rent.dueInDays === 0) {
+        if (next.coins < next.rent.amount) {
+          next.phase = 'gameOver';
+          return next;
+        }
+        next.coins -= next.rent.amount;
+        next.runStats.deepestRentSurvived = next.rent.cycle;
+        next.rent.amount = nextRentAmount(next.rent.amount, next.rent.cycle);
+        next.rent.cycle += 1;
+        next.rent.dueInDays = RENT_PERIOD_DAYS;
+      }
+
+      // Day rollover: aging, growth, countdowns (freeze R-8).
+      const map = buildSlotMap(next.shelf);
+      const preserved = new Set<string>();
+      for (const entry of next.shelf.slots) {
+        if (!entry.item) continue;
+        for (const rule of itemDefinition(deps.table, entry.item.itemId).rules) {
+          if (rule.kind !== 'grantsAdjacent' || !rule.preventsAging) continue;
+          for (const neighbor of occupiedNeighbors(map, entry.slot, next.shelf.size)) {
+            const target = neighbor.item;
+            if (!target) continue;
+            if (rule.target && !(rule.target.kind === 'tag' ? target.tags.includes(rule.target.tag) : target.itemId === rule.target.itemId)) {
+              continue;
+            }
+            preserved.add(toSlotKey(neighbor.slot));
+          }
+        }
+      }
+      for (const entry of next.shelf.slots) {
+        const item = entry.item;
+        if (!item) continue;
+        const rules = itemDefinition(deps.table, item.itemId).rules;
+        const isPreserved = preserved.has(toSlotKey(entry.slot));
+        for (const rule of rules) {
+          if (rule.kind === 'agesDaily' && !isPreserved) {
+            item.baseValue += rule.flatPerDay;
+            if (rule.minValue !== undefined) item.baseValue = Math.max(rule.minValue, item.baseValue);
+            if (rule.maxValue !== undefined) item.baseValue = Math.min(rule.maxValue, item.baseValue);
+            item.state.ageDays += 1;
+          } else if (rule.kind === 'growsEachDay') {
+            item.state.growthDays += 1;
+          }
+        }
+        if (item.state.countdown !== null && item.state.countdown > 0) {
+          item.state.countdown -= 1;
+        }
+      }
+
+      next.day = scoredDay + 1;
+      next.moves = {
+        freeRemaining: FREE_MOVES_PER_DAY,
+        paidMoveCost: paidMoveCost(next.rent.cycle),
+      };
+
+      if (scoredDay % 3 === 0) {
+        next.phase = 'restock';
+        next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, '');
+      } else {
+        next.phase = 'delivery';
+        next.currentOffers = generateOffers(next.seed, next.day, 'delivery', deps.table, '');
+      }
+      return next;
+    }
+
+    case 'buyOffer': {
+      requirePhase(next, 'restock');
+      if (next.heldItem) throw new EngineError('Place the held item before buying again.');
+      const offer = next.currentOffers[action.offerIndex];
+      if (!offer) throw new EngineError(`No offer at index ${action.offerIndex}.`);
+      if (next.coins < offer.cost) throw new EngineError('Not enough coins for this offer.');
+      next.coins -= offer.cost;
+      next.heldItem = instantiate(offer, deps);
+      next.currentOffers = next.currentOffers.filter((_, index) => index !== action.offerIndex);
+      return next;
+    }
+
+    case 'reroll': {
+      requirePhase(next, 'restock');
+      if (next.coins < REROLL_COST) throw new EngineError('Not enough coins to reroll.');
+      next.coins -= REROLL_COST;
+      const salt = next.currentOffers.map((offer) => offer.offerId).join('|');
+      next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, salt);
+      return next;
+    }
+
+    case 'endRestock': {
+      requirePhase(next, 'restock');
+      if (next.heldItem) throw new EngineError('Place the held item before ending restock.');
+      next.phase = 'delivery';
+      next.currentOffers = generateOffers(next.seed, next.day, 'delivery', deps.table, '');
+      return next;
+    }
+
+    case 'abandonRun': {
+      next.phase = 'gameOver';
+      return next;
+    }
+
+    default: {
+      const exhausted: never = action;
+      throw new EngineError(`Unknown action ${JSON.stringify(exhausted)}.`);
+    }
+  }
+}
+
+/** Enumerate legal actions for bots (and eventually UI affordance hints). */
+export function legalActions(state: GameState, deps: EngineDeps): Action[] {
+  const actions: Action[] = [];
+  if (state.phase === 'gameOver') return actions;
+
+  const map = buildSlotMap(state.shelf);
+  const emptySlots: Slot[] = [];
+  const occupiedSlots: Slot[] = [];
+  for (const slot of rowMajorSlots(state.shelf.size)) {
+    const entry = slotStateAt(map, slot);
+    if (entry?.item) occupiedSlots.push(slot);
+    else emptySlots.push(slot);
+  }
+
+  switch (state.phase) {
+    case 'delivery': {
+      state.currentOffers.forEach((_, index) => actions.push({ type: 'draftItem', offerIndex: index }));
+      break;
+    }
+    case 'arrange': {
+      if (state.heldItem) {
+        for (const slot of emptySlots) actions.push({ type: 'placeItem', slot });
+        // F-1: selling stays reachable while holding, or a full shelf softlocks.
+        for (const slot of occupiedSlots) actions.push({ type: 'sellItem', slot });
+      } else {
+        actions.push({ type: 'openShop' });
+        const canPayMove = state.moves.freeRemaining > 0 || state.coins >= state.moves.paidMoveCost;
+        if (canPayMove) {
+          for (const from of occupiedSlots) {
+            const item = slotStateAt(map, from)?.item;
+            if (item?.state.sticky) continue;
+            for (const to of emptySlots) actions.push({ type: 'moveItem', from, to });
+          }
+        }
+        for (const slot of occupiedSlots) actions.push({ type: 'sellItem', slot });
+      }
+      break;
+    }
+    case 'restock': {
+      if (state.heldItem) {
+        for (const slot of emptySlots) actions.push({ type: 'placeItem', slot });
+        // F-1: same softlock guard as arrange.
+        for (const slot of occupiedSlots) actions.push({ type: 'sellItem', slot });
+      } else {
+        actions.push({ type: 'endRestock' });
+        state.currentOffers.forEach((offer, index) => {
+          if (state.coins >= offer.cost && emptySlots.length > 0) {
+            actions.push({ type: 'buyOffer', offerIndex: index });
+          }
+        });
+        if (state.coins >= REROLL_COST) actions.push({ type: 'reroll' });
+        for (const slot of occupiedSlots) actions.push({ type: 'sellItem', slot });
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  actions.push({ type: 'abandonRun' });
+  return actions;
+}

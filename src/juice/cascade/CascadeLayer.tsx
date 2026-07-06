@@ -1,0 +1,620 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+
+import type { GameState, ItemInstance, ScoringTrace, Slot } from '@/contracts';
+import { toSlotKey } from '@/contracts';
+import { arrowPalette, motion, palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
+import { useReducedMotion } from '@/ui/prefs';
+import { CoinCounter, WoodButton } from '@/ui';
+import { ItemSprite } from '../ItemSprite';
+import { glyphFor } from '../glyphs';
+import {
+  computeShelfLayout,
+  FRAME_PADDING,
+  PLANK_HEIGHT,
+  slotCenter,
+  slotTopLeft,
+  type ShelfLayout,
+} from '../layout';
+import type { CascadeFrame } from './cascadeState';
+import { CascadeArrow } from './CascadeArrow';
+import { SpeedControl } from './SpeedControl';
+import { useCascadePlayer } from './useCascadePlayer';
+
+/**
+ * The cascade: consumes a ScoringTrace verbatim and animates every coin
+ * (Pillar 2). Each event kind is visibly distinct — base pulse + value tag,
+ * source→target arrow with a count-up on the R-6 beneficiary slot, a row aura
+ * that persists with its ×mult label until dayTotal (R-9/R-27), a named-combo
+ * banner (R-2), transform/vanish morphs, and the dayTotal coin slam.
+ *
+ * The shelf here is static (no drag) so the whole scene is the choreography.
+ */
+
+interface CascadeLayerProps {
+  gameState: GameState;
+  trace: ScoringTrace;
+  autoPlay?: boolean;
+  /** Rent-due day → the dayTotal slam is followed by the rent thud (R-18). */
+  rentDue?: boolean;
+  /**
+   * R-36/R-39: the layer owns its beat. When the cascade reaches the terminal
+   * dayTotal (by playing through OR by skip), it retires its transport and shows
+   * a single advance affordance; tapping it fires `onComplete`. The route only
+   * happens here — never behind a running cascade. Required in reduced-motion
+   * too: steps snap, but the run still waits on the tap (agency over speed).
+   */
+  onComplete?: () => void;
+  /** Label for that single advance affordance (defaults to a collect-flavored verb). */
+  completeLabel?: string;
+}
+
+export function CascadeLayer({
+  gameState,
+  trace,
+  autoPlay = false,
+  rentDue = false,
+  onComplete,
+  completeLabel = 'Collect ▸',
+}: CascadeLayerProps) {
+  const reduced = useReducedMotion();
+  const { rows, cols } = gameState.shelf.size;
+  const player = useCascadePlayer({ events: trace.events, rentDue, autoPlay });
+  const { frame, currentEvent, stepIndex } = player;
+
+  const [frameWidth, setFrameWidth] = useState(0);
+  const layout = useMemo(
+    () => (frameWidth > 0 ? computeShelfLayout(frameWidth, rows, cols) : null),
+    [frameWidth, rows, cols],
+  );
+  const items = useMemo(() => seedItems(gameState, rows, cols), [gameState, rows, cols]);
+
+  const onLayout = useCallback((e: LayoutChangeEvent) => setFrameWidth(e.nativeEvent.layout.width), []);
+
+  const primaryLabel = player.playing ? 'Pause' : player.done ? 'Play again' : 'Play';
+  const onPrimary = () => {
+    if (player.playing) player.pause();
+    else if (player.done) player.restart();
+    else player.play();
+  };
+
+  return (
+    <View style={styles.wrap}>
+      <View style={styles.scene} onLayout={onLayout}>
+        {layout ? (
+          <View style={{ width: layout.frameWidth, height: layout.frameHeight }}>
+            <Board layout={layout} />
+
+            {/* persistent row auras (R-9) with their ×mult label (R-27) */}
+            {Object.entries(frame.auraRows).map(([row, mult]) => (
+              <RowAuraGlow key={`aura-${row}`} layout={layout} row={Number(row)} mult={mult} reduced={reduced} />
+            ))}
+
+            {/* items — sprite only; the cascade owns the scoring numbers */}
+            {items.map((item, index) =>
+              item ? (
+                <CascadeItem
+                  key={item.instanceId}
+                  item={item}
+                  index={index}
+                  layout={layout}
+                  frame={frame}
+                  reduced={reduced}
+                />
+              ) : null,
+            )}
+
+            {/* scoring tags — count-up on the beneficiary (R-6) */}
+            {items.map((item, index) => {
+              if (!item) return null;
+              const row = Math.floor(index / cols);
+              const col = index % cols;
+              const key = toSlotKey({ row, col });
+              const display = frame.slots[key];
+              if (!display || display.base === null) return null;
+              return (
+                <SlotTag
+                  key={`tag-${key}`}
+                  layout={layout}
+                  row={row}
+                  col={col}
+                  value={display.total ?? display.running ?? display.base}
+                  final={display.total !== null}
+                  active={frame.openSlot === key}
+                  reduced={reduced}
+                />
+              );
+            })}
+
+            {/* the current ruleFire arrow (remounts per step so it re-draws) */}
+            {currentEvent?.kind === 'ruleFire' ? (
+              <CascadeArrow
+                key={`arrow-${stepIndex}`}
+                from={slotCenter(layout, currentEvent.sourceSlot.row, currentEvent.sourceSlot.col)}
+                to={slotCenter(layout, currentEvent.targetSlot.row, currentEvent.targetSlot.col)}
+                color={arrowColor(currentEvent.sourceSlot, cols)}
+                reduced={reduced}
+              />
+            ) : null}
+          </View>
+        ) : null}
+
+        {frame.combo ? (
+          <View style={styles.bannerLayer} pointerEvents="none">
+            <ComboBanner
+              combo={frame.combo}
+              docked={frame.dayTotal !== null}
+              sceneWidth={frameWidth}
+              reduced={reduced}
+            />
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.footer}>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>DAY TOTAL</Text>
+          {frame.dayTotal !== null ? (
+            <CoinCounter coins={frame.dayTotal} from={0} animate slam variant="slam" />
+          ) : (
+            <View style={styles.totalPlaceholder}>
+              <Text style={styles.totalPlaceholderText}>—</Text>
+            </View>
+          )}
+        </View>
+
+        {/* R-36/R-39: once the cascade is done the transport retires and a single
+            advance affordance owns the beat. Skip jumps to the same done-state,
+            so this collect tap is always the one and only way past the cascade. */}
+        {player.done ? (
+          <WoodButton label={completeLabel} onPress={() => onComplete?.()} />
+        ) : (
+          <>
+            <SpeedControl speed={player.speed} onSpeed={player.setSpeed} onSkip={player.skip} />
+            <WoodButton label={primaryLabel} onPress={onPrimary} />
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function seedItems(gameState: GameState, rows: number, cols: number): (ItemInstance | null)[] {
+  const items: (ItemInstance | null)[] = new Array(rows * cols).fill(null);
+  for (const slotState of gameState.shelf.slots) {
+    items[slotState.slot.row * cols + slotState.slot.col] = slotState.item;
+  }
+  return items;
+}
+
+function arrowColor(source: Slot, cols: number): string {
+  const index = source.row * cols + source.col;
+  return arrowPalette[index % arrowPalette.length]!;
+}
+
+// ---------------------------------------------------------------------------
+
+function Board({ layout }: { layout: ShelfLayout }) {
+  const cells = [];
+  for (let row = 0; row < layout.rows; row += 1) {
+    const rowTop = FRAME_PADDING + row * layout.rowStride;
+    cells.push(
+      <View
+        key={`plank-${row}`}
+        style={[
+          styles.plank,
+          { left: FRAME_PADDING - 2, top: rowTop + layout.slotSize + 2, width: layout.frameWidth - (FRAME_PADDING - 2) * 2 },
+        ]}
+      />,
+    );
+    for (let col = 0; col < layout.cols; col += 1) {
+      const { x, y } = slotTopLeft(layout, row, col);
+      cells.push(
+        <View
+          key={`well-${row}-${col}`}
+          style={[styles.well, { left: x, top: y, width: layout.slotSize, height: layout.slotSize }]}
+        />,
+      );
+    }
+  }
+  return <View style={[styles.board, { width: layout.frameWidth, height: layout.frameHeight }]}>{cells}</View>;
+}
+
+interface CascadeItemProps {
+  item: ItemInstance;
+  index: number;
+  layout: ShelfLayout;
+  frame: CascadeFrame;
+  reduced: boolean;
+}
+
+/** Static sprite with the open-window highlight, transform glyph-swap, and vanish puff. */
+function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) {
+  const row = Math.floor(index / layout.cols);
+  const col = index % layout.cols;
+  const key = toSlotKey({ row, col });
+  const { x, y } = slotTopLeft(layout, row, col);
+
+  const transformed = frame.transformed[key];
+  const vanished = Boolean(frame.vanished[key]);
+  const glyph = glyphFor(transformed ? transformed.toItem : item.itemId);
+  const active = frame.openSlot === key;
+
+  const pop = useSharedValue(0);
+  useEffect(() => {
+    if (transformed) {
+      pop.value = reduced ? 0 : withSequence(withTiming(1, { duration: 130 }), withTiming(0, { duration: 200 }));
+    }
+  }, [transformed, reduced, pop]);
+
+  // vanish = a puff, not a plain fade: the sprite swells as it dissolves (R-38
+  // fixture path, motion-spec §4 "300ms puff before dayTotal").
+  const puff = useSharedValue(0);
+  useEffect(() => {
+    if (vanished) {
+      puff.value = reduced
+        ? 1
+        : withTiming(1, { duration: motion.durations.morph, easing: Easing.out(Easing.quad) });
+    }
+  }, [vanished, reduced, puff]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: 1 - puff.value,
+    transform: [
+      { scale: (1 + pop.value * 0.12) * (1 + puff.value * 0.35) },
+      { translateY: withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap }) },
+    ],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.item,
+        { left: x, top: y, width: layout.slotSize, height: layout.slotSize },
+        active && styles.itemActive,
+        style,
+      ]}
+    >
+      <ItemSprite item={item} glyph={glyph} size={layout.slotSize} hideValue />
+    </Animated.View>
+  );
+}
+
+interface SlotTagProps {
+  layout: ShelfLayout;
+  row: number;
+  col: number;
+  value: number;
+  final: boolean;
+  active: boolean;
+  reduced: boolean;
+}
+
+/** Gold scoring chip that count-ups toward `value`; the beneficiary is the one that moves. */
+function SlotTag({ layout, row, col, value, final, active, reduced }: SlotTagProps) {
+  const { x, y } = slotTopLeft(layout, row, col);
+  const display = useCountUp(value, reduced);
+
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = reduced ? 0 : withSequence(withTiming(1, { duration: 90 }), withTiming(0, { duration: 160 }));
+  }, [value, reduced, pulse]);
+
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: 1 + pulse.value * 0.18 }] }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.tag,
+        {
+          left: x + layout.slotSize / 2 - TAG_HALF,
+          top: y - spacing.xs,
+          borderColor: final ? palette.goldDeep : palette.parchmentEdge,
+        },
+        active && styles.tagActive,
+        style,
+      ]}
+    >
+      <Text style={styles.tagText}>{display}</Text>
+    </Animated.View>
+  );
+}
+
+function RowAuraGlow({
+  layout,
+  row,
+  mult,
+  reduced,
+}: {
+  layout: ShelfLayout;
+  row: number;
+  mult: number;
+  reduced: boolean;
+}) {
+  const { y } = slotTopLeft(layout, row, 0);
+  const sweep = useSharedValue(0);
+  useEffect(() => {
+    sweep.value = reduced ? 1 : withTiming(1, { duration: motion.durations.auraSweep });
+  }, [sweep, reduced]);
+
+  // R-33: the gold band rests at ~0.3 opacity. Only the fill fades — the ×mult
+  // label rides above it at full opacity so the attribution stays crisp (R-27).
+  const fillStyle = useAnimatedStyle(() => ({ opacity: 0.16 + sweep.value * 0.14 }));
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.auraRegion,
+        {
+          top: y - 3,
+          left: FRAME_PADDING - 3,
+          width: layout.frameWidth - (FRAME_PADDING - 3) * 2,
+          height: layout.slotSize + 6,
+        },
+      ]}
+    >
+      <Animated.View style={[styles.auraFill, fillStyle]} />
+      <View style={styles.auraLabel}>
+        <Text style={styles.auraLabelText}>×{mult}</Text>
+      </View>
+    </View>
+  );
+}
+
+const BANNER_DOCK_SCALE = 0.58;
+
+/**
+ * R-34: the trophy holds FULL opacity from its comboNamed event, then — when the
+ * dayTotal lands (`docked`) — physically docks to a small chip in the top-right
+ * corner so the slam owns the final beat. It never fades in place; it shrinks and
+ * moves aside, surviving the slam smaller.
+ */
+function ComboBanner({
+  combo,
+  docked,
+  sceneWidth,
+  reduced,
+}: {
+  combo: { comboId: string; slots: Slot[] };
+  docked: boolean;
+  sceneWidth: number;
+  reduced: boolean;
+}) {
+  const drop = useSharedValue(reduced ? 1 : 0);
+  const dock = useSharedValue(reduced && docked ? 1 : 0);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    drop.value = reduced ? 1 : withDelay(40, withSpring(1, motion.springs.settle));
+  }, [combo.comboId, reduced, drop]);
+
+  useEffect(() => {
+    dock.value = reduced ? (docked ? 1 : 0) : withTiming(docked ? 1 : 0, { duration: motion.durations.settle });
+  }, [docked, reduced, dock]);
+
+  const style = useAnimatedStyle(() => {
+    const enter = drop.value; // entrance 0→1
+    const d = dock.value; // hero 0 → chip 1
+    // Chip lands against the right edge: from centered, translate right by the
+    // gap between the scaled half-width and the scene's half-width.
+    const restX = sceneWidth > 0 && width > 0 ? sceneWidth / 2 - (width * BANNER_DOCK_SCALE) / 2 - spacing.sm : 0;
+    return {
+      opacity: enter, // full opacity once entered; docking never fades it
+      transform: [
+        { translateX: d * restX },
+        { translateY: -24 + enter * 24 - d * spacing.xs },
+        { scale: (0.9 + enter * 0.1) * (1 - d * (1 - BANNER_DOCK_SCALE)) },
+      ],
+    };
+  });
+
+  return (
+    <Animated.View
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      style={[styles.banner, style]}
+    >
+      <Text style={styles.bannerEyebrow}>NAMED COMBO</Text>
+      <Text style={styles.bannerTitle}>{prettifyCombo(combo.comboId)}</Text>
+    </Animated.View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/** rAF count-up toward `target`; snaps when reduced. One low-frequency number. */
+function useCountUp(target: number, reduced: boolean): number {
+  const [value, setValue] = useState(target);
+  useEffect(() => {
+    if (reduced) {
+      setValue(target);
+      return;
+    }
+    let from = value;
+    const startedAt = Date.now();
+    let raf = 0;
+    const step = () => {
+      const t = Math.min(1, (Date.now() - startedAt) / motion.durations.countUp);
+      const eased = 1 - (1 - t) * (1 - t);
+      setValue(Math.round(from + (target - from) * eased));
+      if (t < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+    // value read once at start as the tween origin; target drives restarts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, reduced]);
+  return value;
+}
+
+function prettifyCombo(comboId: string): string {
+  return comboId
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+const TAG_HALF = 18;
+
+const styles = StyleSheet.create({
+  wrap: {
+    gap: spacing.lg,
+    width: '100%',
+  },
+  scene: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  board: {
+    backgroundColor: palette.shelfWood,
+    borderColor: palette.woodDark,
+    borderRadius: radii.lg,
+    borderTopColor: palette.woodLight,
+    borderWidth: 3,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+  },
+  well: {
+    backgroundColor: palette.woodInset,
+    borderColor: palette.woodDark,
+    borderRadius: radii.sm,
+    borderTopColor: palette.shadow,
+    borderWidth: 1.5,
+    position: 'absolute',
+  },
+  plank: {
+    backgroundColor: palette.woodLight,
+    borderBottomColor: palette.woodDark,
+    borderBottomWidth: 2,
+    borderRadius: radii.xs,
+    borderTopColor: palette.sunlight,
+    borderTopWidth: 1,
+    height: PLANK_HEIGHT,
+    position: 'absolute',
+  },
+  item: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+    position: 'absolute',
+  },
+  itemActive: {
+    zIndex: 3,
+  },
+  tag: {
+    alignItems: 'center',
+    backgroundColor: palette.coinGold,
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+    minWidth: TAG_HALF * 2,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 1,
+    pointerEvents: 'none',
+    position: 'absolute',
+    zIndex: 5,
+    ...shadows.float,
+  },
+  tagActive: {
+    backgroundColor: palette.sunlight,
+  },
+  tagText: {
+    ...typeScale.coin,
+    color: palette.ink,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  auraRegion: {
+    pointerEvents: 'none',
+    position: 'absolute',
+    zIndex: 2,
+  },
+  auraFill: {
+    backgroundColor: palette.auraGold,
+    borderColor: palette.auraGoldEdge,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  auraLabel: {
+    backgroundColor: palette.auraGoldEdge,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+    position: 'absolute',
+    right: spacing.xs,
+    top: spacing.xs,
+  },
+  auraLabelText: {
+    ...typeScale.label,
+    color: palette.creamBright,
+    fontSize: 12,
+    letterSpacing: 0,
+  },
+  bannerLayer: {
+    alignItems: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: spacing.sm,
+    zIndex: 6,
+  },
+  banner: {
+    alignItems: 'center',
+    backgroundColor: palette.rentEmber,
+    borderColor: palette.emberDark,
+    borderRadius: radii.md,
+    borderWidth: 2,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    pointerEvents: 'none',
+    ...shadows.lifted,
+  },
+  bannerEyebrow: {
+    ...typeScale.label,
+    color: palette.sunlight,
+  },
+  bannerTitle: {
+    ...typeScale.title,
+    color: palette.creamBright,
+  },
+  footer: {
+    gap: spacing.lg,
+  },
+  totalRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.lg,
+    justifyContent: 'center',
+  },
+  totalLabel: {
+    ...typeScale.label,
+    color: palette.inkFaint,
+  },
+  totalPlaceholder: {
+    alignItems: 'center',
+    borderColor: palette.parchmentEdge,
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+    height: 44,
+    justifyContent: 'center',
+    minWidth: 72,
+  },
+  totalPlaceholderText: {
+    ...typeScale.display,
+    color: palette.inkFaint,
+  },
+});

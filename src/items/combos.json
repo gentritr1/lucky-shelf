@@ -1,0 +1,142 @@
+[
+  {
+    "comboId": "wine-and-dine",
+    "name": "Wine & Dine",
+    "center": { "kind": "item", "itemId": "wine-bottle" },
+    "adjacent": { "kind": "item", "itemId": "cheese-wheel" },
+    "count": 3
+  },
+  {
+    "comboId": "cheese-board",
+    "name": "Cheese Board",
+    "center": { "kind": "item", "itemId": "cheese-wheel" },
+    "adjacent": { "kind": "tag", "tag": "food" },
+    "count": 2
+  },
+  {
+    "comboId": "bakery-corner",
+    "name": "Bakery Corner",
+    "center": { "kind": "item", "itemId": "bread-loaf" },
+    "adjacent": { "kind": "tag", "tag": "food" },
+    "count": 2
+  },
+  {
+    "comboId": "tea-party",
+    "name": "Tea Party",
+    "center": { "kind": "item", "itemId": "tea-tin" },
+    "adjacent": { "kind": "tag", "tag": "sweet" },
+    "count": 2
+  },
+  {
+    "comboId": "sugar-rush",
+    "name": "Sugar Rush",
+    "center": { "kind": "tag", "tag": "sweet" },
+    "adjacent": { "kind": "tag", "tag": "sweet" },
+    "count": 2
+  },
+  {
+    "comboId": "cellar-door",
+    "name": "Cellar Door",
+    "center": { "kind": "item", "itemId": "wine-bottle" },
+    "adjacent": { "kind": "tag", "tag": "drink" },
+    "count": 2
+  },
+  {
+    "comboId": "cold-chain",
+    "name": "Cold Chain",
+    "center": { "kind": "item", "itemId": "ice-box" },
+    "adjacent": { "kind": "tag", "tag": "perishable" },
+    "count": 2
+  },
+  {
+    "comboId": "green-grocer",
+    "name": "Green Grocer",
+    "center": { "kind": "tag", "tag": "plant" },
+    "adjacent": { "kind": "tag", "tag": "perishable" },
+    "count": 2
+  },
+  {
+    "comboId": "aquascape",
+    "name": "Aquascape",
+    "center": { "kind": "item", "itemId": "fishbowl" },
+    "adjacent": { "kind": "tag", "tag": "plant" },
+    "count": 2
+  },
+  {
+    "comboId": "still-life",
+    "name": "Still Life",
+    "center": { "kind": "item", "itemId": "flower-vase" },
+    "adjacent": { "kind": "tag", "tag": "fancy" },
+    "count": 2
+  },
+  {
+    "comboId": "dont-sneeze",
+    "name": "Don't Sneeze",
+    "center": { "kind": "tag", "tag": "fragile" },
+    "adjacent": { "kind": "tag", "tag": "fragile" },
+    "count": 2
+  },
+  {
+    "comboId": "heirloom-row",
+    "name": "Heirloom Row",
+    "center": { "kind": "tag", "tag": "antique" },
+    "adjacent": { "kind": "tag", "tag": "antique" },
+    "count": 2
+  },
+  {
+    "comboId": "lucky-cluster",
+    "name": "Lucky Cluster",
+    "center": { "kind": "tag", "tag": "lucky" },
+    "adjacent": { "kind": "tag", "tag": "lucky" },
+    "count": 2
+  },
+  {
+    "comboId": "paper-trail",
+    "name": "Paper Trail",
+    "center": { "kind": "tag", "tag": "paper" },
+    "adjacent": { "kind": "tag", "tag": "paper" },
+    "count": 2
+  },
+  {
+    "comboId": "mood-lighting",
+    "name": "Mood Lighting",
+    "center": { "kind": "tag", "tag": "light" },
+    "adjacent": { "kind": "tag", "tag": "music" },
+    "count": 1
+  },
+  {
+    "comboId": "infinite-reflection",
+    "name": "Infinite Reflection",
+    "center": { "kind": "item", "itemId": "mirror" },
+    "adjacent": { "kind": "item", "itemId": "mirror" },
+    "count": 1
+  },
+  {
+    "comboId": "fire-sale",
+    "name": "Fire Sale",
+    "center": { "kind": "item", "itemId": "coupon-stack" },
+    "adjacent": { "kind": "item", "itemId": "price-gun" },
+    "count": 1
+  },
+  {
+    "comboId": "time-is-money",
+    "name": "Time Is Money",
+    "center": { "kind": "item", "itemId": "antique-clock" },
+    "adjacent": { "kind": "item", "itemId": "penny-jar" },
+    "count": 1
+  },
+  {
+    "comboId": "cat-and-fish",
+    "name": "Cat & Fish",
+    "center": { "kind": "item", "itemId": "shop-cat" },
+    "adjacent": { "kind": "item", "itemId": "fishbowl" },
+    "count": 1
+  },
+  {
+    "comboId": "two-cats",
+    "name": "Two Cats",
+    "center": { "kind": "item", "itemId": "maneki-neko" },
+    "adjacent": { "kind": "tag", "tag": "mascot" },
+    "count": 1
+  }
+]

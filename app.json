@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Lucky Shelf",
+    "slug": "lucky-shelf",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "scheme": "luckyshelf",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
+
