@@ -9,6 +9,7 @@ export { DraggableItem, type SceneShared } from './DraggableItem';
 export { haptic, cascadeStepHaptic } from './haptics';
 export { easings, spring, timing } from './motion';
 export { ITEM_GLYPHS, glyphFor } from './glyphs';
+export { ITEM_SPRITES, spriteFor, hasSprite } from './sprites';
 export { goldenFixtures, stickyArrangeState } from './goldens';
 export { useSkiaReady, ensureSkiaLoaded } from './skiaWeb';
 export {

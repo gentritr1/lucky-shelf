@@ -8,6 +8,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.gentlegen.luckyshelf",
       "supportsTablet": false
     },
     "android": {
@@ -25,4 +26,3 @@
     }
   }
 }
-

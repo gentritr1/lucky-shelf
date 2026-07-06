@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
 import { OfferCard, SectionLabel, WoodButton, palette, spacing, typeScale, type OfferCardData } from '@/ui';
-import { glyphFor } from '@/juice';
+import { glyphFor, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 
@@ -94,12 +94,14 @@ interface DraftOfferCard extends OfferCardData {
 }
 
 function offerToCard(offer: DeliveryOffer): DraftOfferCard {
+  const sprite = spriteFor(offer.item.id);
   return {
     offerId: offer.offerId,
     name: offer.item.name,
     tier: offer.item.tier,
     baseValue: offer.item.baseValue,
     glyph: glyphFor(offer.item.id),
+    ...(sprite !== null ? { sprite } : {}),
     tags: offer.item.tags,
   };
 }

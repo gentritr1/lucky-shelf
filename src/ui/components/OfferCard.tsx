@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { palette, radii, shadows, spacing, typeScale } from '../tokens';
 
@@ -7,6 +7,8 @@ export interface OfferCardData {
   tier: 1 | 2 | 3 | 4;
   baseValue: number;
   glyph: string;
+  /** Resolved sprite source (app layer supplies it); falls back to `glyph`. */
+  sprite?: number;
   tags: readonly string[];
 }
 
@@ -28,7 +30,11 @@ export function OfferCard({ offer, selected = false, onPress }: OfferCardProps) 
         pressed && styles.pressed,
       ]}
     >
-      <Text style={styles.glyph}>{offer.glyph}</Text>
+      {offer.sprite ? (
+        <Image source={offer.sprite} style={styles.sprite} resizeMode="cover" />
+      ) : (
+        <Text style={styles.glyph}>{offer.glyph}</Text>
+      )}
       <Text numberOfLines={1} style={styles.name}>
         {offer.name}
       </Text>
@@ -74,6 +80,11 @@ const styles = StyleSheet.create({
   },
   glyph: {
     fontSize: 40,
+  },
+  sprite: {
+    borderRadius: radii.sm,
+    height: 52,
+    width: 52,
   },
   name: {
     ...typeScale.label,

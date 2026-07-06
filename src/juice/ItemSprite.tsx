@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -14,6 +14,7 @@ import Animated, {
 import type { ItemInstance } from '@/contracts';
 import { palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
+import { spriteFor } from './sprites';
 
 /**
  * The item as it sits on the shelf — a chunky hand-painted miniature stand-in
@@ -87,6 +88,7 @@ export function ItemSprite({ item, glyph, size, hideValue = false }: ItemSpriteP
 
   const plinth = Math.round(size * 0.82);
   const glyphSize = Math.round(size * 0.5);
+  const sprite = spriteFor(item.itemId);
 
   return (
     <Animated.View style={[styles.wrap, animStyle, noPointer]}>
@@ -98,7 +100,15 @@ export function ItemSprite({ item, glyph, size, hideValue = false }: ItemSpriteP
           item.state.blocked && styles.blocked,
         ]}
       >
-        <Text style={[styles.glyph, { fontSize: glyphSize }]}>{glyph}</Text>
+        {sprite ? (
+          <Image
+            source={sprite}
+            style={{ width: plinth, height: plinth, borderRadius: radii.md }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text style={[styles.glyph, { fontSize: glyphSize }]}>{glyph}</Text>
+        )}
       </View>
       {hideValue ? null : (
         <View style={styles.valueBadge}>

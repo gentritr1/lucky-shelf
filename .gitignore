@@ -4,6 +4,11 @@ node_modules/
 dist/
 build/
 coverage/
+
+# Generated native projects (expo prebuild) — 1GB+ with Pods/build; regenerate
+# with `expo prebuild`. Do not commit.
+/ios/
+/android/
 .DS_Store
 *.log
 *.tsbuildinfo

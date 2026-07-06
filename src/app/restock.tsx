@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,7 +17,7 @@ import {
   typeScale,
   type OfferCardData,
 } from '@/ui';
-import { ITEM_GLYPHS, ShelfScene, glyphFor } from '@/juice';
+import { ITEM_GLYPHS, ShelfScene, glyphFor, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 
@@ -134,7 +134,15 @@ export default function RestockScreen() {
                   onPress={() => sell(slotState.slot)}
                   style={({ pressed }) => [styles.sellCard, pressed && styles.pressed]}
                 >
-                  <Text style={styles.sellGlyph}>{glyphFor(slotState.item.itemId)}</Text>
+                  {spriteFor(slotState.item.itemId) ? (
+                    <Image
+                      source={spriteFor(slotState.item.itemId) as number}
+                      style={styles.sellSprite}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text style={styles.sellGlyph}>{glyphFor(slotState.item.itemId)}</Text>
+                  )}
                   <Text numberOfLines={1} style={styles.sellName}>{slotState.item.name}</Text>
                   <View style={styles.sellTag}>
                     <View style={styles.coinDot} />
@@ -210,6 +218,7 @@ interface RestockOfferCard extends OfferCardData {
 }
 
 function offerToCard(offer: DeliveryOffer): RestockOfferCard {
+  const sprite = spriteFor(offer.item.id);
   return {
     offerId: offer.offerId,
     name: offer.item.name,
@@ -217,6 +226,7 @@ function offerToCard(offer: DeliveryOffer): RestockOfferCard {
     baseValue: offer.item.baseValue,
     cost: offer.cost,
     glyph: glyphFor(offer.item.id),
+    ...(sprite !== null ? { sprite } : {}),
     tags: offer.item.tags,
   };
 }
@@ -346,6 +356,11 @@ const styles = StyleSheet.create({
   },
   sellGlyph: {
     fontSize: 34,
+  },
+  sellSprite: {
+    borderRadius: radii.sm,
+    height: 44,
+    width: 44,
   },
   sellName: {
     ...typeScale.label,
