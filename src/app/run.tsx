@@ -14,7 +14,7 @@ import {
   spacing,
   typeScale,
 } from '@/ui';
-import { CascadeLayer, ITEM_GLYPHS, ShelfScene } from '@/juice';
+import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene } from '@/juice';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 
@@ -90,6 +90,8 @@ export default function RunHudScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+      {/* rent proximity felt as warmth (behind content); hidden during cascade */}
+      {cascadeMount ? null : <DuskAmbience dueInDays={hudState.rent.dueInDays} />}
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
           <Text style={styles.back}>‹ Menu</Text>

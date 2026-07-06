@@ -61,6 +61,7 @@ export default function TitleScreen() {
       <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.xl }]}>
         <WoodButton label="New Run" onPress={onNewRun} />
         <WoodButton label="Continue" variant="secondary" onPress={onContinue} />
+        <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
       </View>
     </View>
   );

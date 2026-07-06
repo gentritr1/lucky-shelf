@@ -6,17 +6,27 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CoinCounter, WoodButton, palette, spacing, typeScale } from '@/ui';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
+import { useCatalogStore } from '../state/catalogStore';
 
 export default function RunSummaryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const gameState = useRunStore(runSelectors.gameState);
   const startNewRun = useRunStore((state) => state.startNewRun);
+  const recordRunEnd = useCatalogStore((state) => state.recordRunEnd);
 
   useEffect(() => {
     const route = routeForGameState(gameState);
     if (route !== '/summary') router.replace(route);
   }, [gameState, router]);
+
+  // Fold this finished run into the permanent catalog (guarded by runId, so a
+  // re-mount can't double-count). This is the M4 merge point.
+  useEffect(() => {
+    void recordRunEnd(gameState).catch(() => undefined);
+  }, [recordRunEnd, gameState]);
+
+  const combosThisRun = gameState.catalogDelta.discoveredComboIds.length;
 
   const newRun = () => {
     const result = startNewRun();
@@ -49,10 +59,15 @@ export default function RunSummaryScreen() {
           <Text style={styles.statLabel}>Best day</Text>
           <Text style={styles.statValue}>{gameState.runStats.bestDayTotal}c</Text>
         </View>
+        <View style={styles.statRow}>
+          <Text style={styles.statLabel}>Combos this run</Text>
+          <Text style={styles.statValue}>{combosThisRun}</Text>
+        </View>
       </View>
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.lg }]}>
         <WoodButton label="New Run" onPress={newRun} />
+        <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
       </View>
     </View>
   );
@@ -111,6 +126,7 @@ const styles = StyleSheet.create({
     color: palette.ink,
   },
   actions: {
+    gap: spacing.md,
     marginTop: 'auto',
   },
 });

@@ -348,6 +348,34 @@ export const CatalogDeltaSchema = z
   })
   .strict();
 
+/**
+ * The permanent Catalog — the collection meta (kickoff §1). Additive to the
+ * frozen contract (GameState/Action/TraceEvent unchanged); Fable-approved M4.
+ * Every item ever seen, every named combo ever fired (with counts), best-run
+ * stats. Persisted across runs, outside the seeded run state.
+ */
+export const CatalogSchemaVersion = 1;
+
+export const CatalogStatsSchema = z
+  .object({
+    runsPlayed: nonNegativeIntSchema,
+    bestDayTotal: positiveMoneySchema,
+    deepestRentSurvived: nonNegativeIntSchema,
+    mostCoinsInARun: positiveMoneySchema,
+    totalCoinsAllTime: positiveMoneySchema,
+  })
+  .strict();
+
+export const CatalogSchema = z
+  .object({
+    schemaVersion: z.literal(CatalogSchemaVersion),
+    discoveredItemIds: z.array(idSchema),
+    achievedComboIds: z.array(idSchema),
+    comboCounts: z.record(idSchema, nonNegativeIntSchema),
+    stats: CatalogStatsSchema,
+  })
+  .strict();
+
 export const TraceEventSchema = z.discriminatedUnion('kind', [
   z
     .object({
@@ -544,6 +572,8 @@ export type RentState = z.infer<typeof RentStateSchema>;
 export type MoveState = z.infer<typeof MoveStateSchema>;
 export type RunStats = z.infer<typeof RunStatsSchema>;
 export type CatalogDelta = z.infer<typeof CatalogDeltaSchema>;
+export type CatalogStats = z.infer<typeof CatalogStatsSchema>;
+export type Catalog = z.infer<typeof CatalogSchema>;
 export type TraceEvent = z.infer<typeof TraceEventSchema>;
 export type ScoringTrace = z.infer<typeof ScoringTraceSchema>;
 export type GamePhase = z.infer<typeof GamePhaseSchema>;
@@ -574,4 +604,24 @@ export function parseFixture(value: unknown): Fixture {
 
 export function parseFixtureCollection(value: unknown): FixtureCollection {
   return FixtureCollectionSchema.parse(value);
+}
+
+export function parseCatalog(value: unknown): Catalog {
+  return CatalogSchema.parse(value);
+}
+
+export function emptyCatalog(): Catalog {
+  return {
+    schemaVersion: CatalogSchemaVersion,
+    discoveredItemIds: [],
+    achievedComboIds: [],
+    comboCounts: {},
+    stats: {
+      runsPlayed: 0,
+      bestDayTotal: 0,
+      deepestRentSurvived: 0,
+      mostCoinsInARun: 0,
+      totalCoinsAllTime: 0,
+    },
+  };
 }
