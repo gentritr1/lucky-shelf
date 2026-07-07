@@ -56,7 +56,7 @@ export default function DraftScreen() {
       {/* morning-delivery room behind everything; the opaque offer cards and the
           wood button ride on top, the scrim keeps the caption text readable */}
       <Image
-        source={require('../../assets/scene/room-delivery.png')}
+        source={require('../../assets/scene/room-delivery.jpg')}
         style={StyleSheet.absoluteFill}
         resizeMode="cover"
       />

@@ -63,7 +63,7 @@ export default function TitleScreen() {
       {/* painted general-store room — the title hero (no gameplay furniture to
           clash with here, so the full scene can breathe) */}
       <Image
-        source={require('../../assets/scene/room-day.png')}
+        source={require('../../assets/scene/room-day.jpg')}
         style={StyleSheet.absoluteFill}
         resizeMode="cover"
       />
