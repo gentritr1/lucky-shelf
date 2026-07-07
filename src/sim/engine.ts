@@ -1,5 +1,6 @@
 import type {
   Action,
+  DailyOrder,
   DeliveryOffer,
   GameState,
   ItemInstance,
@@ -10,17 +11,48 @@ import type { ItemTable, NamedCombo } from '../items';
 import { itemDefinition } from '../items';
 
 import {
+  DEMAND_COUNT,
+  DEMAND_ENABLED,
+  DEMAND_TAG_POOL,
   FREE_MOVES_PER_DAY,
   RENT_PERIOD_DAYS,
   REROLL_COST,
+  SPOTLIGHT_ENABLED,
   STARTING_RENT,
   generateOffers,
+  loopV2Enabled,
   nextRentAmount,
   paidMoveCost,
   sellPrice,
+  startingCoins,
 } from './economy';
 import { buildSlotMap, occupiedNeighbors, rowMajorSlots, slotStateAt } from './grid';
+import { rngFor } from './rng';
 import { resolveOpenShop } from './scoring';
+
+/**
+ * PROTOTYPE (Front Window): the day's spotlight slot, chosen deterministically
+ * from (seed + day) so it fits the replay/trace model — no RNG cursor in state.
+ * Returns null when the flag is off, which keeps GameState.spotlight absent and
+ * scoring unchanged.
+ */
+export function pickSpotlight(seed: string, day: number, size: { rows: number; cols: number }): Slot | null {
+  if (!SPOTLIGHT_ENABLED) return null;
+  return rngFor(seed, 'spotlight', day).pick(rowMajorSlots(size));
+}
+
+/**
+ * PROTOTYPE (Today's Order): the collection demand, chosen deterministically from
+ * (seed + rent cycle) so it HOLDS FOR THE WHOLE 3-day rent cycle. Keying on the
+ * day made it re-roll faster than one draft/day could fill it — an unfillable
+ * goal at any magnitude; keying on the cycle turns it into a real multi-delivery
+ * chase. Null when the flag is off, keeping GameState.dailyOrder absent and
+ * scoring unchanged.
+ */
+export function pickCycleOrder(seed: string, cycle: number): DailyOrder | null {
+  if (!DEMAND_ENABLED || DEMAND_TAG_POOL.length === 0) return null;
+  return { tag: rngFor(seed, 'order', cycle).pick(DEMAND_TAG_POOL), count: DEMAND_COUNT };
+}
 
 /**
  * The dispatcher: `dispatch(state, action) → GameState` is the only mutation
@@ -73,7 +105,7 @@ export function createRun(seed: string, deps: EngineDeps): GameState {
     seed,
     phase: 'delivery',
     day: 1,
-    coins: 0,
+    coins: startingCoins(),
     shelf: {
       size: { rows: 3, cols: 4 },
       slots: rowMajorSlots({ rows: 3, cols: 4 }).map((slot) => ({ slot, item: null })),
@@ -91,6 +123,8 @@ export function createRun(seed: string, deps: EngineDeps): GameState {
       bestComboIds: [],
     },
     catalogDelta: { discoveredItemIds: [], discoveredComboIds: [] },
+    spotlight: pickSpotlight(seed, 1, { rows: 3, cols: 4 }),
+    dailyOrder: pickCycleOrder(seed, 1),
   };
 }
 
@@ -104,6 +138,22 @@ function addUnique(list: string[], values: readonly string[]): string[] {
   const merged = new Set(list);
   for (const value of values) merged.add(value);
   return [...merged];
+}
+
+function occupiedSlotCount(state: GameState): number {
+  return state.shelf.slots.filter((entry) => entry.item !== null).length;
+}
+
+function isLoopV2StarterPlacement(state: GameState): boolean {
+  return (
+    loopV2Enabled() &&
+    state.phase === 'arrange' &&
+    state.day === 1 &&
+    state.runStats.daysSurvived === 0 &&
+    state.currentOffers.length === 0 &&
+    state.heldItem === null &&
+    occupiedSlotCount(state) === 1
+  );
 }
 
 export function dispatch(state: GameState, action: Action, deps: EngineDeps): GameState {
@@ -131,6 +181,10 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       if (slotState.item) throw new EngineError(`Slot ${toSlotKey(action.slot)} is occupied.`);
       slotState.item = next.heldItem;
       next.heldItem = null;
+      if (isLoopV2StarterPlacement(next)) {
+        next.phase = 'restock';
+        next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, '');
+      }
       return next;
     }
 
@@ -244,12 +298,19 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       }
 
       next.day = scoredDay + 1;
+      next.spotlight = pickSpotlight(next.seed, next.day, next.shelf.size);
+      // Order is keyed on the (already-updated) rent cycle, so it stays fixed
+      // across the cycle's 3 deliveries and only rotates when rent resets.
+      next.dailyOrder = pickCycleOrder(next.seed, next.rent.cycle);
       next.moves = {
         freeRemaining: FREE_MOVES_PER_DAY,
         paidMoveCost: paidMoveCost(next.rent.cycle),
       };
 
-      if (scoredDay % 3 === 0) {
+      if (loopV2Enabled()) {
+        next.phase = 'restock';
+        next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, '');
+      } else if (scoredDay % 3 === 0) {
         next.phase = 'restock';
         next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, '');
       } else {
@@ -283,6 +344,11 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
     case 'endRestock': {
       requirePhase(next, 'restock');
       if (next.heldItem) throw new EngineError('Place the held item before ending restock.');
+      if (loopV2Enabled()) {
+        next.phase = 'arrange';
+        next.currentOffers = [];
+        return next;
+      }
       next.phase = 'delivery';
       next.currentOffers = generateOffers(next.seed, next.day, 'delivery', deps.table, '');
       return next;

@@ -4,7 +4,7 @@ import {
   type Action,
   type GameState,
 } from '../contracts';
-import { loadCombos, loadItemTable } from '../items';
+import { isSignatureItem, loadCombos, loadItemTable } from '../items';
 import { EngineError, createRun, dispatch as engineDispatch, hashState } from '../sim';
 import type { EngineDeps } from '../sim';
 import type { LoadActiveRunStatus, RunPersistence } from '../persistence';
@@ -43,6 +43,12 @@ export const runSelectors = {
   moves: (state: RunStoreState) => state.gameState.moves,
   phase: (state: RunStoreState) => state.gameState.phase,
   offers: (state: RunStoreState) => state.gameState.currentOffers,
+  signatureOffers: (state: RunStoreState) =>
+    state.gameState.currentOffers.filter((offer) => isSignatureItem(offer.item)),
+  isSignatureOffer: (offerId: string) => (state: RunStoreState) =>
+    state.gameState.currentOffers.some(
+      (offer) => offer.offerId === offerId && isSignatureItem(offer.item),
+    ),
   lastScoringTrace: (state: RunStoreState) => state.gameState.lastScoringTrace,
   lastRejectedAction: (state: RunStoreState) => state.lastRejectedAction,
   rejectedActionCount: (state: RunStoreState) => state.rejectedActionCount,

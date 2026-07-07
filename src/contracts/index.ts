@@ -292,6 +292,45 @@ export const ItemRuleSchema = z.discriminatedUnion('kind', [
       grantAdjacent: RuleDeltaSchema,
     })
     .strict(),
+  // CCR-2 additions (pending Fable sign-off): signature stock rules. These
+  // resolve after ordinary item windows when SIGNATURE_ITEMS_ENABLED is on.
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('tagFilteredShelfMultiplier'),
+      tag: idSchema,
+      mult: z.number().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('flatPerTagCount'),
+      tag: idSchema,
+      flatPerItem: moneySchema,
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('copyHighestScoringOther'),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('shelfMultiplierIfAnyTagCount'),
+      minCount: positiveIntSchema,
+      mult: z.number().positive(),
+    })
+    .strict(),
+  z
+    .object({
+      ruleId: idSchema,
+      kind: z.literal('highestBaseValueMultiplier'),
+      mult: z.number().positive(),
+    })
+    .strict(),
 ]);
 
 export const ItemDefinitionSchema = z
@@ -305,6 +344,9 @@ export const ItemDefinitionSchema = z
     // Fable-authored upgrade graph: tier upgrades (e.g. Lucky Bamboo) resolve to
     // this concrete item id. Items without it are not upgradeable. (Freeze R-4)
     upgradesToItemId: idSchema.optional(),
+    // Signature stock is a Phase 2c shop/scoring prototype. Optional so v1
+    // saves, fixtures, and non-signature items remain contract-compatible.
+    isSignature: z.boolean().optional(),
   })
   .strict();
 
@@ -468,6 +510,18 @@ export const GamePhaseSchema = z.enum([
   'gameOver',
 ]);
 
+// PROTOTYPE (Today's Order): the day's collection demand — fill the shelf with
+// `count` items carrying `tag` to earn a set bonus. Additive/optional like
+// `spotlight`, so no ContractSchemaVersion bump and no save wipe.
+export const DailyOrderSchema = z
+  .object({
+    tag: idSchema,
+    count: positiveIntSchema,
+  })
+  .strict();
+
+export type DailyOrder = z.infer<typeof DailyOrderSchema>;
+
 export const GameStateSchema = z
   .object({
     schemaVersion: z.literal(ContractSchemaVersion),
@@ -484,6 +538,13 @@ export const GameStateSchema = z
     lastScoringTrace: ScoringTraceSchema.nullable(),
     runStats: RunStatsSchema,
     catalogDelta: CatalogDeltaSchema,
+    // PROTOTYPE (Front Window): the day's spotlight slot. Optional + additive so
+    // v1 saves and M0 fixtures that omit it still parse — no ContractSchemaVersion
+    // bump, no save wipe. Absent/null = no spotlight this day (flag off).
+    spotlight: SlotSchema.nullable().optional(),
+    // PROTOTYPE (Today's Order): the day's collection demand. Same additive/optional
+    // save-safety as `spotlight`. Absent/null = no order this day (flag off).
+    dailyOrder: DailyOrderSchema.nullable().optional(),
   })
   .strict();
 

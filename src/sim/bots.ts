@@ -1,7 +1,9 @@
 import type { Action, GameState } from '../contracts';
+import { isSignatureItem } from '../items';
 
 import type { EngineDeps } from './engine';
 import { createRun, dispatch, legalActions } from './engine';
+import { loopV2Enabled } from './economy';
 import { resolveOpenShop } from './scoring';
 import { rngFor } from './rng';
 
@@ -18,6 +20,18 @@ export interface BotRun {
   strategy: StrategyName;
   actions: Action[];
   finalState: GameState;
+  metrics: BotRunMetrics;
+}
+
+export interface BotRunMetrics {
+  scoredDays: number;
+  orderMetDays: number;
+  spotlightHitDays: number;
+  itemsBought: number;
+  signatureItemsBought: number;
+  signatureItemsBoughtById: Record<string, number>;
+  occupancyByDay: Record<string, number>;
+  itemsBoughtByDay: Record<string, number>;
 }
 
 function nonQuitting(actions: readonly Action[]): Action[] {
@@ -111,11 +125,11 @@ function chooseAction(
   }
 
   if (state.phase === 'restock') {
-    // Buy the best-value affordable offer once, then leave.
+    // V1 restock is conservative; v2 daily shops spend until coins or slots stop it.
     const buys = legal.filter(
       (action): action is Extract<Action, { type: 'buyOffer' }> => action.type === 'buyOffer',
     );
-    if (buys.length > 0 && rng.next() < 0.6) {
+    if (buys.length > 0 && (loopV2Enabled() || rng.next() < 0.6)) {
       let best = buys[0] as Action;
       let bestScore = -1;
       for (const buy of buys) {
@@ -139,6 +153,32 @@ function chooseAction(
   return rng.pick(legal);
 }
 
+function orderIsMet(state: GameState): boolean {
+  const order = state.dailyOrder;
+  if (!order) return false;
+  const matches = state.shelf.slots.filter((entry) => entry.item?.tags.includes(order.tag)).length;
+  return matches >= order.count;
+}
+
+function spotlightIsOccupied(state: GameState): boolean {
+  const spotlight = state.spotlight;
+  if (!spotlight) return false;
+  return Boolean(
+    state.shelf.slots.find(
+      (entry) => entry.slot.row === spotlight.row && entry.slot.col === spotlight.col,
+    )?.item,
+  );
+}
+
+function shelfOccupancy(state: GameState): number {
+  return state.shelf.slots.filter((entry) => entry.item !== null).length;
+}
+
+function incrementDayMetric(metrics: Record<string, number>, day: number): void {
+  const key = String(day);
+  metrics[key] = (metrics[key] ?? 0) + 1;
+}
+
 export function playRun(
   seed: string,
   strategy: StrategyName,
@@ -147,11 +187,36 @@ export function playRun(
 ): BotRun {
   let state = createRun(seed, deps);
   const actions: Action[] = [];
+  const metrics: BotRunMetrics = {
+    scoredDays: 0,
+    orderMetDays: 0,
+    spotlightHitDays: 0,
+    itemsBought: 0,
+    signatureItemsBought: 0,
+    signatureItemsBoughtById: {},
+    occupancyByDay: {},
+    itemsBoughtByDay: {},
+  };
   for (let step = 0; step < maxActions && state.phase !== 'gameOver'; step += 1) {
     const action = chooseAction(state, strategy, deps, step);
     if (!action) break;
+    if (action.type === 'openShop') {
+      metrics.scoredDays += 1;
+      metrics.occupancyByDay[String(state.day)] = shelfOccupancy(state);
+      if (orderIsMet(state)) metrics.orderMetDays += 1;
+      if (spotlightIsOccupied(state)) metrics.spotlightHitDays += 1;
+    } else if (action.type === 'buyOffer') {
+      const offer = state.currentOffers[action.offerIndex];
+      metrics.itemsBought += 1;
+      incrementDayMetric(metrics.itemsBoughtByDay, state.day);
+      if (offer && isSignatureItem(offer.item)) {
+        metrics.signatureItemsBought += 1;
+        metrics.signatureItemsBoughtById[offer.item.id] =
+          (metrics.signatureItemsBoughtById[offer.item.id] ?? 0) + 1;
+      }
+    }
     actions.push(action);
     state = dispatch(state, action, deps);
   }
-  return { seed, strategy, actions, finalState: state };
+  return { seed, strategy, actions, finalState: state, metrics };
 }

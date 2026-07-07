@@ -21,7 +21,11 @@ describe('determinism', () => {
     expect(hash).toBe(hashState(bot.finalState));
     // Pinned: any engine change that shifts scoring, RNG derivation, offer
     // generation, or rollover order must consciously update this value.
-    expect(hash).toMatchInlineSnapshot(`"768bffb34531c49d"`);
+    // Updated for the Front Window spotlight prototype (adds a per-day
+    // rngFor(seed,'spotlight',day) derivation + a spotlight scoring mult) and
+    // the Today's Order prototype (a per-cycle rngFor(seed,'order',cycle)
+    // derivation + a set-bonus scoring mult; order re-keyed day→cycle + count 3→2).
+    expect(hash).toMatchInlineSnapshot(`"8d48e1c5a6ad14c9"`);
   });
 
   it('200 random-action replays hash identically when run twice', () => {

@@ -13,6 +13,7 @@ import { toSlotKey } from '../contracts';
 import type { ItemTable, NamedCombo } from '../items';
 import { itemDefinition } from '../items';
 
+import { DEMAND_MULT, SPOTLIGHT_MULT, signatureItemsEnabled } from './economy';
 import {
   buildSlotMap,
   compareSlots,
@@ -53,6 +54,12 @@ interface AmbientAura {
   mult: number;
 }
 
+interface ScoredSlot {
+  slot: Slot;
+  item: ItemInstance;
+  total: number;
+}
+
 export interface ScoringResult {
   trace: ScoringTrace;
   shelfAfter: Shelf;
@@ -79,6 +86,168 @@ function flatDelta(amount: number): RuleDelta {
 
 function multDelta(amount: number): RuleDelta {
   return { mult: amount };
+}
+
+function scoredSlots(occupied: readonly SlotState[], totals: ReadonlyMap<string, number>): ScoredSlot[] {
+  return occupied
+    .filter((entry): entry is SlotState & { item: ItemInstance } => Boolean(entry.item))
+    .map((entry) => ({
+      slot: entry.slot,
+      item: entry.item,
+      total: totals.get(toSlotKey(entry.slot)) ?? 0,
+    }));
+}
+
+function tagCounts(slots: readonly ScoredSlot[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const entry of slots) {
+    for (const tag of entry.item.tags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function applySignatureFlat(
+  events: TraceEvent[],
+  totals: Map<string, number>,
+  sourceSlot: Slot,
+  targetSlot: Slot,
+  ruleId: string,
+  amount: number,
+): void {
+  if (amount === 0) return;
+  const key = toSlotKey(targetSlot);
+  const current = totals.get(key);
+  if (current === undefined) return;
+  const next = Math.max(0, Math.floor(current + amount));
+  totals.set(key, next);
+  events.push({
+    kind: 'ruleFire',
+    sourceSlot,
+    targetSlot,
+    ruleId,
+    delta: flatDelta(amount),
+    runningTotal: next,
+  });
+  events.push({ kind: 'itemTotal', slot: targetSlot, total: next });
+}
+
+function applySignatureMult(
+  events: TraceEvent[],
+  totals: Map<string, number>,
+  sourceSlot: Slot,
+  targetSlot: Slot,
+  ruleId: string,
+  mult: number,
+): void {
+  if (mult === 1) return;
+  const key = toSlotKey(targetSlot);
+  const current = totals.get(key);
+  if (current === undefined) return;
+  const next = Math.max(0, Math.floor(current * mult));
+  totals.set(key, next);
+  events.push({
+    kind: 'ruleFire',
+    sourceSlot,
+    targetSlot,
+    ruleId,
+    delta: multDelta(mult),
+    runningTotal: next,
+  });
+  events.push({ kind: 'itemTotal', slot: targetSlot, total: next });
+}
+
+function hasSignatureRule(definition: ItemDefinition): boolean {
+  return definition.rules.some(
+    (rule) =>
+      rule.kind === 'tagFilteredShelfMultiplier' ||
+      rule.kind === 'flatPerTagCount' ||
+      rule.kind === 'copyHighestScoringOther' ||
+      rule.kind === 'shelfMultiplierIfAnyTagCount' ||
+      rule.kind === 'highestBaseValueMultiplier',
+  );
+}
+
+function applySignatureRules(
+  occupied: readonly SlotState[],
+  totals: Map<string, number>,
+  events: TraceEvent[],
+  table: ItemTable,
+): void {
+  if (!signatureItemsEnabled()) return;
+
+  const sources = scoredSlots(occupied, totals).filter((entry) =>
+    hasSignatureRule(itemDefinition(table, entry.item.itemId)),
+  );
+  if (sources.length === 0) return;
+
+  // Signature rules are post-window effects. Copy/highest selection reads this
+  // settled snapshot so multiple signature items cannot form circular copies.
+  const baselineTotals = new Map(totals);
+
+  for (const source of sources) {
+    const rules = itemDefinition(table, source.item.itemId).rules;
+    for (const rule of rules) {
+      const currentSlots = scoredSlots(occupied, totals);
+      switch (rule.kind) {
+        case 'tagFilteredShelfMultiplier': {
+          for (const target of currentSlots) {
+            if (!target.item.tags.includes(rule.tag)) continue;
+            applySignatureMult(events, totals, source.slot, target.slot, rule.ruleId, rule.mult);
+          }
+          break;
+        }
+        case 'flatPerTagCount': {
+          const count = currentSlots.filter((target) => target.item.tags.includes(rule.tag)).length;
+          if (count === 0) break;
+          applySignatureFlat(
+            events,
+            totals,
+            source.slot,
+            source.slot,
+            rule.ruleId,
+            count * rule.flatPerItem,
+          );
+          break;
+        }
+        case 'copyHighestScoringOther': {
+          const best = currentSlots
+            .filter((target) => !sameSlot(target.slot, source.slot))
+            .map((target) => ({
+              ...target,
+              total: baselineTotals.get(toSlotKey(target.slot)) ?? 0,
+            }))
+            .sort((a, b) => b.total - a.total || compareSlots(a.slot, b.slot))[0];
+          if (!best || best.total <= 0) break;
+          applySignatureFlat(events, totals, best.slot, source.slot, rule.ruleId, best.total);
+          break;
+        }
+        case 'shelfMultiplierIfAnyTagCount': {
+          const met = [...tagCounts(currentSlots).values()].some((count) => count >= rule.minCount);
+          if (!met) break;
+          for (const target of currentSlots) {
+            applySignatureMult(events, totals, source.slot, target.slot, rule.ruleId, rule.mult);
+          }
+          break;
+        }
+        case 'highestBaseValueMultiplier': {
+          const best = currentSlots
+            .filter((target) => !sameSlot(target.slot, source.slot) && target.item.baseValue > 0)
+            .sort(
+              (a, b) =>
+                b.item.baseValue - a.item.baseValue ||
+                compareSlots(a.slot, b.slot),
+            )[0];
+          if (!best) break;
+          applySignatureMult(events, totals, source.slot, best.slot, rule.ruleId, rule.mult);
+          break;
+        }
+        default:
+          break;
+      }
+    }
+  }
 }
 
 export function resolveOpenShop(
@@ -198,6 +367,14 @@ export function resolveOpenShop(
       (a, b) => compareSlots(a.sourceSlot, b.sourceSlot) || a.ruleId.localeCompare(b.ruleId),
     );
   }
+
+  // PROTOTYPE (Today's Order): the demand is a shelf-wide set check, known before
+  // any window resolves (like ambient auras). If enough tagged items are placed,
+  // every matching item's window gets the bonus mult.
+  const order = state.dailyOrder ?? null;
+  const orderMet = order
+    ? occupied.filter((entry) => entry.item?.tags.includes(order.tag)).length >= order.count
+    : false;
 
   // --- Resolve slot windows. ---
   const resolvedTotals = new Map<string, number>();
@@ -378,10 +555,47 @@ export function resolveOpenShop(
       running = Math.floor(running * aura.mult);
     }
 
+    // PROTOTYPE (Today's Order): matching items get the set bonus when the day's
+    // order is filled. Applied before the spotlight so the window still caps last.
+    // ruleId 'order'; dead branch (traces unchanged) when the flag is off.
+    if (order && orderMet && item.tags.includes(order.tag)) {
+      running = Math.floor(running * DEMAND_MULT);
+      events.push({
+        kind: 'ruleFire',
+        sourceSlot: slot,
+        targetSlot: slot,
+        ruleId: 'order',
+        delta: multDelta(DEMAND_MULT),
+        runningTotal: Math.max(0, Math.floor(running)),
+      });
+    }
+
+    // PROTOTYPE (Front Window): the day's spotlight slot multiplies the fully
+    // built total — applied last so it caps the whole window. Emitted as a
+    // ruleFire mult (ruleId 'spotlight') so the cascade animates it with no new
+    // trace-event kind. `state.spotlight` is only populated when the flag is on,
+    // so this branch is dead (and traces are unchanged) with the prototype off.
+    if (state.spotlight && sameSlot(state.spotlight, slot)) {
+      running = Math.floor(running * SPOTLIGHT_MULT);
+      events.push({
+        kind: 'ruleFire',
+        sourceSlot: slot,
+        targetSlot: slot,
+        ruleId: 'spotlight',
+        delta: multDelta(SPOTLIGHT_MULT),
+        runningTotal: Math.max(0, Math.floor(running)),
+      });
+    }
+
     const total = Math.max(0, Math.floor(running));
     resolvedTotals.set(slotKey, total);
     events.push({ kind: 'itemTotal', slot, total });
   }
+
+  // Signature stock resolves after ordinary item windows have settled, then
+  // writes updated ruleFire/itemTotal pairs before non-scoring catalog/mutation
+  // events. The branch is dead unless SIGNATURE_ITEMS_ENABLED is on.
+  applySignatureRules(occupied, resolvedTotals, events, table);
 
   // --- Named combos (catalog-only, R-2). ---
   const discoveredComboIds: string[] = [];

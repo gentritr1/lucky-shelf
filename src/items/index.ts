@@ -77,3 +77,7 @@ export function itemDefinition(table: ItemTable, itemId: string): ItemDefinition
   }
   return definition;
 }
+
+export function isSignatureItem(definition: Pick<ItemDefinition, 'isSignature'>): boolean {
+  return definition.isSignature === true;
+}

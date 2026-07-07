@@ -774,5 +774,102 @@
         "direction": "right"
       }
     ]
+  },
+  {
+    "id": "brass-scale",
+    "name": "Brass Scale",
+    "tier": 3,
+    "baseValue": 1,
+    "tags": [
+      "tool",
+      "fancy",
+      "signature"
+    ],
+    "rules": [
+      {
+        "ruleId": "brass-scale-food-balance",
+        "kind": "tagFilteredShelfMultiplier",
+        "tag": "food",
+        "mult": 1.5
+      }
+    ],
+    "isSignature": true
+  },
+  {
+    "id": "ledger-book",
+    "name": "Ledger Book",
+    "tier": 3,
+    "baseValue": 1,
+    "tags": [
+      "paper",
+      "deal",
+      "signature"
+    ],
+    "rules": [
+      {
+        "ruleId": "ledger-book-antique-tally",
+        "kind": "flatPerTagCount",
+        "tag": "antique",
+        "flatPerItem": 5
+      }
+    ],
+    "isSignature": true
+  },
+  {
+    "id": "lucky-cat",
+    "name": "Lucky Cat",
+    "tier": 3,
+    "baseValue": 0,
+    "tags": [
+      "lucky",
+      "mascot",
+      "signature"
+    ],
+    "rules": [
+      {
+        "ruleId": "lucky-cat-best-in-shop",
+        "kind": "copyHighestScoringOther"
+      }
+    ],
+    "isSignature": true
+  },
+  {
+    "id": "consignment-sign",
+    "name": "Consignment Sign",
+    "tier": 3,
+    "baseValue": 2,
+    "tags": [
+      "deal",
+      "paper",
+      "signature"
+    ],
+    "rules": [
+      {
+        "ruleId": "consignment-sign-archetype-sale",
+        "kind": "shelfMultiplierIfAnyTagCount",
+        "minCount": 4,
+        "mult": 2
+      }
+    ],
+    "isSignature": true
+  },
+  {
+    "id": "window-display",
+    "name": "Window Display",
+    "tier": 4,
+    "baseValue": 0,
+    "tags": [
+      "utility",
+      "fancy",
+      "signature"
+    ],
+    "rules": [
+      {
+        "ruleId": "window-display-hero-piece",
+        "kind": "highestBaseValueMultiplier",
+        "mult": 3
+      }
+    ],
+    "isSignature": true
   }
 ]
