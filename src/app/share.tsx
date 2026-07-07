@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,8 +34,17 @@ export default function ShareScreen() {
     `Best day ${stats.bestDayTotal}c · Deepest rent ${stats.deepestRentSurvived}\n` +
     `Catalog ${view.completionPct}% collected`;
 
-  const onShare = () => {
-    void Share.share({ message: shareText }).catch(() => undefined);
+  const cardRef = useRef<View>(null);
+
+  const onShare = async () => {
+    // Prefer sharing the card as an image (the social artifact); fall back to
+    // text if the view capture fails (e.g. web, or the ref not yet laid out).
+    try {
+      const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
+      await Share.share({ url: uri, message: shareText });
+    } catch {
+      await Share.share({ message: shareText }).catch(() => undefined);
+    }
   };
 
   return (
@@ -48,8 +58,9 @@ export default function ShareScreen() {
       </View>
 
       <View style={styles.cardWrap}>
-        {/* the screenshot-worthy card */}
-        <View style={styles.card}>
+        {/* the screenshot-worthy card — captured to PNG on share (collapsable
+            off so the native view is guaranteed present for captureRef) */}
+        <View ref={cardRef} collapsable={false} style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.brand}>LUCKY SHELF</Text>
             <Text style={styles.date}>{isDaily ? `DAILY · ${dateLabel}` : dateLabel}</Text>
