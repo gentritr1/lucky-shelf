@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { GameState, ItemInstance, Slot } from '@/contracts';
+import { SPOTLIGHT_MULT } from '@/sim';
 import { borders, palette, radii, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
 import { DraggableItem, type SceneShared } from './DraggableItem';
@@ -58,9 +59,11 @@ interface ShelfSceneProps {
   heldItem?: ItemInstance | null;
   /** Fired when the held item is dropped onto an empty slot. */
   onPlace?: (slot: Slot) => void;
+  /** PROTOTYPE (Front Window): the day's spotlight slot, highlighted as the storefront window. */
+  spotlight?: Slot | null;
 }
 
-export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace }: ShelfSceneProps) {
+export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace, spotlight }: ShelfSceneProps) {
   const reduced = useReducedMotion();
   const skia = useSkiaReady();
   const { rows, cols } = gameState.shelf.size;
@@ -153,6 +156,8 @@ export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace }: She
               breath={breath}
             />
           ))}
+
+          {spotlight ? <SpotlightMarker slot={spotlight} layout={layout} breath={breath} reduced={reduced} /> : null}
 
           {board.map((item, index) =>
             item ? (
@@ -250,6 +255,41 @@ function SlotGlow({ index, layout, hoverIndex, hoverLegal, breath }: SlotGlowPro
   );
 }
 
+interface SpotlightMarkerProps {
+  slot: Slot;
+  layout: ShelfLayout;
+  breath: SharedValue<number>;
+  reduced: boolean;
+}
+
+/**
+ * PROTOTYPE (Front Window): a golden ring + floating "×N" tag on the day's
+ * spotlight slot, so placement has a stake from an empty shelf. Pointer-transparent
+ * so it never eats a drag. Breathes with the shared slot-glow loop.
+ */
+function SpotlightMarker({ slot, layout, breath, reduced }: SpotlightMarkerProps) {
+  const { x, y } = slotTopLeft(layout, slot.row, slot.col);
+  const ringStyle = useAnimatedStyle(() => {
+    const pulse = reduced ? 1 : 0.7 + 0.3 * breath.value;
+    return { opacity: pulse, transform: [{ scale: reduced ? 1 : 0.985 + 0.015 * breath.value }] };
+  });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.spotlightRing,
+        { left: x - 3, top: y - 3, width: layout.slotSize + 6, height: layout.slotSize + 6 },
+        ringStyle,
+      ]}
+    >
+      <View style={styles.spotlightTag}>
+        <Text style={styles.spotlightTagText}>✨ WINDOW ×{SPOTLIGHT_MULT}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
 /**
  * RN-view depth frame used when Skia isn't ready (web wasm still loading/blocked).
  * Layered borders fake the well recess and the lit front lip so web verification
@@ -318,6 +358,29 @@ const styles = StyleSheet.create({
   glow: {
     position: 'absolute',
     borderRadius: radii.sm,
+  },
+  spotlightRing: {
+    position: 'absolute',
+    alignItems: 'center',
+    borderColor: palette.goldDeep,
+    borderRadius: radii.md,
+    borderWidth: 2.5,
+    // warm inner wash so the window reads as lit, not just outlined
+    backgroundColor: 'rgba(255, 217, 160, 0.14)',
+  },
+  spotlightTag: {
+    position: 'absolute',
+    top: -14,
+    backgroundColor: palette.goldDeep,
+    borderRadius: radii.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 1,
+  },
+  spotlightTagText: {
+    ...typeScale.label,
+    color: palette.sunlight,
+    fontSize: 10,
+    fontWeight: '700',
   },
   trayLabel: {
     ...typeScale.label,

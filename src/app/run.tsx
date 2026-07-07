@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { Action, DeliveryOffer, GameState, Slot } from '@/contracts';
+import type { Action, DailyOrder, DeliveryOffer, GameState, Slot } from '@/contracts';
 import {
   CoinCounter,
   MovesPips,
@@ -13,9 +13,11 @@ import {
   WoodButton,
   layout,
   palette,
+  radii,
   spacing,
   typeScale,
 } from '@/ui';
+import { DEMAND_MULT } from '@/sim';
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
@@ -126,17 +128,30 @@ export default function RunHudScreen() {
         <MovesPips remaining={hudState.moves.freeRemaining} />
       </View>
 
+      {!cascadeMount && hudState.dailyOrder ? (
+        <OrderBanner order={hudState.dailyOrder} shelf={hudState.shelf} />
+      ) : null}
+
+      {/* The cascade overlay draws its OWN shelf; rendering the HUD shelf too
+          produced a second, misaligned shelf peeking behind the scrim (extra
+          slots + a cut-off item under the Day Total). So the HUD shelf is only
+          shown when the cascade is not up. */}
       <View style={styles.shelfWrap}>
-        <SectionLabel>YOUR SHELF</SectionLabel>
-        <ShelfScene
-          key={`${hudState.runId}-${rejectedActionCount}`}
-          gameState={sceneState}
-          glyphs={ITEM_GLYPHS}
-          {...(cascadeMount ? {} : { onMove, heldItem: gameState.heldItem, onPlace })}
-        />
-        {!cascadeMount ? (
-          <Text style={styles.hint}>{lastRejectedAction?.message ?? hintFor(gameState)}</Text>
-        ) : null}
+        {cascadeMount ? null : (
+          <>
+            <SectionLabel>YOUR SHELF</SectionLabel>
+            <ShelfScene
+              key={`${hudState.runId}-${rejectedActionCount}`}
+              gameState={sceneState}
+              glyphs={ITEM_GLYPHS}
+              spotlight={gameState.spotlight ?? null}
+              onMove={onMove}
+              heldItem={gameState.heldItem}
+              onPlace={onPlace}
+            />
+            <Text style={styles.hint}>{lastRejectedAction?.message ?? hintFor(gameState)}</Text>
+          </>
+        )}
       </View>
 
       {!cascadeMount && (primaryAction || !gameState.heldItem) ? (
@@ -171,6 +186,26 @@ export default function RunHudScreen() {
 
       {/* first-run coachmark — only during arrange, never over a cascade */}
       {!cascadeMount && gameState.phase === 'arrange' ? <OnboardingHint /> : null}
+    </View>
+  );
+}
+
+/**
+ * PROTOTYPE (Today's Order): the day's collection demand with live progress.
+ * Reads the shelf directly so the count updates as items are placed/sold; turns
+ * green the moment the order is fillable.
+ */
+function OrderBanner({ order, shelf }: { order: DailyOrder; shelf: GameState['shelf'] }) {
+  const have = shelf.slots.filter((slot) => slot.item?.tags.includes(order.tag)).length;
+  const met = have >= order.count;
+  return (
+    <View style={[styles.orderBanner, met ? styles.orderBannerMet : null]}>
+      <Text style={styles.orderText}>
+        {`📋 ORDER · ${order.count}× ${order.tag.toUpperCase()} → ×${DEMAND_MULT} each`}
+      </Text>
+      <Text style={[styles.orderProgress, met ? styles.orderProgressMet : null]}>
+        {met ? `FILLED ✓ (${have}/${order.count})` : `${have}/${order.count}`}
+      </Text>
     </View>
   );
 }
@@ -271,13 +306,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 44,
   },
   back: {
     ...typeScale.heading,
     color: palette.tealDark,
   },
   dayWrap: {
+    // Absolute-centered across the full bar so the title is truly centered on the
+    // device, independent of the unequal Menu (left) and coin (right) widths.
+    // pointerEvents none keeps the Menu tap target underneath live.
     alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    pointerEvents: 'none',
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   eyebrow: {
     ...typeScale.label,
@@ -317,5 +363,36 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: 'auto',
+  },
+  orderBanner: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: palette.parchment,
+    borderColor: palette.parchmentEdge,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  orderBannerMet: {
+    backgroundColor: palette.slotLegal,
+    borderColor: palette.tealDark,
+  },
+  orderText: {
+    ...typeScale.label,
+    color: palette.ink,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  orderProgress: {
+    ...typeScale.label,
+    color: palette.inkFaint,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  orderProgressMet: {
+    color: palette.ink,
   },
 });

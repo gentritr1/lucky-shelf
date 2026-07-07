@@ -143,10 +143,17 @@ const styles = StyleSheet.create({
   amount: {
     ...typeScale.coin,
     color: palette.ink,
+    // Baloo2 digits sit high in their line box; on iOS includeFontPadding is a
+    // no-op, so nudge the glyph down to optically center it against the coin.
+    // Calibrated on the iOS simulator (zoomed).
+    includeFontPadding: false,
+    transform: [{ translateY: 3 }],
   },
   amountSlam: {
     ...typeScale.display,
     color: palette.ink,
     fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
+    transform: [{ translateY: 5 }],
   },
 });

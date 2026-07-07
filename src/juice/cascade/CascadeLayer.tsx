@@ -26,6 +26,7 @@ import {
   type ShelfLayout,
 } from '../layout';
 import type { CascadeFrame } from './cascadeState';
+import { deltaLabel, isSelfFire } from './popModel';
 import { CascadeArrow } from './CascadeArrow';
 import { SpeedControl } from './SpeedControl';
 import { useCascadePlayer } from './useCascadePlayer';
@@ -135,16 +136,31 @@ export function CascadeLayer({
               );
             })}
 
-            {/* the current ruleFire arrow (remounts per step so it re-draws) */}
-            {currentEvent?.kind === 'ruleFire' ? (
-              <CascadeArrow
-                key={`arrow-${stepIndex}`}
-                from={slotCenter(layout, currentEvent.sourceSlot.row, currentEvent.sourceSlot.col)}
-                to={slotCenter(layout, currentEvent.targetSlot.row, currentEvent.targetSlot.col)}
-                color={arrowColor(currentEvent.sourceSlot, cols)}
-                reduced={reduced}
-              />
-            ) : null}
+            {/* current ruleFire (remounts per step so it re-draws). A rule that
+                scores its OWN slot (spotlight, order, loner, clock) has no
+                distance to draw — render an on-slot ×N/+N pop instead of a
+                zero-length arrow nub. */}
+            {currentEvent?.kind === 'ruleFire'
+              ? isSelfFire(currentEvent)
+                ? (
+                  <SlotPop
+                    key={`pop-${stepIndex}`}
+                    center={slotCenter(layout, currentEvent.sourceSlot.row, currentEvent.sourceSlot.col)}
+                    label={deltaLabel(currentEvent.delta)}
+                    color={popColor(currentEvent.ruleId, currentEvent.sourceSlot, cols)}
+                    reduced={reduced}
+                  />
+                )
+                : (
+                  <CascadeArrow
+                    key={`arrow-${stepIndex}`}
+                    from={slotCenter(layout, currentEvent.sourceSlot.row, currentEvent.sourceSlot.col)}
+                    to={slotCenter(layout, currentEvent.targetSlot.row, currentEvent.targetSlot.col)}
+                    color={arrowColor(currentEvent.sourceSlot, cols)}
+                    reduced={reduced}
+                  />
+                )
+              : null}
           </View>
         ) : null}
 
@@ -199,6 +215,50 @@ function seedItems(gameState: GameState, rows: number, cols: number): (ItemInsta
 function arrowColor(source: Slot, cols: number): string {
   const index = source.row * cols + source.col;
   return arrowPalette[index % arrowPalette.length]!;
+}
+
+/** Spotlight/order keep their identity colour; other self-fires use the slot hue. */
+function popColor(ruleId: string, source: Slot, cols: number): string {
+  if (ruleId === 'spotlight') return palette.goldDeep;
+  if (ruleId === 'order') return palette.tealDark;
+  return arrowColor(source, cols);
+}
+
+interface SlotPopProps {
+  center: { x: number; y: number };
+  label: string;
+  color: string;
+  reduced: boolean;
+}
+
+/**
+ * A rule that scores its own slot has no arrow distance to draw. Instead of a
+ * zero-length nub, punch an on-slot ×N/+N badge that springs in and settles —
+ * the payoff read for spotlight/order (and a fix for latent loner/clock nubs).
+ */
+function SlotPop({ center, label, color, reduced }: SlotPopProps) {
+  const t = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    t.value = reduced ? 1 : withSpring(1, { damping: 9, stiffness: 170 });
+  }, [t, reduced, center.x, center.y]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: t.value,
+    transform: [{ scale: 0.6 + t.value * 0.4 }, { translateY: (1 - t.value) * 6 }],
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.pop,
+        { left: center.x - POP_W / 2, top: center.y - POP_H / 2, backgroundColor: color },
+        style,
+      ]}
+    >
+      <Text style={styles.popText}>{label}</Text>
+    </Animated.View>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -464,8 +524,26 @@ function prettifyCombo(comboId: string): string {
 }
 
 const TAG_HALF = 18;
+const POP_W = 44;
+const POP_H = 26;
 
 const styles = StyleSheet.create({
+  pop: {
+    alignItems: 'center',
+    borderRadius: radii.pill,
+    height: POP_H,
+    justifyContent: 'center',
+    position: 'absolute',
+    width: POP_W,
+    zIndex: 7,
+    ...shadows.lifted,
+  },
+  popText: {
+    ...typeScale.label,
+    color: palette.creamBright,
+    fontSize: 14,
+    fontWeight: '800',
+  },
   wrap: {
     gap: spacing.lg,
     width: '100%',

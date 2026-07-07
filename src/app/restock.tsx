@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { DeliveryOffer, Slot, SlotState } from '@/contracts';
 import {
   CoinCounter,
-  OfferCard,
   SectionLabel,
   Toggle,
   WoodButton,
@@ -19,6 +18,7 @@ import {
   type OfferCardData,
 } from '@/ui';
 import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
+import { REROLL_COST } from '@/sim';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 
@@ -96,7 +96,9 @@ export default function RestockScreen() {
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
           <Text style={styles.back}>‹ Menu</Text>
         </Pressable>
-        <Text style={styles.title}>Restock</Text>
+        <View style={styles.titleWrap} pointerEvents="none">
+          <Text style={styles.title}>Restock</Text>
+        </View>
         <CoinCounter coins={gameState.coins} animate />
       </View>
 
@@ -161,47 +163,58 @@ export default function RestockScreen() {
       ) : (
         <View style={styles.body}>
           <View style={styles.offersHeader}>
-            <SectionLabel>BUY AN OFFER</SectionLabel>
+            <SectionLabel>DAILY SHOP</SectionLabel>
             <Pressable
               accessibilityRole="button"
               disabled={Boolean(gameState.heldItem)}
               onPress={reroll}
               style={({ pressed }) => [styles.reroll, pressed && styles.pressed]}
             >
-              <Text style={styles.rerollText}>Reroll</Text>
+              <Text style={styles.rerollText}>Reroll · {REROLL_COST}</Text>
             </Pressable>
           </View>
-          <View style={styles.offers}>
+          <View style={styles.shopList}>
             {offers.length === 0 ? (
-              <Text style={styles.caption}>No restock offers remain.</Text>
+              <Text style={styles.caption}>No offers left — reroll or end the day.</Text>
             ) : (
               offers.map((offer, index) => {
-                const affordable = gameState.coins >= offer.cost;
+                const canBuy = gameState.coins >= offer.cost && Boolean(emptySlot);
                 return (
-                  <View key={offer.offerId} style={styles.offerCol}>
-                    <View style={styles.costRibbon}>
-                      <View style={styles.coinDot} />
-                      <Text style={styles.costText}>{offer.cost}</Text>
+                  <View key={offer.offerId} style={styles.shopRow}>
+                    <View style={styles.shopThumb}>
+                      {offer.sprite ? (
+                        <Image source={offer.sprite as number} style={styles.shopThumbImg} resizeMode="contain" />
+                      ) : (
+                        <Text style={styles.shopThumbGlyph}>{offer.glyph}</Text>
+                      )}
                     </View>
-                    <OfferCard offer={offer} />
+                    <View style={styles.shopInfo}>
+                      <Text numberOfLines={1} style={styles.shopName}>{offer.name}</Text>
+                      <View style={styles.shopTags}>
+                        {offer.tags.slice(0, 2).map((tag) => (
+                          <View key={tag} style={styles.shopTag}>
+                            <Text style={styles.shopTagText}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
                     <Pressable
                       accessibilityRole="button"
-                      disabled={!affordable || !emptySlot}
+                      disabled={!canBuy}
                       onPress={() => buy(index)}
-                      style={({ pressed }) => [
-                        styles.buy,
-                        pressed && styles.pressed,
-                        (!affordable || !emptySlot) && styles.faded,
-                      ]}
+                      style={({ pressed }) => [styles.shopBuy, pressed && styles.pressed, !canBuy && styles.faded]}
                     >
-                      <Text style={styles.buyText}>{affordable ? 'Buy' : 'Too dear'}</Text>
+                      <View style={styles.coinDot} />
+                      <Text style={styles.shopBuyText}>{offer.cost}</Text>
                     </Pressable>
                   </View>
                 );
               })
             )}
           </View>
-          <Text style={styles.caption}>{lastRejectedAction?.message ?? 'Bought items must be placed before you leave.'}</Text>
+          <Text style={styles.caption}>
+            {lastRejectedAction?.message ?? "Buy what you can afford and place it. Rent is due at week's end."}
+          </Text>
         </View>
       )}
 
@@ -250,10 +263,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 44,
   },
   back: {
     ...typeScale.heading,
     color: palette.tealDark,
+  },
+  // Absolute-centered so the title is truly centered regardless of the unequal
+  // Menu (left) / coin (right) widths. pointer-transparent so Menu stays tappable.
+  titleWrap: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   title: {
     ...typeScale.title,
@@ -284,6 +309,78 @@ const styles = StyleSheet.create({
   offers: {
     flexDirection: 'row',
     gap: spacing.md,
+  },
+  // Daily shop: a robust vertical list of offer rows (thumb | info | buy).
+  shopList: {
+    gap: spacing.sm,
+  },
+  shopRow: {
+    alignItems: 'center',
+    backgroundColor: palette.creamBright,
+    borderColor: palette.parchmentEdge,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.card,
+  },
+  shopThumb: {
+    alignItems: 'center',
+    backgroundColor: palette.wallCream,
+    borderRadius: radii.md,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  shopThumbImg: {
+    height: 44,
+    width: 44,
+  },
+  shopThumbGlyph: {
+    fontSize: 28,
+  },
+  shopInfo: {
+    flex: 1,
+    gap: spacing.xxs,
+  },
+  shopName: {
+    ...typeScale.heading,
+    color: palette.ink,
+    fontSize: 15,
+  },
+  shopTags: {
+    flexDirection: 'row',
+    gap: spacing.xxs,
+  },
+  shopTag: {
+    backgroundColor: palette.parchment,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 1,
+  },
+  shopTagText: {
+    color: palette.inkFaint,
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  shopBuy: {
+    alignItems: 'center',
+    backgroundColor: palette.accentTeal,
+    borderRadius: radii.pill,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minWidth: 64,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  shopBuyText: {
+    ...typeScale.coin,
+    color: palette.creamBright,
+    fontSize: 15,
+    lineHeight: 18,
   },
   offerCol: {
     flex: 1,

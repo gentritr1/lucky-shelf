@@ -40,11 +40,13 @@ export function OfferCard({ offer, selected = false, onPress }: OfferCardProps) 
       <Text numberOfLines={1} style={styles.name}>
         {offer.name}
       </Text>
-      <View style={styles.pips}>
-        {Array.from({ length: offer.tier }, (_, index) => (
-          <View key={index} style={styles.pip} />
-        ))}
-      </View>
+      {offer.tier > 1 ? (
+        <View style={styles.pips}>
+          {Array.from({ length: offer.tier }, (_, index) => (
+            <View key={index} style={styles.pip} />
+          ))}
+        </View>
+      ) : null}
       <View style={styles.footer}>
         <View style={styles.coinDot} />
         <Text style={styles.value}>{offer.baseValue}</Text>
@@ -74,8 +76,12 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   selected: {
+    // Stronger "selected" read against the busy room backdrop: a thick teal ring,
+    // a lift, and a slight scale-up so it clearly pops, not just a hairline tint.
     borderColor: palette.accentTeal,
-    borderWidth: borders.strong,
+    borderWidth: borders.strong + 1,
+    transform: [{ scale: 1.03 }],
+    ...shadows.lifted,
   },
   pressed: {
     transform: [{ scale: 0.97 }],
@@ -130,6 +136,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     color: palette.ink,
+    // Match CoinCounter: nudge the digit down so it centers against the coin dot
+    // (Baloo2 sits high; iOS ignores includeFontPadding). Calibrated on the sim.
+    includeFontPadding: false,
+    transform: [{ translateY: 2 }],
   },
   tags: {
     alignSelf: 'stretch',
