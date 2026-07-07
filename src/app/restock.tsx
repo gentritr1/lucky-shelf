@@ -18,10 +18,8 @@ import {
   type OfferCardData,
 } from '@/ui';
 import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
-import { itemDefinition, loadItemTable } from '@/items';
-import { REROLL_COST, sellPrice } from '@/sim';
 import { routeForGameState } from '../state/phaseRouting';
-import { runSelectors, useRunStore } from '../state/store';
+import { rerollCost, runSelectors, sellShelfView, useRunStore } from '../state/store';
 
 /**
  * Restock: real engine offers and economy. Buy/reroll/sell/end all go through
@@ -36,7 +34,6 @@ export default function RestockScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [sellMode, setSellMode] = useState(false);
-  const table = useMemo(() => loadItemTable(), []);
 
   // Rent was just paid before restock — back to the calm golden-hour bed.
   useFocusEffect(useCallback(() => setMusicTrack('main'), []));
@@ -50,10 +47,7 @@ export default function RestockScreen() {
     () => gameState.currentOffers.map((offer) => offerToCard(offer)),
     [gameState.currentOffers],
   );
-  const sellSlots = useMemo(
-    () => gameState.shelf.slots.filter((slot): slot is SlotState & { item: NonNullable<SlotState['item']> } => slot.item !== null),
-    [gameState.shelf.slots],
-  );
+  const sellShelf = useMemo(() => sellShelfView(gameState), [gameState]);
   const emptySlot = firstEmptySlot(gameState);
 
   const dispatchAndSave = (action: Parameters<typeof dispatchAction>[0]) => {
@@ -140,37 +134,31 @@ export default function RestockScreen() {
         <View style={styles.body}>
           <SectionLabel>SELL FROM YOUR SHELF</SectionLabel>
           <View style={styles.sellGrid}>
-            {sellSlots.length === 0 ? (
+            {sellShelf.length === 0 ? (
               <Text style={styles.caption}>Shelf cleared. Nothing left to sell.</Text>
             ) : (
-              sellSlots.map((slotState) => {
-                const price = sellPrice(
-                  slotState.item.baseValue,
-                  itemDefinition(table, slotState.item.itemId),
-                );
-                return (
-                  <Pressable
-                    key={slotState.item.instanceId}
-                    accessibilityRole="button"
-                    onPress={() => sell(slotState.slot)}
-                    style={({ pressed }) => [styles.sellCard, pressed && styles.pressed]}
-                  >
-                    {spriteFor(slotState.item.itemId) ? (
-                      <Image
-                        source={spriteFor(slotState.item.itemId) as number}
-                        style={styles.sellSprite}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Text style={styles.sellGlyph}>{glyphFor(slotState.item.itemId)}</Text>
-                    )}
-                    <Text numberOfLines={1} style={styles.sellName}>{slotState.item.name}</Text>
-                    <View style={styles.sellTag}>
-                      <Text style={styles.sellValue}>{`Sell +${price}`}</Text>
-                    </View>
-                  </Pressable>
-                );
-              })
+              sellShelf.map(({ slot, item, price }) => (
+                <Pressable
+                  key={item.instanceId}
+                  accessibilityRole="button"
+                  onPress={() => sell(slot)}
+                  style={({ pressed }) => [styles.sellCard, pressed && styles.pressed]}
+                >
+                  {spriteFor(item.itemId) ? (
+                    <Image
+                      source={spriteFor(item.itemId) as number}
+                      style={styles.sellSprite}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text style={styles.sellGlyph}>{glyphFor(item.itemId)}</Text>
+                  )}
+                  <Text numberOfLines={1} style={styles.sellName}>{item.name}</Text>
+                  <View style={styles.sellTag}>
+                    <Text style={styles.sellValue}>{`Sell +${price}`}</Text>
+                  </View>
+                </Pressable>
+              ))
             )}
           </View>
           <Text style={styles.caption}>{lastRejectedAction?.message ?? 'Sold items leave the shelf immediately.'}</Text>
@@ -191,7 +179,7 @@ export default function RestockScreen() {
                 <View style={styles.rerollInner}>
                   <Text style={styles.rerollText}>Reroll</Text>
                   <View style={styles.coinDot} />
-                  <Text style={styles.rerollCost}>{REROLL_COST}</Text>
+                  <Text style={styles.rerollCost}>{rerollCost}</Text>
                 </View>
               )}
             </Pressable>

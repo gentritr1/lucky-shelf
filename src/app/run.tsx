@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { Action, DailyOrder, DeliveryOffer, GameState, Slot } from '@/contracts';
+import type { Action, DeliveryOffer, GameState, Slot } from '@/contracts';
 import {
   CoinCounter,
   MovesPips,
@@ -17,10 +17,16 @@ import {
   spacing,
   typeScale,
 } from '@/ui';
-import { DEMAND_MULT, TAG_SYNERGY_ELIGIBLE_TAGS, TAG_SYNERGY_LADDER, tagSynergyEnabled } from '@/sim';
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
-import { runSelectors, useRunStore } from '../state/store';
+import {
+  orderHudView,
+  runSelectors,
+  synergyHudView,
+  useRunStore,
+  type OrderHudView,
+  type SynergyHudView,
+} from '../state/store';
 
 // Rent runs on a 3-day cycle (RENT_PERIOD_DAYS). The tension bed takes over on
 // the final morning before rent (dueInDays ≤ 1) — the same beat the DuskAmbience
@@ -105,6 +111,10 @@ export default function RunHudScreen() {
   // sim stays animation-agnostic (Pillar 5). The route fires only from the
   // layer's own onComplete, post-animation.
   const hudState = cascadeMount ? cascadeMount.gameState : gameState;
+  // Build-identity signposts, computed off the render path (logic lives in the
+  // store). Only shown when the cascade is down, where hudState === gameState.
+  const synergy = useMemo(() => synergyHudView(gameState), [gameState]);
+  const order = useMemo(() => orderHudView(gameState), [gameState]);
   const sceneState =
     cascadeMount || !movementEnabled ? movementLockedSceneState(hudState) : gameState;
 
@@ -128,15 +138,13 @@ export default function RunHudScreen() {
         <MovesPips remaining={hudState.moves.freeRemaining} />
       </View>
 
-      {!cascadeMount && hudState.dailyOrder ? (
-        <OrderBanner order={hudState.dailyOrder} shelf={hudState.shelf} />
-      ) : null}
+      {!cascadeMount && order ? <OrderBanner order={order} /> : null}
 
       {!cascadeMount && gameState.dailyTarget != null ? (
         <GoalBanner target={gameState.dailyTarget} freeRerolls={gameState.freeRerollTokens ?? 0} />
       ) : null}
 
-      {!cascadeMount && tagSynergyEnabled() ? <SynergyBadge shelf={hudState.shelf} /> : null}
+      {!cascadeMount && synergy ? <SynergyBadge active={synergy} /> : null}
 
       {/* The cascade overlay draws its OWN shelf; rendering the HUD shelf too
           produced a second, misaligned shelf peeking behind the scrim (extra
@@ -201,16 +209,15 @@ export default function RunHudScreen() {
  * Reads the shelf directly so the count updates as items are placed/sold; turns
  * green the moment the order is fillable.
  */
-function OrderBanner({ order, shelf }: { order: DailyOrder; shelf: GameState['shelf'] }) {
-  const have = shelf.slots.filter((slot) => slot.item?.tags.includes(order.tag)).length;
-  const met = have >= order.count;
+function OrderBanner({ order }: { order: OrderHudView }) {
+  const { tag, count, mult, have, met } = order;
   return (
     <View style={[styles.orderBanner, met ? styles.orderBannerMet : null]}>
       <Text style={styles.orderText}>
-        {`📋 ORDER · ${order.count}× ${order.tag.toUpperCase()} → ×${DEMAND_MULT} each`}
+        {`📋 ORDER · ${count}× ${tag.toUpperCase()} → ×${mult} each`}
       </Text>
       <Text style={[styles.orderProgress, met ? styles.orderProgressMet : null]}>
-        {met ? `FILLED ✓ (${have}/${order.count})` : `${have}/${order.count}`}
+        {met ? `FILLED ✓ (${have}/${count})` : `${have}/${count}`}
       </Text>
     </View>
   );
@@ -228,26 +235,7 @@ function GoalBanner({ target, freeRerolls }: { target: number; freeRerolls: numb
   );
 }
 
-/** Dominant eligible tag on the shelf and its active ladder multiplier, or null. */
-function activeSynergy(shelf: GameState['shelf']): { tag: string; count: number; mult: number } | null {
-  const eligible = new Set(TAG_SYNERGY_ELIGIBLE_TAGS);
-  const counts = new Map<string, number>();
-  for (const slot of shelf.slots) {
-    const item = slot.item;
-    if (!item) continue;
-    for (const tag of item.tags) if (eligible.has(tag)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-  }
-  let best: { tag: string; count: number } | null = null;
-  for (const [tag, count] of counts) if (!best || count > best.count) best = { tag, count };
-  if (!best) return null;
-  let mult = 1;
-  for (const step of TAG_SYNERGY_LADDER) if (best.count >= step.minCount) mult = step.mult;
-  return mult > 1 ? { tag: best.tag, count: best.count, mult } : null;
-}
-
-function SynergyBadge({ shelf }: { shelf: GameState['shelf'] }) {
-  const active = activeSynergy(shelf);
-  if (!active) return null;
+function SynergyBadge({ active }: { active: SynergyHudView }) {
   return (
     <View style={[styles.orderBanner, styles.synergyBanner]}>
       <Text style={styles.orderText}>{`🏷️ ${active.tag.toUpperCase()} SHELF`}</Text>
