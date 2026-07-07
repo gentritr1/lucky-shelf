@@ -5,7 +5,14 @@ import {
   type GameState,
 } from '../contracts';
 import { isSignatureItem, loadCombos, loadItemTable } from '../items';
-import { EngineError, createRun, dispatch as engineDispatch, hashState } from '../sim';
+import {
+  BUILD_STEERING_ELIGIBLE_TAGS,
+  EngineError,
+  buildSteeringEnabled,
+  createRun,
+  dispatch as engineDispatch,
+  hashState,
+} from '../sim';
 import type { EngineDeps } from '../sim';
 import type { LoadActiveRunStatus, RunPersistence } from '../persistence';
 
@@ -50,6 +57,15 @@ export const runSelectors = {
       (offer) => offer.offerId === offerId && isSignatureItem(offer.item),
     ),
   lastScoringTrace: (state: RunStoreState) => state.gameState.lastScoringTrace,
+  // Build steering (Phase 2b): the eligible supplier tags when the opening
+  // delivery is waiting for a lean (flag on, none chosen yet), else null. The
+  // UI reads this rather than importing the sim constant across the lane line.
+  pendingSupplierTags: (state: RunStoreState): readonly string[] | null =>
+    buildSteeringEnabled() &&
+    state.gameState.phase === 'delivery' &&
+    state.gameState.supplierTag === null
+      ? BUILD_STEERING_ELIGIBLE_TAGS
+      : null,
   lastRejectedAction: (state: RunStoreState) => state.lastRejectedAction,
   rejectedActionCount: (state: RunStoreState) => state.rejectedActionCount,
   saveStatus: (state: RunStoreState) => state.saveStatus,

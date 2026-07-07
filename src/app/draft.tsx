@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
-import { OfferCard, SectionLabel, WoodButton, layout, palette, radii, shadows, spacing, typeScale, type OfferCardData } from '@/ui';
+import { OfferCard, SectionLabel, WoodButton, borders, layout, palette, radii, shadows, spacing, touch, typeScale, type OfferCardData } from '@/ui';
 import { glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
@@ -20,6 +20,7 @@ export default function DraftScreen() {
   const insets = useSafeAreaInsets();
   const gameState = useRunStore(runSelectors.gameState);
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
+  const pendingSupplierTags = useRunStore(runSelectors.pendingSupplierTags);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [selected, setSelected] = useState(0);
 
@@ -51,6 +52,14 @@ export default function DraftScreen() {
     router.replace(routeForGameState(result.gameState));
   };
 
+  // Build steering (Phase 2b): committing a supplier lean regenerates the
+  // opening offers toward that tag and unblocks drafting. Stays on this screen —
+  // the picker disappears once supplierTag is set.
+  const chooseSupplier = (tag: string) => {
+    const result = dispatchAction({ type: 'chooseSupplier', tag });
+    if (result.accepted) void result.save.catch(() => undefined);
+  };
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       {/* morning-delivery room behind everything; the opaque offer cards and the
@@ -70,39 +79,68 @@ export default function DraftScreen() {
         <View style={styles.spacer} />
       </View>
 
-      <View style={styles.pickBody}>
-        <View style={styles.labelPlate}>
-          <SectionLabel>{`DAY ${gameState.day} DELIVERY — DRAFT ONE`}</SectionLabel>
+      {pendingSupplierTags ? (
+        <View style={styles.pickBody}>
+          <View style={styles.labelPlate}>
+            <SectionLabel>CHOOSE YOUR SUPPLIER</SectionLabel>
+          </View>
+          <View style={styles.captionPlate}>
+            <Text style={styles.caption}>
+              Lean into an archetype — the shop tilts toward it all run.
+            </Text>
+          </View>
+          <View style={styles.supplierGrid}>
+            {pendingSupplierTags.map((tag) => (
+              <Pressable
+                key={tag}
+                accessibilityRole="button"
+                style={styles.supplierChip}
+                onPress={() => chooseSupplier(tag)}
+              >
+                <Text style={styles.supplierChipText}>{capitalize(tag)}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
-        <View style={styles.offers}>
-          {offers.length === 0 ? (
-            <Text style={styles.caption}>No delivery offers are available.</Text>
-          ) : (
-            offers.map((offer, index) => (
-              <OfferCard
-                key={offer.offerId}
-                offer={offer}
-                selected={index === selected}
-                onPress={() => setSelected(index)}
-              />
-            ))
-          )}
+      ) : (
+        <View style={styles.pickBody}>
+          <View style={styles.labelPlate}>
+            <SectionLabel>{`DAY ${gameState.day} DELIVERY — DRAFT ONE`}</SectionLabel>
+          </View>
+          <View style={styles.offers}>
+            {offers.length === 0 ? (
+              <Text style={styles.caption}>No delivery offers are available.</Text>
+            ) : (
+              offers.map((offer, index) => (
+                <OfferCard
+                  key={offer.offerId}
+                  offer={offer}
+                  selected={index === selected}
+                  onPress={() => setSelected(index)}
+                />
+              ))
+            )}
+          </View>
+          <View style={styles.captionPlate}>
+            <Text style={styles.caption}>
+              {lastRejectedAction?.message ?? 'The other offers leave when you draft.'}
+            </Text>
+          </View>
+          <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
+            <WoodButton
+              label={selectedOffer ? `Draft ${selectedOffer.item.name}` : 'No Offer'}
+              disabled={!selectedOffer}
+              onPress={draftSelected}
+            />
+          </View>
         </View>
-        <View style={styles.captionPlate}>
-          <Text style={styles.caption}>
-            {lastRejectedAction?.message ?? 'The other offers leave when you draft.'}
-          </Text>
-        </View>
-        <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
-          <WoodButton
-            label={selectedOffer ? `Draft ${selectedOffer.item.name}` : 'No Offer'}
-            disabled={!selectedOffer}
-            onPress={draftSelected}
-          />
-        </View>
-      </View>
+      )}
     </View>
   );
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 interface DraftOfferCard extends OfferCardData {
@@ -181,6 +219,28 @@ const styles = StyleSheet.create({
   offers: {
     flexDirection: 'row',
     gap: spacing.md,
+  },
+  supplierGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'center',
+  },
+  supplierChip: {
+    alignItems: 'center',
+    backgroundColor: palette.plate,
+    borderColor: palette.parchmentEdge,
+    borderRadius: radii.md,
+    borderWidth: borders.regular,
+    justifyContent: 'center',
+    minHeight: touch.minTargetPt,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    ...shadows.card,
+  },
+  supplierChipText: {
+    ...typeScale.heading,
+    color: palette.ink,
   },
   caption: {
     ...typeScale.body,
