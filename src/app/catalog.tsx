@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Medallion, Panel, SectionLabel, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { Medallion, Panel, SectionLabel, layout, palette, radii, shadows, spacing, typeScale } from '@/ui';
 import { spriteFor } from '@/juice';
 import {
   buildCatalogView,
@@ -31,7 +31,7 @@ export default function CatalogScreen() {
   const view = useMemo(() => buildCatalogView(catalog), [catalog]);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
           <Text style={styles.back}>‹ Menu</Text>
@@ -41,7 +41,7 @@ export default function CatalogScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xl }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + layout.screenBottomGap }]}
         showsVerticalScrollIndicator={false}
       >
         <Panel style={styles.summary}>
@@ -126,7 +126,7 @@ function ComboStamp({ combo }: { combo: CatalogComboRow }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: palette.wallCream, flex: 1, paddingHorizontal: spacing.xl },
+  screen: { backgroundColor: palette.wallCream, flex: 1, paddingHorizontal: layout.screenPadX },
   topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   back: { ...typeScale.heading, color: palette.tealDark, width: 72 },
   title: { ...typeScale.title, color: palette.ink },

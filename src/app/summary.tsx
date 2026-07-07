@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CoinCounter, WoodButton, palette, spacing, typeScale } from '@/ui';
+import { CoinCounter, WoodButton, layout, palette, spacing, typeScale } from '@/ui';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 import { useCatalogStore } from '../state/catalogStore';
@@ -40,7 +40,7 @@ export default function RunSummaryScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.replace('/')}>
           <Text style={styles.back}>‹ Menu</Text>
@@ -70,7 +70,7 @@ export default function RunSummaryScreen() {
         </View>
       </View>
 
-      <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.lg }]}>
+      <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
         <WoodButton label={isDaily ? 'Share Card' : 'New Run'} onPress={isDaily ? () => router.push('/share') : newRun} />
         <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
         {isDaily ? null : (
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.wallCream,
     flex: 1,
     gap: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: layout.screenPadX,
   },
   topBar: {
     alignItems: 'center',

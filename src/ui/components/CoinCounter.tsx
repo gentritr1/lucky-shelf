@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { borders, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
 import { useReducedMotion } from '../prefs';
 
 interface CoinCounterProps {
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.creamBright,
     borderColor: palette.goldDeep,
     borderRadius: radii.pill,
-    borderWidth: 1.5,
+    borderWidth: borders.regular,
     flexDirection: 'row',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     ...shadows.float,
   },
   pillSlam: {
-    borderWidth: 2.5,
+    borderWidth: borders.strong,
     gap: spacing.md,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.coinGold,
     borderColor: palette.goldDeep,
     borderRadius: radii.pill,
-    borderWidth: 2,
+    borderWidth: borders.strong,
     height: 18,
     width: 18,
   },

@@ -3,7 +3,7 @@ import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { WoodButton, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { WoodButton, layout, palette, radii, shadows, spacing, typeScale } from '@/ui';
 import { spriteFor } from '@/juice';
 import { runSelectors, useRunStore } from '../state/store';
 import { buildCatalogView, catalogSelectors, useCatalogStore } from '../state/catalogStore';
@@ -38,7 +38,7 @@ export default function ShareScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
           <Text style={styles.back}>‹ Menu</Text>
@@ -85,7 +85,7 @@ export default function ShareScreen() {
         </View>
       </View>
 
-      <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.lg }]}>
+      <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
         <WoodButton label="Share" onPress={onShare} />
         <WoodButton label="Done" variant="secondary" onPress={() => router.replace('/')} />
       </View>
@@ -103,7 +103,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: palette.wallCream, flex: 1, paddingHorizontal: spacing.xl },
+  screen: { backgroundColor: palette.wallCream, flex: 1, paddingHorizontal: layout.screenPadX },
   topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   back: { ...typeScale.heading, color: palette.tealDark, width: 72 },
   title: { ...typeScale.title, color: palette.ink },

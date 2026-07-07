@@ -10,6 +10,7 @@ import {
   SectionLabel,
   Toggle,
   WoodButton,
+  layout,
   palette,
   radii,
   shadows,
@@ -90,7 +91,7 @@ export default function RestockScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
           <Text style={styles.back}>‹ Menu</Text>
@@ -204,7 +205,7 @@ export default function RestockScreen() {
         </View>
       )}
 
-      <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.lg }]}>
+      <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
         <WoodButton
           label={gameState.heldItem ? 'Place Purchase First' : 'End Restock'}
           disabled={Boolean(gameState.heldItem)}
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.wallCream,
     flex: 1,
     gap: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: layout.screenPadX,
   },
   topBar: {
     alignItems: 'center',

@@ -11,6 +11,7 @@ import {
   RentChip,
   SectionLabel,
   WoodButton,
+  layout,
   palette,
   spacing,
   typeScale,
@@ -106,7 +107,7 @@ export default function RunHudScreen() {
     cascadeMount || !movementEnabled ? movementLockedSceneState(hudState) : gameState;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       {/* rent proximity felt as warmth (behind content); hidden during cascade */}
       {cascadeMount ? null : <DuskAmbience dueInDays={hudState.rent.dueInDays} />}
       <View style={styles.topBar}>
@@ -139,7 +140,7 @@ export default function RunHudScreen() {
       </View>
 
       {!cascadeMount && (primaryAction || !gameState.heldItem) ? (
-        <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
           <WoodButton
             label={primaryAction ? primaryAction.label : 'Run Complete'}
             onPress={primaryAction ? onPrimaryAction : () => router.back()}
@@ -154,7 +155,7 @@ export default function RunHudScreen() {
         <View
           style={[
             styles.cascadeOverlay,
-            { paddingTop: insets.top + spacing.huge, paddingBottom: insets.bottom + spacing.lg },
+            { paddingTop: insets.top + spacing.huge, paddingBottom: insets.bottom + layout.screenBottomGap },
           ]}
         >
           <CascadeLayer
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.wallCream,
     flex: 1,
     gap: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: layout.screenPadX,
   },
   topBar: {
     alignItems: 'center',
@@ -302,7 +303,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     justifyContent: 'center',
     left: 0,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: layout.screenPadX,
     position: 'absolute',
     right: 0,
     top: 0,

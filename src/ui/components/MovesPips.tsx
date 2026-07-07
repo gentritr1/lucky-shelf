@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { palette, radii, spacing, typeScale } from '../tokens';
+import { borders, palette, radii, spacing, typeScale } from '../tokens';
 
 interface MovesPipsProps {
   remaining: number;
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   },
   pip: {
     borderRadius: radii.pill,
-    borderWidth: 1.5,
+    borderWidth: borders.regular,
     height: 12,
     width: 12,
   },

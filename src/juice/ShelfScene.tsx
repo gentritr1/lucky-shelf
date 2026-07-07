@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { GameState, ItemInstance, Slot } from '@/contracts';
-import { palette, radii, spacing, typeScale } from '@/ui/tokens';
+import { borders, palette, radii, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
 import { DraggableItem, type SceneShared } from './DraggableItem';
 import { DeliveryTrayItem } from './DeliveryTrayItem';
@@ -293,26 +293,26 @@ const styles = StyleSheet.create({
     left: 0,
     backgroundColor: palette.shelfWood,
     borderColor: palette.woodDark,
-    borderRadius: radii.lg,
+    borderRadius: radii.lg, // top-level surface
     borderTopColor: palette.woodLight,
-    borderWidth: 3,
+    borderWidth: borders.frame,
   },
   well: {
     position: 'absolute',
     backgroundColor: palette.woodInset,
     borderColor: palette.woodDark,
-    borderRadius: radii.sm,
+    borderRadius: radii.sm, // nested well
     borderTopColor: palette.shadow,
-    borderWidth: 1.5,
+    borderWidth: borders.regular,
   },
   plank: {
     position: 'absolute',
     backgroundColor: palette.woodLight,
     borderBottomColor: palette.woodDark,
-    borderBottomWidth: 2,
+    borderBottomWidth: borders.strong,
     borderRadius: radii.xs,
     borderTopColor: palette.sunlight,
-    borderTopWidth: 1,
+    borderTopWidth: borders.hairline,
     height: PLANK_HEIGHT,
   },
   glow: {

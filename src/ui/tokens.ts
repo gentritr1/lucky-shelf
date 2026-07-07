@@ -29,6 +29,10 @@ export const palette = {
   creamBright: '#FFF8EB',
   parchment: '#EFDDBE',
   parchmentEdge: '#D9B98C',
+  // translucent creamBright — the legibility plate behind text/controls that sit
+  // over backdrop imagery (title wordmark, draft header/caption). Lets the art
+  // stay vivid while bare text still reads.
+  plate: 'rgba(255, 248, 235, 0.82)',
 
   // ink
   ink: '#3F2A1D',
@@ -85,6 +89,46 @@ export const radii = {
   lg: 16,
   pill: 999,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Layout system — the ONE source for screen rhythm, border weights, and how
+// rounded/bordered boxes nest. Screens and components must theme from these
+// (not raw spacing/radii) so insets stay identical everywhere and nested
+// borders read as one intentional system. See docs/lane-b/design-system.md.
+// ---------------------------------------------------------------------------
+
+/** Screen rhythm: every screen uses the same edge inset and stacking gaps. */
+export const layout = {
+  screenPadX: spacing.xl, // 20 — horizontal edge inset, EVERY screen
+  screenTopGap: spacing.md, // 12 — below the safe-area top
+  screenBottomGap: spacing.xl, // 20 — above the safe-area bottom
+  sectionGap: spacing.lg, // 16 — between major stacked sections
+  stackGap: spacing.md, // 12 — between panels / within a section
+  controlGap: spacing.sm, // 8 — between small inline controls
+  cardPad: spacing.lg, // 16 — inner padding of a panel/card surface
+} as const;
+
+/**
+ * Border-weight ladder. A nested border is NEVER thicker than its parent's:
+ * frame (shelf) → strong (selected/emphasis) → regular (recessed wells/chips)
+ * → hairline (default card/plinth outline).
+ */
+export const borders = {
+  frame: 3,
+  strong: 2,
+  regular: 1.5,
+  hairline: 1,
+} as const;
+
+/**
+ * Concentric corner rule. A child inset by `pad` inside a rounded parent keeps
+ * a uniform corner gap when its radius is `parentRadius - pad`. Use this for an
+ * edge-hugging child; for a *centered* child, step down one radius tier instead
+ * (lg 16 → md 12 → sm 8 → xs 4).
+ */
+export function innerRadius(outer: number, pad: number): number {
+  return Math.max(radii.xs, outer - pad);
+}
 
 /** Accessibility floor (kickoff §6): min touch target, one-handed reach zone. */
 export const touch = {

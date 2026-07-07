@@ -1,6 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { borders, palette, radii, shadows, spacing, typeScale } from '../tokens';
 
 export interface OfferCardData {
   name: string;
@@ -65,8 +65,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: palette.creamBright,
     borderColor: palette.parchmentEdge,
-    borderRadius: radii.lg,
-    borderWidth: 1,
+    borderRadius: radii.lg, // top-level surface
+    borderWidth: borders.hairline,
     flex: 1,
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
   selected: {
     borderColor: palette.accentTeal,
-    borderWidth: 2,
+    borderWidth: borders.strong,
   },
   pressed: {
     transform: [{ scale: 0.97 }],
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   spriteMat: {
     alignItems: 'center',
     backgroundColor: palette.wallCream,
-    borderRadius: radii.sm,
+    borderRadius: radii.md, // centered child of an lg card → one tier down
     height: 60,
     justifyContent: 'center',
     padding: spacing.xs,
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.coinGold,
     borderColor: palette.goldDeep,
     borderRadius: radii.pill,
-    borderWidth: 1.5,
+    borderWidth: borders.regular,
     height: 12,
     width: 12,
   },

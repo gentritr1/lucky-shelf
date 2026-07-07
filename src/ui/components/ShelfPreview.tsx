@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Shelf } from '../../contracts';
-import { palette, radii, spacing, typeScale } from '../tokens';
+import { borders, palette, radii, spacing, typeScale } from '../tokens';
 
 interface ShelfPreviewProps {
   shelf: Shelf;
@@ -48,8 +48,8 @@ const styles = StyleSheet.create({
   frame: {
     backgroundColor: palette.shelfWood,
     borderColor: palette.woodDark,
-    borderRadius: radii.lg,
-    borderWidth: 3,
+    borderRadius: radii.lg, // top-level surface
+    borderWidth: borders.frame,
     gap: spacing.sm,
     padding: spacing.md,
   },
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   plank: {
     backgroundColor: palette.woodLight,
     borderBottomColor: palette.woodDark,
-    borderBottomWidth: 2,
+    borderBottomWidth: borders.strong,
     borderRadius: radii.xs,
     height: 8,
     marginTop: spacing.xs,
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.coinGold,
     borderColor: palette.goldDeep,
     borderRadius: radii.pill,
-    borderWidth: 1,
+    borderWidth: borders.hairline,
     marginTop: -spacing.xs,
     paddingHorizontal: spacing.sm,
   },

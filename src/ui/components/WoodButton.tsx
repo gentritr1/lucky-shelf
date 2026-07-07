@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { palette, radii, spacing, touch, typeScale } from '../tokens';
+import { borders, palette, radii, spacing, touch, typeScale } from '../tokens';
 
 interface WoodButtonProps {
   label: string;
@@ -48,12 +48,12 @@ const styles = StyleSheet.create({
   primary: {
     backgroundColor: palette.shelfWood,
     borderColor: palette.sunlight,
-    borderTopWidth: 2,
+    borderTopWidth: borders.strong,
   },
   secondary: {
     backgroundColor: palette.parchment,
     borderColor: palette.parchmentEdge,
-    borderWidth: 1,
+    borderWidth: borders.hairline,
   },
   pressed: {
     opacity: 0.9,

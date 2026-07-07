@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Panel, SectionLabel, Toggle, palette, spacing, typeScale, usePrefs } from '@/ui';
+import { Panel, SectionLabel, Toggle, layout, palette, spacing, typeScale, usePrefs } from '@/ui';
 
 /**
  * Settings: motion, sound (music + SFX), and haptics toggles. The panel list
@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   const setSfxEnabled = usePrefs((s) => s.setSfxEnabled);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + spacing.md }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
           <Text style={styles.back}>‹ Back</Text>
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.wallCream,
     flex: 1,
     gap: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: layout.screenPadX,
   },
   panels: {
     gap: spacing.lg,
