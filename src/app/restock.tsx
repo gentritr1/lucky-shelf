@@ -18,7 +18,8 @@ import {
   type OfferCardData,
 } from '@/ui';
 import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
-import { REROLL_COST } from '@/sim';
+import { itemDefinition, loadItemTable } from '@/items';
+import { REROLL_COST, sellPrice } from '@/sim';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 
@@ -35,6 +36,7 @@ export default function RestockScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [sellMode, setSellMode] = useState(false);
+  const table = useMemo(() => loadItemTable(), []);
 
   // Rent was just paid before restock — back to the calm golden-hour bed.
   useFocusEffect(useCallback(() => setMusicTrack('main'), []));
@@ -133,29 +135,35 @@ export default function RestockScreen() {
             {sellSlots.length === 0 ? (
               <Text style={styles.caption}>Shelf cleared. Nothing left to sell.</Text>
             ) : (
-              sellSlots.map((slotState) => (
-                <Pressable
-                  key={slotState.item.instanceId}
-                  accessibilityRole="button"
-                  onPress={() => sell(slotState.slot)}
-                  style={({ pressed }) => [styles.sellCard, pressed && styles.pressed]}
-                >
-                  {spriteFor(slotState.item.itemId) ? (
-                    <Image
-                      source={spriteFor(slotState.item.itemId) as number}
-                      style={styles.sellSprite}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <Text style={styles.sellGlyph}>{glyphFor(slotState.item.itemId)}</Text>
-                  )}
-                  <Text numberOfLines={1} style={styles.sellName}>{slotState.item.name}</Text>
-                  <View style={styles.sellTag}>
-                    <View style={styles.coinDot} />
-                    <Text style={styles.sellValue}>Sell</Text>
-                  </View>
-                </Pressable>
-              ))
+              sellSlots.map((slotState) => {
+                const price = sellPrice(
+                  slotState.item.baseValue,
+                  itemDefinition(table, slotState.item.itemId),
+                );
+                return (
+                  <Pressable
+                    key={slotState.item.instanceId}
+                    accessibilityRole="button"
+                    onPress={() => sell(slotState.slot)}
+                    style={({ pressed }) => [styles.sellCard, pressed && styles.pressed]}
+                  >
+                    {spriteFor(slotState.item.itemId) ? (
+                      <Image
+                        source={spriteFor(slotState.item.itemId) as number}
+                        style={styles.sellSprite}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={styles.sellGlyph}>{glyphFor(slotState.item.itemId)}</Text>
+                    )}
+                    <Text numberOfLines={1} style={styles.sellName}>{slotState.item.name}</Text>
+                    <View style={styles.sellTag}>
+                      <View style={styles.coinDot} />
+                      <Text style={styles.sellValue}>{`Sell +${price}`}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })
             )}
           </View>
           <Text style={styles.caption}>{lastRejectedAction?.message ?? 'Sold items leave the shelf immediately.'}</Text>
@@ -171,7 +179,7 @@ export default function RestockScreen() {
               style={({ pressed }) => [styles.reroll, pressed && styles.pressed]}
             >
               <Text style={styles.rerollText}>
-                {(gameState.freeRerollTokens ?? 0) > 0 ? '🎟️ Free reroll' : `Reroll · ${REROLL_COST}`}
+                {(gameState.freeRerollTokens ?? 0) > 0 ? '🎟️ Free reroll' : `Reroll · ${REROLL_COST}c`}
               </Text>
             </Pressable>
           </View>

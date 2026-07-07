@@ -84,11 +84,9 @@ export default function DraftScreen() {
           <View style={styles.labelPlate}>
             <SectionLabel>CHOOSE YOUR SUPPLIER</SectionLabel>
           </View>
-          <View style={styles.captionPlate}>
-            <Text style={styles.caption}>
-              Lean into an archetype — the shop tilts toward it all run.
-            </Text>
-          </View>
+          <Text style={styles.supplierHint}>
+            Lean into an archetype — the shop tilts toward it all run.
+          </Text>
           <View style={styles.supplierGrid}>
             {pendingSupplierTags.map((tag) => (
               <Pressable
@@ -219,6 +217,14 @@ const styles = StyleSheet.create({
   offers: {
     flexDirection: 'row',
     gap: spacing.md,
+  },
+  supplierHint: {
+    ...typeScale.body,
+    alignSelf: 'center',
+    color: palette.ink,
+    fontSize: 14,
+    paddingHorizontal: spacing.md,
+    textAlign: 'center',
   },
   supplierGrid: {
     flexDirection: 'row',
