@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCallback, useEffect } from 'react';
 
-import { GearIcon, WoodButton, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { GearIcon, WoodButton, layout, palette, radii, shadows, spacing, typeScale } from '@/ui';
 import { primeAudio, setMusicTrack, spriteFor } from '@/juice';
 import { useRunStore } from '../state/store';
 import { routeForGameState } from '../state/phaseRouting';
@@ -60,37 +60,41 @@ export default function TitleScreen() {
 
   return (
     <View style={styles.screen}>
+      {/* painted general-store room — the title hero (no gameplay furniture to
+          clash with here, so the full scene can breathe) */}
+      <Image
+        source={require('../../assets/scene/room-day.png')}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+      />
+      {/* gentle wash to unify and keep the wordmark plate reading */}
+      <View pointerEvents="none" style={styles.scrim} />
+
       {/* settings gear, top-right, out of the reach zone by design */}
       <Pressable
         accessibilityLabel="Settings"
         accessibilityRole="button"
         hitSlop={12}
         onPress={() => router.push('/settings')}
-        style={[styles.gear, { top: insets.top + spacing.md }]}
+        style={[styles.gear, { top: insets.top + layout.screenTopGap }]}
       >
         <GearIcon size={24} color={palette.inkSoft} holeColor={palette.wallCream} />
       </Pressable>
 
-      {/* shop-front scene — the mascot sitting in the sunlit window */}
+      {/* mascot over the room + the wordmark on a translucent shop-sign plate */}
       <View style={styles.scene}>
-        <View style={styles.awning}>
-          {Array.from({ length: 7 }, (_, i) => (
-            <View key={i} style={[styles.stripe, i % 2 === 0 ? styles.stripeA : styles.stripeB]} />
-          ))}
+        {catSprite ? (
+          <Image source={catSprite} style={styles.catImg} resizeMode="contain" />
+        ) : null}
+        <View style={styles.titlePlate}>
+          <Text style={styles.eyebrow}>GOLDEN HOUR GENERAL STORE</Text>
+          <Text style={styles.title}>Lucky Shelf</Text>
+          <Text style={styles.tagline}>Arrange the shelf. Watch it pay.</Text>
         </View>
-        <View style={styles.window}>
-          {catSprite ? (
-            <Image source={catSprite} style={styles.catImg} resizeMode="contain" />
-          ) : null}
-          <View style={styles.windowSill} />
-        </View>
-        <Text style={styles.eyebrow}>GOLDEN HOUR GENERAL STORE</Text>
-        <Text style={styles.title}>Lucky Shelf</Text>
-        <Text style={styles.tagline}>Arrange the shelf. Watch it pay.</Text>
       </View>
 
       {/* primary actions live in the bottom reach zone */}
-      <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.xl }]}>
+      <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
         <WoodButton label="New Run" onPress={onNewRun} />
         <WoodButton label={playedToday ? 'Daily ✓ — View Card' : 'Daily Shelf'} variant="secondary" onPress={onDaily} />
         <View style={styles.secondaryRow}>
@@ -111,70 +115,54 @@ const styles = StyleSheet.create({
     backgroundColor: palette.wallCream,
     flex: 1,
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xxl,
+    paddingHorizontal: layout.screenPadX,
   },
   gear: {
     alignItems: 'center',
+    backgroundColor: palette.plate,
+    borderRadius: radii.pill,
+    height: 44,
     justifyContent: 'center',
     position: 'absolute',
     right: spacing.xl,
+    width: 44,
     zIndex: 10,
+    ...shadows.card,
+  },
+  scrim: {
+    backgroundColor: palette.wallCream,
+    bottom: 0,
+    left: 0,
+    opacity: 0.18,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   scene: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  awning: {
-    borderRadius: radii.sm,
-    flexDirection: 'row',
-    height: 26,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-    width: 220,
-    ...shadows.card,
-  },
-  stripe: {
-    flex: 1,
-  },
-  stripeA: {
-    backgroundColor: palette.rentEmber,
-  },
-  stripeB: {
-    backgroundColor: palette.creamBright,
-  },
-  window: {
-    alignItems: 'center',
-    backgroundColor: palette.sunlight,
-    borderColor: palette.shelfWood,
-    borderRadius: radii.md,
-    borderWidth: 4,
-    height: 190,
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-    overflow: 'hidden',
-    width: 220,
-    ...shadows.lifted,
+    gap: spacing.lg,
   },
   catImg: {
-    height: 150,
-    width: 150,
+    height: 168,
+    width: 168,
   },
-  windowSill: {
-    backgroundColor: palette.woodLight,
-    borderTopColor: palette.sunlight,
-    borderTopWidth: 1,
-    bottom: 0,
-    height: 16,
-    left: 0,
-    position: 'absolute',
-    right: 0,
+  titlePlate: {
+    alignItems: 'center',
+    backgroundColor: palette.plate,
+    borderRadius: radii.lg,
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    // optical nudge right: the painted window sits left-of-centre, so true-centre
+    // reads as leaning left — this rebalances the wordmark against the backdrop
+    transform: [{ translateX: spacing.md }],
+    ...shadows.card,
   },
   eyebrow: {
     ...typeScale.label,
     color: palette.tealDark,
-    marginTop: spacing.md,
   },
   title: {
     ...typeScale.display,

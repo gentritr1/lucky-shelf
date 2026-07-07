@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
-import { OfferCard, SectionLabel, WoodButton, palette, spacing, typeScale, type OfferCardData } from '@/ui';
+import { OfferCard, SectionLabel, WoodButton, layout, palette, radii, shadows, spacing, typeScale, type OfferCardData } from '@/ui';
 import { glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
@@ -52,7 +52,16 @@ export default function DraftScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+    <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
+      {/* morning-delivery room behind everything; the opaque offer cards and the
+          wood button ride on top, the scrim keeps the caption text readable */}
+      <Image
+        source={require('../../assets/scene/room-delivery.png')}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
+      />
+      <View pointerEvents="none" style={styles.scrim} />
+
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
           <Text style={styles.back}>‹ Menu</Text>
@@ -62,7 +71,9 @@ export default function DraftScreen() {
       </View>
 
       <View style={styles.pickBody}>
-        <SectionLabel>{`DAY ${gameState.day} DELIVERY — DRAFT ONE`}</SectionLabel>
+        <View style={styles.labelPlate}>
+          <SectionLabel>{`DAY ${gameState.day} DELIVERY — DRAFT ONE`}</SectionLabel>
+        </View>
         <View style={styles.offers}>
           {offers.length === 0 ? (
             <Text style={styles.caption}>No delivery offers are available.</Text>
@@ -77,10 +88,12 @@ export default function DraftScreen() {
             ))
           )}
         </View>
-        <Text style={styles.caption}>
-          {lastRejectedAction?.message ?? 'The other offers leave when you draft.'}
-        </Text>
-        <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <View style={styles.captionPlate}>
+          <Text style={styles.caption}>
+            {lastRejectedAction?.message ?? 'The other offers leave when you draft.'}
+          </Text>
+        </View>
+        <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
           <WoodButton
             label={selectedOffer ? `Draft ${selectedOffer.item.name}` : 'No Offer'}
             disabled={!selectedOffer}
@@ -114,12 +127,40 @@ const styles = StyleSheet.create({
     backgroundColor: palette.wallCream,
     flex: 1,
     gap: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: layout.screenPadX,
+  },
+  scrim: {
+    backgroundColor: palette.wallCream,
+    bottom: 0,
+    left: 0,
+    opacity: 0.22,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   topBar: {
     alignItems: 'center',
+    backgroundColor: palette.plate,
+    borderRadius: radii.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.card,
+  },
+  labelPlate: {
+    alignSelf: 'flex-start',
+    backgroundColor: palette.plate,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+  },
+  captionPlate: {
+    alignSelf: 'center',
+    backgroundColor: palette.plate,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
   back: {
     ...typeScale.heading,
