@@ -166,7 +166,6 @@ export default function RestockScreen() {
                     )}
                     <Text numberOfLines={1} style={styles.sellName}>{slotState.item.name}</Text>
                     <View style={styles.sellTag}>
-                      <View style={styles.coinDot} />
                       <Text style={styles.sellValue}>{`Sell +${price}`}</Text>
                     </View>
                   </Pressable>
@@ -186,9 +185,15 @@ export default function RestockScreen() {
               onPress={reroll}
               style={({ pressed }) => [styles.reroll, pressed && styles.pressed]}
             >
-              <Text style={styles.rerollText}>
-                {(gameState.freeRerollTokens ?? 0) > 0 ? '🎟️ Free reroll' : `Reroll · ${REROLL_COST}c`}
-              </Text>
+              {(gameState.freeRerollTokens ?? 0) > 0 ? (
+                <Text style={styles.rerollText}>🎟️ Free reroll</Text>
+              ) : (
+                <View style={styles.rerollInner}>
+                  <Text style={styles.rerollText}>Reroll</Text>
+                  <View style={styles.coinDot} />
+                  <Text style={styles.rerollCost}>{REROLL_COST}</Text>
+                </View>
+              )}
             </Pressable>
           </View>
           <View style={styles.shopList}>
@@ -399,6 +404,9 @@ const styles = StyleSheet.create({
     color: palette.creamBright,
     fontSize: 15,
     lineHeight: 18,
+    // iOS: Baloo2 digits sit high in their box; nudge down to center on the coin.
+    includeFontPadding: false,
+    transform: [{ translateY: 2 }],
   },
   offerCol: {
     flex: 1,
@@ -451,10 +459,23 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     ...shadows.float,
   },
+  rerollInner: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
   rerollText: {
     ...typeScale.label,
     color: palette.tealDark,
     letterSpacing: 0,
+  },
+  rerollCost: {
+    ...typeScale.coin,
+    color: palette.tealDark,
+    fontSize: 14,
+    lineHeight: 16,
+    includeFontPadding: false,
+    transform: [{ translateY: 2 }],
   },
   sellGrid: {
     flexDirection: 'row',
@@ -489,18 +510,21 @@ const styles = StyleSheet.create({
   },
   sellTag: {
     alignItems: 'center',
+    alignSelf: 'center',
     backgroundColor: palette.coinGold,
     borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.xs,
+    justifyContent: 'center',
+    minWidth: 64,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 1,
+    paddingVertical: 2,
   },
   sellValue: {
     ...typeScale.coin,
     color: palette.ink,
     fontSize: 13,
     lineHeight: 16,
+    includeFontPadding: false,
+    transform: [{ translateY: 1 }],
   },
   caption: {
     ...typeScale.body,
