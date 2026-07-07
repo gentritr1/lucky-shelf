@@ -28,7 +28,7 @@ Updated 2026-07-07 by the Opus orchestrator.
 ## Open CCRs awaiting real Fable (consolidated)
 - **Scoring-order:** order/spotlight mults (levers); **2a** tag-synergy mult that *supersedes* Today's Order when on. No schema change.
 - **New scoring rule kinds:** 2c signature items (`tagFilteredShelfMultiplier`, `flatPerTagCount`, `copyHighestScoringOther`, `shelfMultiplierIfAnyTagCount`, `highestBaseValueMultiplier`).
-- **Contract (additive, no `ContractSchemaVersion` bump):** **2b** `GameState.supplierTag?` + `chooseSupplier{tag}` action; **3** `GameState.dailyTarget?` + `dailyTargetResult?` (`DailyTargetResultSchema`) + `freeRerollTokens?`.
+- **Contract (additive, no `ContractSchemaVersion` bump):** **2b** `GameState.supplierTag?` + `chooseSupplier{tag}` action; **3** `GameState.dailyTarget?` + `dailyTargetResult?` (`DailyTargetResultSchema`) + `freeRerollTokens?`; **1** `GameState.loopV2?` (bool, `ab83c8d`) — a per-run snapshot of `LOOP_V2_ENABLED` set once at `createRun`, so a run can't be split half-v1/half-v2 by a mid-session flag flip. Purely mechanical, no balance/scoring effect; only ever `true` on a v2 run, absent (→ v1) otherwise, so the OFF-path hash is byte-identical. FYI for the contract pass; not a balance decision.
 
 ## Balance findings from the device feel-gate (2026-07-07)
 - Verdict was positive ("way better than before"); the gap was intuitiveness, addressed by UI fixes.
