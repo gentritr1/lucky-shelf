@@ -1,11 +1,23 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
-import { StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { palette, shadows } from '@/ui/tokens';
+import { ITEM_SPRITES } from '@/juice';
+
+// Warm the item sprites + room backdrops into the image cache once at startup so
+// they don't decode-on-first-show (the per-screen pop-in). Uses RN's built-in
+// prefetch — no extra dependency — and is fire-and-forget: a miss just means the
+// old lazy behaviour for that asset.
+const PRELOAD_ASSETS: number[] = [
+  require('../../assets/scene/room-day.jpg'),
+  require('../../assets/scene/room-delivery.jpg'),
+  ...Object.values(ITEM_SPRITES),
+];
 
 // R-21 flag (Lane B): GestureHandlerRootView + SafeAreaProvider added at the root
 // so the M1 drag-and-drop gestures work app-wide and screens can read safe-area
@@ -25,6 +37,13 @@ export default function RootLayout() {
     Baloo2: require('../../assets/fonts/Baloo2.ttf'),
     Nunito: require('../../assets/fonts/Nunito.ttf'),
   });
+
+  useEffect(() => {
+    for (const mod of PRELOAD_ASSETS) {
+      const source = Image.resolveAssetSource(mod);
+      if (source?.uri) void Image.prefetch(source.uri).catch(() => undefined);
+    }
+  }, []);
 
   return (
     <GestureHandlerRootView style={styles.root}>
