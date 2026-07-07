@@ -32,8 +32,9 @@ export function OnboardingHint() {
         {catSprite ? <Image source={catSprite} style={styles.cat} resizeMode="contain" /> : null}
         <Text style={styles.heading}>Welcome to the shop</Text>
         <Text style={styles.body}>
-          Drag items so good neighbors touch — wine loves cheese. Then{' '}
-          <Text style={styles.bodyStrong}>Open Shop</Text> and watch the coins cascade.
+          Buy from the daily shop, then arrange so good neighbors touch. Stack one tag for a
+          growing <Text style={styles.bodyStrong}>synergy</Text> bonus and beat the day&apos;s{' '}
+          <Text style={styles.bodyStrong}>target</Text> — then Open Shop and watch the coins cascade.
         </Text>
         <WoodButton label="Got it" onPress={() => void dismiss().catch(() => undefined)} />
       </View>

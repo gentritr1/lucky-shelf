@@ -85,6 +85,12 @@ export default function RestockScreen() {
     dispatchAndSave({ type: 'placeItem', slot: emptySlot });
   };
 
+  // Drag-to-place: drop the held purchase on a specific slot (the button below
+  // stays as a one-tap fallback that fills the first empty slot).
+  const placeAt = (slot: Slot) => {
+    dispatchAndSave({ type: 'placeItem', slot });
+  };
+
   const endRestock = () => {
     const result = dispatchAndSave({ type: 'endRestock' });
     if (result.accepted) {
@@ -118,9 +124,11 @@ export default function RestockScreen() {
             gameState={gameState}
             glyphs={ITEM_GLYPHS}
             onMove={moveItem}
+            heldItem={gameState.heldItem}
+            onPlace={placeAt}
           />
           <Text style={styles.caption}>
-            {lastRejectedAction?.message ?? `${gameState.heldItem.name} is waiting for a shelf slot.`}
+            {lastRejectedAction?.message ?? `Drag ${gameState.heldItem.name} to a slot — or tap below.`}
           </Text>
           <WoodButton
             label={emptySlot ? `Place ${gameState.heldItem.name}` : 'No Empty Slot'}

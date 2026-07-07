@@ -7,7 +7,9 @@ import { create } from 'zustand';
  * hint shows once more).
  */
 
-const ONBOARDING_KEY = 'luckyShelf:onboarding:v1';
+// v2: refreshed copy for the redesigned loop (supplier lean, synergy, daily
+// target) — bumping the key re-shows the one-time hint to existing players.
+const ONBOARDING_KEY = 'luckyShelf:onboarding:v2';
 
 export interface OnboardingStoreState {
   seen: boolean;
