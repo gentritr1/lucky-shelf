@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -83,12 +83,21 @@ export function DraggableItem({
 
   const [active, setActive] = useState(false);
 
-  // After a committed move the board re-homes this item to its new slot; zero
-  // the drag offset so it lands cleanly (the settle already placed it visually
-  // on the target, so new-home + 0 == where it already is — no jump).
+  // After a committed move the board re-homes this item to its new slot. Its
+  // `left/top` jump to the new slot; compensate the drag offset by the same jump
+  // so the item stays visually put for one frame, then spring the offset to 0 —
+  // a clean settle into the new slot that does NOT depend on any drop-spring
+  // callback firing (the commit is now immediate, see onEnd).
+  const prevHome = useRef(home);
   useEffect(() => {
-    tx.value = 0;
-    ty.value = 0;
+    const dhx = prevHome.current.x - home.x;
+    const dhy = prevHome.current.y - home.y;
+    prevHome.current = home;
+    if (dhx === 0 && dhy === 0) return;
+    tx.value = tx.value + dhx;
+    ty.value = ty.value + dhy;
+    tx.value = reduced ? withTiming(0, { duration: 0 }) : withSpring(0, motion.springs.settle);
+    ty.value = reduced ? withTiming(0, { duration: 0 }) : withSpring(0, motion.springs.settle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
@@ -138,21 +147,6 @@ export function DraggableItem({
     runOnJS(setActive)(false);
   };
 
-  const settleTo = (dx: number, dy: number, commitIndex: number) => {
-    'worklet';
-    ty.value = reduced ? withTiming(dy, { duration: 0 }) : withSpring(dy, motion.springs.settle);
-    tx.value = reduced
-      ? withTiming(dx, { duration: 0 })
-      : withSpring(dx, motion.springs.settle, (finished) => {
-          if (finished && commitIndex !== index) {
-            runOnJS(onCommitMove)(index, commitIndex);
-          }
-        });
-    if (reduced && commitIndex !== index) {
-      runOnJS(onCommitMove)(index, commitIndex);
-    }
-  };
-
   const rubberBack = () => {
     'worklet';
     const opts = { duration: reduced ? 0 : motion.durations.drift, easing: easings.rubber };
@@ -193,14 +187,19 @@ export function DraggableItem({
         rubberBack();
         return;
       }
-      const dest = slotTopLeft(layout, target.row, target.col);
-      settleTo(dest.x - home.x, dest.y - home.y, targetIdx);
       if (targetIdx === index) {
+        // Dropped back on its own slot — settle the drag offset out.
+        tx.value = reduced ? withTiming(0, { duration: 0 }) : withSpring(0, motion.springs.settle);
+        ty.value = reduced ? withTiming(0, { duration: 0 }) : withSpring(0, motion.springs.settle);
         runOnJS(haptic)('placementTick');
-      } else {
-        runOnJS(haptic)('dropSettle');
-        runOnJS(haptic)('placementTick');
+        return;
       }
+      // Commit the move NOW — reliably, not on an interruptible settle-spring
+      // callback (which could be skipped during rapid rearranging, leaving the
+      // visual ahead of the board). The [index] effect settles the item in.
+      runOnJS(haptic)('dropSettle');
+      runOnJS(haptic)('placementTick');
+      runOnJS(onCommitMove)(index, targetIdx);
     })
     .onFinalize(release);
 
