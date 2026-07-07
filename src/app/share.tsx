@@ -28,7 +28,7 @@ export default function ShareScreen() {
   const catSprite = spriteFor('shop-cat');
 
   const shareText =
-    `🐈 Lucky Shelf ${isDaily ? `Daily ${dateLabel}` : ''}\n` +
+    `Lucky Shelf ${isDaily ? `— Daily ${dateLabel}` : ''}\n` +
     `Survived ${stats.daysSurvived} days · ${stats.totalCoinsEarned}c earned\n` +
     `Best day ${stats.bestDayTotal}c · Deepest rent ${stats.deepestRentSurvived}\n` +
     `Catalog ${view.completionPct}% collected`;
@@ -79,7 +79,10 @@ export default function ShareScreen() {
           <Text style={styles.tagline}>Arrange the shelf. Watch it pay.</Text>
         </View>
 
-        <Text style={styles.hint}>📸 Screenshot to share your shelf</Text>
+        <View style={styles.hintRow}>
+          <View style={styles.hintDot} />
+          <Text style={styles.hint}>Screenshot to share your shelf</Text>
+        </View>
       </View>
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.lg }]}>
@@ -144,6 +147,13 @@ const styles = StyleSheet.create({
   completionText: { ...typeScale.body, color: palette.inkSoft, fontSize: 12 },
 
   tagline: { ...typeScale.body, color: palette.inkFaint, fontStyle: 'italic', textAlign: 'center' },
+  hintRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  hintDot: {
+    backgroundColor: palette.accentTeal,
+    borderRadius: radii.pill,
+    height: 6,
+    width: 6,
+  },
   hint: { ...typeScale.body, color: palette.inkFaint, fontSize: 13 },
 
   actions: { gap: spacing.md, marginTop: 'auto' },

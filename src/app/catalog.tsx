@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Panel, SectionLabel, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { Medallion, Panel, SectionLabel, palette, radii, shadows, spacing, typeScale } from '@/ui';
 import { spriteFor } from '@/juice';
 import {
   buildCatalogView,
@@ -108,9 +108,7 @@ function ItemStamp({ item }: { item: CatalogItemRow }) {
 function ComboStamp({ combo }: { combo: CatalogComboRow }) {
   return (
     <View style={[styles.combo, combo.achieved ? styles.comboFound : styles.comboLocked]}>
-      <View style={styles.comboBadge}>
-        <Text style={styles.comboBadgeMark}>{combo.achieved ? '★' : '☆'}</Text>
-      </View>
+      <Medallion size={34} earned={combo.achieved} />
       <View style={styles.comboText}>
         <Text numberOfLines={1} style={styles.comboName}>
           {combo.achieved ? combo.name : 'Undiscovered combo'}
@@ -187,17 +185,6 @@ const styles = StyleSheet.create({
   },
   comboFound: { backgroundColor: palette.creamBright, borderColor: palette.goldDeep },
   comboLocked: { backgroundColor: palette.parchment, borderColor: palette.parchmentEdge, opacity: 0.7 },
-  comboBadge: {
-    alignItems: 'center',
-    backgroundColor: palette.sunlight,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  comboBadgeMark: { color: palette.goldDeep, fontSize: 18 },
   comboText: { flex: 1 },
   comboName: { ...typeScale.heading, color: palette.ink, fontSize: 15 },
   comboCount: { ...typeScale.body, color: palette.accentTeal, fontSize: 13, fontWeight: '700' },

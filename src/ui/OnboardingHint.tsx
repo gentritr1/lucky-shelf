@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { WoodButton } from './components/WoodButton';
 import { palette, radii, shadows, spacing, typeScale } from './tokens';
+import { spriteFor } from '../juice/sprites';
 import { useOnboardingStore } from '../state/onboardingStore';
 
 /**
@@ -21,12 +22,14 @@ export function OnboardingHint() {
     void load().catch(() => undefined);
   }, [load]);
 
+  const catSprite = spriteFor('shop-cat');
+
   if (!loaded || seen) return null;
 
   return (
     <View pointerEvents="box-none" style={styles.overlay}>
       <View style={styles.card}>
-        <Text style={styles.emoji}>🐈</Text>
+        {catSprite ? <Image source={catSprite} style={styles.cat} resizeMode="contain" /> : null}
         <Text style={styles.heading}>Welcome to the shop</Text>
         <Text style={styles.body}>
           Drag items so good neighbors touch — wine loves cheese. Then{' '}
@@ -61,7 +64,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     ...shadows.lifted,
   },
-  emoji: { fontSize: 44 },
+  cat: { height: 84, width: 84 },
   heading: { ...typeScale.title, color: palette.ink },
   body: { ...typeScale.body, color: palette.inkSoft, textAlign: 'center' },
   bodyStrong: { color: palette.ink, fontWeight: '800' },

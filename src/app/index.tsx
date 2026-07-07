@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useEffect } from 'react';
 
-import { WoodButton, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { GearIcon, WoodButton, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { spriteFor } from '@/juice';
 import { useRunStore } from '../state/store';
 import { routeForGameState } from '../state/phaseRouting';
 import { dailySeedFor, dailySelectors, todayDateString, useDailyStore } from '../state/dailyStore';
@@ -21,6 +22,7 @@ export default function TitleScreen() {
   const continueRun = useRunStore((state) => state.continueRun);
   const loadDaily = useDailyStore((state) => state.loadDaily);
   const playedToday = useDailyStore(dailySelectors.playedToday);
+  const catSprite = spriteFor('shop-cat');
 
   useEffect(() => {
     void loadDaily().catch(() => undefined);
@@ -58,10 +60,10 @@ export default function TitleScreen() {
         onPress={() => router.push('/settings')}
         style={[styles.gear, { top: insets.top + spacing.md }]}
       >
-        <Text style={styles.gearGlyph}>⚙️</Text>
+        <GearIcon size={24} color={palette.inkSoft} holeColor={palette.wallCream} />
       </Pressable>
 
-      {/* placeholder shop-front scene — the mascot on his shelf */}
+      {/* shop-front scene — the mascot sitting in the sunlit window */}
       <View style={styles.scene}>
         <View style={styles.awning}>
           {Array.from({ length: 7 }, (_, i) => (
@@ -69,9 +71,10 @@ export default function TitleScreen() {
           ))}
         </View>
         <View style={styles.window}>
-          <View style={styles.windowShelf} />
-          <Text style={styles.cat}>🐈</Text>
-          <View style={styles.windowShelfLow} />
+          {catSprite ? (
+            <Image source={catSprite} style={styles.catImg} resizeMode="contain" />
+          ) : null}
+          <View style={styles.windowSill} />
         </View>
         <Text style={styles.eyebrow}>GOLDEN HOUR GENERAL STORE</Text>
         <Text style={styles.title}>Lucky Shelf</Text>
@@ -108,9 +111,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.xl,
     zIndex: 10,
-  },
-  gearGlyph: {
-    fontSize: 26,
   },
   scene: {
     alignItems: 'center',
@@ -149,29 +149,19 @@ const styles = StyleSheet.create({
     width: 220,
     ...shadows.lifted,
   },
-  windowShelf: {
-    backgroundColor: palette.woodLight,
-    borderBottomColor: palette.woodDark,
-    borderBottomWidth: 2,
-    borderRadius: radii.xs,
-    height: 10,
-    position: 'absolute',
-    top: 58,
-    width: '86%',
+  catImg: {
+    height: 150,
+    width: 150,
   },
-  windowShelfLow: {
+  windowSill: {
     backgroundColor: palette.woodLight,
-    borderBottomColor: palette.woodDark,
-    borderBottomWidth: 2,
-    borderRadius: radii.xs,
-    bottom: 34,
-    height: 10,
+    borderTopColor: palette.sunlight,
+    borderTopWidth: 1,
+    bottom: 0,
+    height: 16,
+    left: 0,
     position: 'absolute',
-    width: '86%',
-  },
-  cat: {
-    fontSize: 74,
-    marginTop: -18,
+    right: 0,
   },
   eyebrow: {
     ...typeScale.label,

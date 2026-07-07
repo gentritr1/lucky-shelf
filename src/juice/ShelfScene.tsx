@@ -25,9 +25,10 @@ import {
 } from './layout';
 import { useSkiaReady } from './skiaWeb';
 
-// Room reserved below the grid for the delivery tray (label + item + gap).
-const TRAY_GAP = spacing.lg;
-const TRAY_LABEL_HEIGHT = 16;
+// Room reserved below the grid for the delivery tray (label + item + gaps).
+const TRAY_GAP = spacing.xl; // shelf → label breathing room
+const TRAY_LABEL_HEIGHT = 18;
+const TRAY_LABEL_GAP = spacing.md; // label → tray item breathing room
 
 // Native-only: importing @shopify/react-native-skia on web auto-initializes
 // CanvasKit (wasm). Guard the require so the Skia module is never *executed* in
@@ -125,10 +126,12 @@ export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace }: She
   );
 
   const trayZone = layout && showTray
-    ? TRAY_GAP + TRAY_LABEL_HEIGHT + layout.slotSize + spacing.sm
+    ? TRAY_GAP + TRAY_LABEL_HEIGHT + TRAY_LABEL_GAP + layout.slotSize + spacing.md
     : 0;
   const trayHomeX = layout ? (layout.frameWidth - layout.slotSize) / 2 : 0;
-  const trayHomeY = layout ? layout.frameHeight + TRAY_GAP + TRAY_LABEL_HEIGHT : 0;
+  const trayHomeY = layout
+    ? layout.frameHeight + TRAY_GAP + TRAY_LABEL_HEIGHT + TRAY_LABEL_GAP
+    : 0;
 
   return (
     <View style={styles.frame} onLayout={onLayout}>

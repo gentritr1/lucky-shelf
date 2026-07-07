@@ -13,3 +13,4 @@ export { SectionLabel } from './components/SectionLabel';
 export { Toggle } from './components/Toggle';
 export { MovesPips } from './components/MovesPips';
 export { OnboardingHint } from './OnboardingHint';
+export { GearIcon, Medallion } from './icons';

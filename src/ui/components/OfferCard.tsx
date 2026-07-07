@@ -122,18 +122,22 @@ const styles = StyleSheet.create({
     color: palette.ink,
   },
   tags: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
-    gap: spacing.xs,
+    flexWrap: 'wrap',
+    gap: spacing.xxs,
+    justifyContent: 'center',
   },
   tag: {
     backgroundColor: palette.parchment,
     borderRadius: radii.pill,
-    paddingHorizontal: spacing.sm,
+    maxWidth: '100%',
+    paddingHorizontal: spacing.xs,
     paddingVertical: 1,
   },
   tagText: {
     color: palette.inkFaint,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
   },
 });

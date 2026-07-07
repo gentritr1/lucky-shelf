@@ -9,10 +9,11 @@ import { spacing } from '@/ui/tokens';
  * finger over."
  */
 
-export const FRAME_PADDING = spacing.md; // wood frame inner padding
+export const FRAME_PADDING = spacing.lg; // wood frame inner padding (top/sides)
 export const SLOT_GAP = spacing.sm; // horizontal gap between slot wells
 export const PLANK_HEIGHT = 10; // the visible shelf board under each row
-export const ROW_GAP = spacing.sm + PLANK_HEIGHT; // vertical gap incl. the plank
+export const ROW_GAP = spacing.md + PLANK_HEIGHT; // vertical gap incl. the plank
+export const BASE_LIP = spacing.sm; // extra wood below the last plank (the counter base)
 
 export interface ShelfLayout {
   rows: number;
@@ -29,7 +30,10 @@ export function computeShelfLayout(frameWidth: number, rows: number, cols: numbe
   const slotSize = Math.max(0, innerWidth / cols);
   const colStride = slotSize + SLOT_GAP;
   const rowStride = slotSize + ROW_GAP;
-  const frameHeight = FRAME_PADDING * 2 + rows * slotSize + (rows - 1) * ROW_GAP;
+  // Every row — including the last — gets its plank (ROW_GAP), then a base lip
+  // and even bottom padding, so the shelf reads evenly and the bottom board has
+  // room instead of clipping against the frame edge.
+  const frameHeight = FRAME_PADDING * 2 + rows * slotSize + rows * ROW_GAP + BASE_LIP;
   return { rows, cols, frameWidth, frameHeight, slotSize, rowStride, colStride };
 }
 
