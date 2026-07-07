@@ -11,6 +11,7 @@ import type { ItemTable, NamedCombo } from '../items';
 import { itemDefinition } from '../items';
 
 import {
+  BUILD_STEERING_ELIGIBLE_TAGS,
   DEMAND_COUNT,
   DEMAND_ENABLED,
   DEMAND_TAG_POOL,
@@ -19,7 +20,9 @@ import {
   REROLL_COST,
   SPOTLIGHT_ENABLED,
   STARTING_RENT,
+  buildSteeringEnabled,
   generateOffers,
+  isBuildSteeringTag,
   loopV2Enabled,
   nextRentAmount,
   paidMoveCost,
@@ -99,7 +102,7 @@ function instantiate(offer: DeliveryOffer, deps: EngineDeps): ItemInstance {
 }
 
 export function createRun(seed: string, deps: EngineDeps): GameState {
-  return {
+  const state: GameState = {
     schemaVersion: ContractSchemaVersion,
     runId: `run-${seed}`,
     seed,
@@ -126,6 +129,8 @@ export function createRun(seed: string, deps: EngineDeps): GameState {
     spotlight: pickSpotlight(seed, 1, { rows: 3, cols: 4 }),
     dailyOrder: pickCycleOrder(seed, 1),
   };
+  if (buildSteeringEnabled()) state.supplierTag = null;
+  return state;
 }
 
 function requirePhase(state: GameState, ...phases: GameState['phase'][]): void {
@@ -156,6 +161,20 @@ function isLoopV2StarterPlacement(state: GameState): boolean {
   );
 }
 
+function supplierTagForOffers(state: GameState): string | null {
+  return buildSteeringEnabled() ? (state.supplierTag ?? null) : null;
+}
+
+function canChooseSupplier(state: GameState): boolean {
+  return (
+    buildSteeringEnabled() &&
+    state.phase === 'delivery' &&
+    state.day === 1 &&
+    state.runStats.daysSurvived === 0 &&
+    state.supplierTag == null
+  );
+}
+
 export function dispatch(state: GameState, action: Action, deps: EngineDeps): GameState {
   if (state.phase === 'gameOver') {
     throw new EngineError('Run is over.');
@@ -163,8 +182,25 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
   const next = clone(state);
 
   switch (action.type) {
+    case 'chooseSupplier': {
+      requirePhase(next, 'delivery');
+      if (!buildSteeringEnabled()) throw new EngineError('Build steering is disabled.');
+      if (!canChooseSupplier(next)) {
+        throw new EngineError('Supplier can only be chosen once at run start.');
+      }
+      if (!isBuildSteeringTag(action.tag)) {
+        throw new EngineError(`Supplier tag ${action.tag} is not eligible for build steering.`);
+      }
+      next.supplierTag = action.tag;
+      next.currentOffers = generateOffers(next.seed, next.day, 'delivery', deps.table, '', action.tag);
+      return next;
+    }
+
     case 'draftItem': {
       requirePhase(next, 'delivery');
+      if (canChooseSupplier(next)) {
+        throw new EngineError('Choose a supplier before drafting.');
+      }
       const offer = next.currentOffers[action.offerIndex];
       if (!offer) throw new EngineError(`No offer at index ${action.offerIndex}.`);
       next.heldItem = instantiate(offer, deps);
@@ -183,7 +219,14 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       next.heldItem = null;
       if (isLoopV2StarterPlacement(next)) {
         next.phase = 'restock';
-        next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, '');
+        next.currentOffers = generateOffers(
+          next.seed,
+          next.day,
+          'restock',
+          deps.table,
+          '',
+          supplierTagForOffers(next),
+        );
       }
       return next;
     }
@@ -309,13 +352,34 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
 
       if (loopV2Enabled()) {
         next.phase = 'restock';
-        next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, '');
+        next.currentOffers = generateOffers(
+          next.seed,
+          next.day,
+          'restock',
+          deps.table,
+          '',
+          supplierTagForOffers(next),
+        );
       } else if (scoredDay % 3 === 0) {
         next.phase = 'restock';
-        next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, '');
+        next.currentOffers = generateOffers(
+          next.seed,
+          next.day,
+          'restock',
+          deps.table,
+          '',
+          supplierTagForOffers(next),
+        );
       } else {
         next.phase = 'delivery';
-        next.currentOffers = generateOffers(next.seed, next.day, 'delivery', deps.table, '');
+        next.currentOffers = generateOffers(
+          next.seed,
+          next.day,
+          'delivery',
+          deps.table,
+          '',
+          supplierTagForOffers(next),
+        );
       }
       return next;
     }
@@ -337,7 +401,14 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       if (next.coins < REROLL_COST) throw new EngineError('Not enough coins to reroll.');
       next.coins -= REROLL_COST;
       const salt = next.currentOffers.map((offer) => offer.offerId).join('|');
-      next.currentOffers = generateOffers(next.seed, next.day, 'restock', deps.table, salt);
+      next.currentOffers = generateOffers(
+        next.seed,
+        next.day,
+        'restock',
+        deps.table,
+        salt,
+        supplierTagForOffers(next),
+      );
       return next;
     }
 
@@ -350,7 +421,14 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         return next;
       }
       next.phase = 'delivery';
-      next.currentOffers = generateOffers(next.seed, next.day, 'delivery', deps.table, '');
+      next.currentOffers = generateOffers(
+        next.seed,
+        next.day,
+        'delivery',
+        deps.table,
+        '',
+        supplierTagForOffers(next),
+      );
       return next;
     }
 
@@ -382,6 +460,12 @@ export function legalActions(state: GameState, deps: EngineDeps): Action[] {
 
   switch (state.phase) {
     case 'delivery': {
+      if (canChooseSupplier(state)) {
+        for (const tag of BUILD_STEERING_ELIGIBLE_TAGS) {
+          actions.push({ type: 'chooseSupplier', tag });
+        }
+        break;
+      }
       state.currentOffers.forEach((_, index) => actions.push({ type: 'draftItem', offerIndex: index }));
       break;
     }

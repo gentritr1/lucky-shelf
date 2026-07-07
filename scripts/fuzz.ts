@@ -1,6 +1,11 @@
 import { loadCombos, loadItemTable } from '../src/items';
 import { playRun, type StrategyName } from '../src/sim/bots';
-import { loopV2Enabled } from '../src/sim/economy';
+import {
+  BUILD_STEER_BIAS,
+  buildSteeringEnabled,
+  loopV2Enabled,
+  tagSynergyEnabled,
+} from '../src/sim/economy';
 
 /**
  * Fuzz harness v1 (kickoff §5): headless seeded runs with strategy bots,
@@ -24,6 +29,7 @@ interface NumericSummary {
   stddev: number;
   median: number;
   p90: number;
+  p95: number;
   max: number;
 }
 
@@ -81,6 +87,7 @@ function summarize(values: readonly number[]): NumericSummary {
     stddev: Number(Math.sqrt(variance).toFixed(2)),
     median: quantile(sorted, 0.5),
     p90: quantile(sorted, 0.9),
+    p95: quantile(sorted, 0.95),
     max: sorted.length ? (sorted[sorted.length - 1] ?? 0) : 0,
   };
 }
@@ -105,6 +112,16 @@ function summarizeMetricMap(metrics: Map<string, number[]>): Record<string, Nume
     [...metrics.entries()]
       .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
       .map(([key, values]) => [key, summarize(values)]),
+  );
+}
+
+function incrementDistribution(distribution: Map<string, number>, key: string): void {
+  distribution.set(key, (distribution.get(key) ?? 0) + 1);
+}
+
+function sortedDistribution(distribution: Map<string, number>): Record<string, number> {
+  return Object.fromEntries(
+    [...distribution.entries()].sort(([keyA], [keyB]) => Number(keyA) - Number(keyB)),
   );
 }
 
@@ -148,12 +165,21 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
   const signatureItemsBoughtPerRun: number[] = [];
   const boardOccupancyByDay = new Map<string, number[]>();
   const itemsBoughtByDay = new Map<string, number[]>();
+  const dominantEligibleTagCountByDay = new Map<string, number[]>();
+  const dominantEligibleTagCountDistribution = new Map<string, number>();
+  const supplierTagCountByDay = new Map<string, number[]>();
+  const supplierTagDistribution = new Map<string, number>();
+  const finalDominantEligibleTagCounts: number[] = [];
+  const finalSupplierTagCounts: number[] = [];
   let gameOvers = 0;
   let comboRuns = 0;
   let signatureRuns = 0;
   let scoredDays = 0;
   let orderMetDays = 0;
   let spotlightHitDays = 0;
+  let synergyFireDays = 0;
+  let synergyFires = 0;
+  let scoredOccupiedSlots = 0;
 
   for (let index = 0; index < args.runs; index += 1) {
     const run = playRun(`${args.seed}-${strategy}-${index}`, strategy, deps, args.maxActions);
@@ -161,11 +187,26 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
     scoredDays += run.metrics.scoredDays;
     orderMetDays += run.metrics.orderMetDays;
     spotlightHitDays += run.metrics.spotlightHitDays;
+    synergyFireDays += run.metrics.synergyFireDays;
+    synergyFires += run.metrics.synergyFires;
+    scoredOccupiedSlots += run.metrics.scoredOccupiedSlots;
     itemsBoughtPerRun.push(run.metrics.itemsBought);
     signatureItemsBoughtPerRun.push(run.metrics.signatureItemsBought);
+    finalDominantEligibleTagCounts.push(run.metrics.finalDominantEligibleTagCount);
+    finalSupplierTagCounts.push(run.metrics.finalSupplierTagCount);
+    if (run.metrics.supplierTag) {
+      incrementDistribution(supplierTagDistribution, run.metrics.supplierTag);
+    }
     for (const [day, occupancy] of Object.entries(run.metrics.occupancyByDay)) {
       pushDayMetric(boardOccupancyByDay, day, occupancy);
       pushDayMetric(itemsBoughtByDay, day, run.metrics.itemsBoughtByDay[day] ?? 0);
+    }
+    for (const [day, count] of Object.entries(run.metrics.dominantEligibleTagCountByDay)) {
+      pushDayMetric(dominantEligibleTagCountByDay, day, count);
+      incrementDistribution(dominantEligibleTagCountDistribution, String(count));
+    }
+    for (const [day, count] of Object.entries(run.metrics.supplierTagCountByDay)) {
+      pushDayMetric(supplierTagCountByDay, day, count);
     }
     daysSurvived.push(stats.daysSurvived);
     coinsEarned.push(stats.totalCoinsEarned);
@@ -215,6 +256,18 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
     namedComboRunRate: Number((comboRuns / args.runs).toFixed(3)),
     orderFillRate: scoredDays === 0 ? 0 : Number((orderMetDays / scoredDays).toFixed(3)),
     spotlightHitRate: scoredDays === 0 ? 0 : Number((spotlightHitDays / scoredDays).toFixed(3)),
+    synergyFireDayRate: scoredDays === 0 ? 0 : Number((synergyFireDays / scoredDays).toFixed(3)),
+    synergyFireRate:
+      scoredOccupiedSlots === 0 ? 0 : Number((synergyFires / scoredOccupiedSlots).toFixed(3)),
+    synergyFiresPerScoredDay: scoredDays === 0 ? 0 : Number((synergyFires / scoredDays).toFixed(3)),
+    dominantEligibleTagCountDistribution: sortedDistribution(dominantEligibleTagCountDistribution),
+    dominantEligibleTagCountByDay: summarizeDayMetrics(dominantEligibleTagCountByDay),
+    finalDominantEligibleTagCount: summarize(finalDominantEligibleTagCounts),
+    supplierTagDistribution: Object.fromEntries(
+      [...supplierTagDistribution.entries()].sort(([tagA], [tagB]) => tagA.localeCompare(tagB)),
+    ),
+    finalSupplierTagCount: summarize(finalSupplierTagCounts),
+    supplierTagCountByDay: summarizeDayMetrics(supplierTagCountByDay),
   };
 }
 
@@ -228,6 +281,9 @@ function main(): void {
     generatedAt: new Date().toISOString(),
     seedPrefix: args.seed,
     loopV2Enabled: loopV2Enabled(),
+    tagSynergyEnabled: tagSynergyEnabled(),
+    buildSteeringEnabled: buildSteeringEnabled(),
+    buildSteerBias: BUILD_STEER_BIAS,
     maxActions: args.maxActions,
     results: strategies.map((strategy) => fuzzStrategy(strategy, args)),
     elapsedMs: 0,

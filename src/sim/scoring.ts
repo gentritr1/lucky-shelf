@@ -13,7 +13,14 @@ import { toSlotKey } from '../contracts';
 import type { ItemTable, NamedCombo } from '../items';
 import { itemDefinition } from '../items';
 
-import { DEMAND_MULT, SPOTLIGHT_MULT, signatureItemsEnabled } from './economy';
+import {
+  DEMAND_MULT,
+  SPOTLIGHT_MULT,
+  TAG_SYNERGY_ELIGIBLE_TAGS,
+  TAG_SYNERGY_LADDER,
+  signatureItemsEnabled,
+  tagSynergyEnabled,
+} from './economy';
 import {
   buildSlotMap,
   compareSlots,
@@ -33,7 +40,8 @@ import { rngFor } from './rng';
  *   among themselves (R-7: itemTotal is final, so late info needs deferral).
  * - Within a slot window: itemBase → own flat rules (rule order, neighbor order
  *   left/right/up/down) → incoming flat grants (by source slot, row-major) →
- *   own mult rules → incoming mult grants → ambient row auras at itemTotal.
+ *   own mult rules → incoming mult grants → ambient row auras → order/synergy
+ *   prototype mult → spotlight prototype mult at itemTotal.
  * - Every ruleFire lands in the window of the slot whose runningTotal it
  *   modifies (R-6). Auras exclude their source (R-1). Money floors after each
  *   multiplier (documented Lane A decision, flagged for Fable).
@@ -58,6 +66,10 @@ interface ScoredSlot {
   slot: Slot;
   item: ItemInstance;
   total: number;
+}
+
+interface TagSynergyMatch {
+  mult: number;
 }
 
 export interface ScoringResult {
@@ -106,6 +118,38 @@ function tagCounts(slots: readonly ScoredSlot[]): Map<string, number> {
     }
   }
   return counts;
+}
+
+function eligibleTagCounts(occupied: readonly SlotState[]): Map<string, number> {
+  const eligible = new Set(TAG_SYNERGY_ELIGIBLE_TAGS);
+  const counts = new Map<string, number>();
+  for (const entry of occupied) {
+    const item = entry.item;
+    if (!item) continue;
+    for (const tag of item.tags) {
+      if (!eligible.has(tag)) continue;
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+function tagSynergyMultForCount(count: number): number {
+  let mult = 1;
+  for (const step of TAG_SYNERGY_LADDER) {
+    if (count >= step.minCount) mult = step.mult;
+  }
+  return mult;
+}
+
+function bestTagSynergy(tags: readonly string[], counts: ReadonlyMap<string, number>): TagSynergyMatch | null {
+  let best: TagSynergyMatch | null = null;
+  for (const tag of tags) {
+    const mult = tagSynergyMultForCount(counts.get(tag) ?? 0);
+    if (mult <= 1) continue;
+    if (!best || mult > best.mult) best = { mult };
+  }
+  return best;
 }
 
 function applySignatureFlat(
@@ -375,6 +419,8 @@ export function resolveOpenShop(
   const orderMet = order
     ? occupied.filter((entry) => entry.item?.tags.includes(order.tag)).length >= order.count
     : false;
+  const synergyEnabled = tagSynergyEnabled();
+  const synergyCounts = synergyEnabled ? eligibleTagCounts(occupied) : new Map<string, number>();
 
   // --- Resolve slot windows. ---
   const resolvedTotals = new Map<string, number>();
@@ -555,10 +601,20 @@ export function resolveOpenShop(
       running = Math.floor(running * aura.mult);
     }
 
-    // PROTOTYPE (Today's Order): matching items get the set bonus when the day's
-    // order is filled. Applied before the spotlight so the window still caps last.
-    // ruleId 'order'; dead branch (traces unchanged) when the flag is off.
-    if (order && orderMet && item.tags.includes(order.tag)) {
+    // Loop v2 Phase 2a: tag-set synergy generalizes Today's Order. When the
+    // synergy flag is on, order is deliberately skipped so the two don't stack.
+    const synergy = synergyEnabled ? bestTagSynergy(item.tags, synergyCounts) : null;
+    if (synergy) {
+      running = Math.floor(running * synergy.mult);
+      events.push({
+        kind: 'ruleFire',
+        sourceSlot: slot,
+        targetSlot: slot,
+        ruleId: 'synergy',
+        delta: multDelta(synergy.mult),
+        runningTotal: Math.max(0, Math.floor(running)),
+      });
+    } else if (!synergyEnabled && order && orderMet && item.tags.includes(order.tag)) {
       running = Math.floor(running * DEMAND_MULT);
       events.push({
         kind: 'ruleFire',

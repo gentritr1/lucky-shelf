@@ -7,6 +7,9 @@ import { isSignatureItem, loadCombos, loadItemTable } from '../items';
 import {
   LOOP_V2_ENV_VAR,
   SIGNATURE_ITEMS_ENV_VAR,
+  SPOTLIGHT_MULT,
+  TAG_SYNERGY_ENV_VAR,
+  TAG_SYNERGY_LADDER,
   dailyShopCost,
   generateOffers,
   offerablePool,
@@ -41,6 +44,26 @@ function withLoopV2<T>(enabled: boolean, run: () => T): T {
     if (previous === undefined) delete process.env[LOOP_V2_ENV_VAR];
     else process.env[LOOP_V2_ENV_VAR] = previous;
   }
+}
+
+function withTagSynergy<T>(enabled: boolean, run: () => T): T {
+  const previous = process.env[TAG_SYNERGY_ENV_VAR];
+  if (enabled) process.env[TAG_SYNERGY_ENV_VAR] = '1';
+  else delete process.env[TAG_SYNERGY_ENV_VAR];
+  try {
+    return run();
+  } finally {
+    if (previous === undefined) delete process.env[TAG_SYNERGY_ENV_VAR];
+    else process.env[TAG_SYNERGY_ENV_VAR] = previous;
+  }
+}
+
+function synergyMultForCount(count: number): number {
+  let mult = 1;
+  for (const step of TAG_SYNERGY_LADDER) {
+    if (count >= step.minCount) mult = step.mult;
+  }
+  return mult;
 }
 
 function lastItemTotal(trace: ScoringTrace, slot: Slot): number {
@@ -243,4 +266,57 @@ describe('signature stock', () => {
     expect(lastItemTotal(alone.trace, displaySlot)).toBe(0);
     expect(ruleFires(alone.trace, 'window-display-hero-piece')).toHaveLength(0);
   });
+
+  it('signature rules read post-synergy and post-spotlight settled totals', () =>
+    withSignatureItems(true, () =>
+      withTagSynergy(true, () => {
+        const catSlot = { row: 0, col: 0 };
+        const bestSlot = { row: 0, col: 2 };
+        const result = resolveOpenShop(
+          makeState(
+            [
+              { slot: catSlot, itemId: 'lucky-cat' },
+              { slot: bestSlot, itemId: 'cheese-wheel', baseValue: 10 },
+              { slot: { row: 1, col: 1 }, itemId: 'bread-loaf' },
+              { slot: { row: 2, col: 0 }, itemId: 'apple-basket' },
+            ],
+            { spotlight: bestSlot, dailyOrder: { tag: 'food', count: 2 } },
+          ),
+          table,
+          combos,
+        );
+        const expectedCopiedTotal = Math.floor(
+          Math.floor(10 * synergyMultForCount(3)) * SPOTLIGHT_MULT,
+        );
+        const synergyIndex = result.trace.events.findIndex(
+          (event) =>
+            event.kind === 'ruleFire' &&
+            event.ruleId === 'synergy' &&
+            toSlotKey(event.sourceSlot) === toSlotKey(bestSlot),
+        );
+        const spotlightIndex = result.trace.events.findIndex(
+          (event) =>
+            event.kind === 'ruleFire' &&
+            event.ruleId === 'spotlight' &&
+            toSlotKey(event.sourceSlot) === toSlotKey(bestSlot),
+        );
+        const copyIndex = result.trace.events.findIndex(
+          (event) => event.kind === 'ruleFire' && event.ruleId === 'lucky-cat-best-in-shop',
+        );
+
+        expect(ruleFires(result.trace, 'order')).toHaveLength(0);
+        expect(ruleFires(result.trace, 'lucky-cat-best-in-shop')).toContainEqual({
+          kind: 'ruleFire',
+          sourceSlot: bestSlot,
+          targetSlot: catSlot,
+          ruleId: 'lucky-cat-best-in-shop',
+          delta: { flat: expectedCopiedTotal },
+          runningTotal: expectedCopiedTotal,
+        });
+        expect(synergyIndex).toBeGreaterThanOrEqual(0);
+        expect(spotlightIndex).toBeGreaterThan(synergyIndex);
+        expect(copyIndex).toBeGreaterThan(spotlightIndex);
+        expect(lastItemTotal(result.trace, catSlot)).toBe(expectedCopiedTotal);
+      }),
+    ));
 });

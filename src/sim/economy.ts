@@ -79,6 +79,43 @@ export const DEMAND_TAG_POOL: readonly string[] = [
 ];
 
 /**
+ * Loop redesign v2 Phase 2a — tag-set synergies. Default OFF pending Fable
+ * sign-off. When on, this supersedes Today's Order during scoring: each item
+ * receives only the best eligible tag ladder multiplier it qualifies for.
+ */
+export const TAG_SYNERGY_ENABLED = false;
+export const TAG_SYNERGY_ENV_VAR = 'TAG_SYNERGY_ENABLED';
+export const TAG_SYNERGY_ELIGIBLE_TAGS = DEMAND_TAG_POOL;
+export const TAG_SYNERGY_LADDER: readonly { minCount: number; mult: number }[] = [
+  { minCount: 3, mult: 1.2 },
+  { minCount: 4, mult: 1.4 },
+  { minCount: 5, mult: 1.6 },
+  { minCount: 6, mult: 1.8 },
+];
+
+export function tagSynergyEnabled(): boolean {
+  return TAG_SYNERGY_ENABLED || process.env[TAG_SYNERGY_ENV_VAR] === '1';
+}
+
+/**
+ * Loop redesign v2 Phase 2b — build steering. Default OFF pending Fable
+ * sign-off. When on, the opening delivery can choose a supplier tag and offers
+ * carrying that tag get a weighted nudge without locking out the rest of the pool.
+ */
+export const BUILD_STEERING_ENABLED = false;
+export const BUILD_STEERING_ENV_VAR = 'BUILD_STEERING_ENABLED';
+export const BUILD_STEERING_ELIGIBLE_TAGS = TAG_SYNERGY_ELIGIBLE_TAGS;
+export const BUILD_STEER_BIAS = 2.5;
+
+export function buildSteeringEnabled(): boolean {
+  return BUILD_STEERING_ENABLED || process.env[BUILD_STEERING_ENV_VAR] === '1';
+}
+
+export function isBuildSteeringTag(tag: string): boolean {
+  return BUILD_STEERING_ELIGIBLE_TAGS.includes(tag);
+}
+
+/**
  * Loop redesign v2 Phase 2c — signature stock. Default OFF pending Fable sign-off
  * and Lane B feel pass. When off, signature items are filtered before offer
  * generation and their scoring rule branch is dead.
@@ -153,10 +190,23 @@ function tierWeight(tier: number, day: number): number {
   }
 }
 
-function offerWeight(definition: ItemDefinition, day: number): number {
+export function offerWeight(
+  definition: ItemDefinition,
+  day: number,
+  supplierTag: string | null = null,
+): number {
   const baseWeight = tierWeight(definition.tier, day);
   if (baseWeight <= 0) return 0;
-  return isSignatureItem(definition) ? baseWeight * SIGNATURE_ITEM_WEIGHT_MULT : baseWeight;
+  let weight = isSignatureItem(definition) ? baseWeight * SIGNATURE_ITEM_WEIGHT_MULT : baseWeight;
+  if (
+    buildSteeringEnabled() &&
+    supplierTag &&
+    isBuildSteeringTag(supplierTag) &&
+    definition.tags.includes(supplierTag)
+  ) {
+    weight *= BUILD_STEER_BIAS;
+  }
+  return weight;
 }
 
 /** Items that only exist as transform targets never show up in offers. */
@@ -186,6 +236,7 @@ export function generateOffers(
   kind: 'delivery' | 'restock',
   table: ItemTable,
   salt: string,
+  supplierTag: string | null = null,
 ): DeliveryOffer[] {
   const rng = rngFor(seed, 'offers', kind, day, salt);
   const count =
@@ -197,11 +248,11 @@ export function generateOffers(
   const pool = offerablePool(table).filter(
     (definition) => kind === 'restock' || !isSignatureItem(definition),
   );
-  const remaining = pool.filter((definition) => offerWeight(definition, day) > 0);
+  const remaining = pool.filter((definition) => offerWeight(definition, day, supplierTag) > 0);
 
   const offers: DeliveryOffer[] = [];
   for (let index = 0; index < count && remaining.length > 0; index += 1) {
-    const weights = remaining.map((definition) => offerWeight(definition, day));
+    const weights = remaining.map((definition) => offerWeight(definition, day, supplierTag));
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     let roll = rng.next() * totalWeight;
     let chosenIndex = 0;

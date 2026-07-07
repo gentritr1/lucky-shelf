@@ -545,10 +545,19 @@ export const GameStateSchema = z
     // PROTOTYPE (Today's Order): the day's collection demand. Same additive/optional
     // save-safety as `spotlight`. Absent/null = no order this day (flag off).
     dailyOrder: DailyOrderSchema.nullable().optional(),
+    // Loop v2 Phase 2b build steering: optional supplier lean chosen at run start.
+    // Absent = feature flag off / older save. Null = flag on, no lean chosen yet.
+    supplierTag: idSchema.nullable().optional(),
   })
   .strict();
 
 export const ActionSchema = z.discriminatedUnion('type', [
+  z
+    .object({
+      type: z.literal('chooseSupplier'),
+      tag: idSchema,
+    })
+    .strict(),
   z
     .object({
       type: z.literal('draftItem'),
