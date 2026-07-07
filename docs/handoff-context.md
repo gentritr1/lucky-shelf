@@ -1,65 +1,60 @@
-# Lucky Shelf — project handoff (paste into a fresh chat to continue)
+# Lucky Shelf — handoff context (for starting a new conversation)
 
-I'm continuing work on **Lucky Shelf**, a cozy spatial roguelite for phones (Expo +
-TypeScript, portrait). It's at `/Users/gentlegen/Desktop/lucky-shelf`, pushed to
-github.com/gentritr1/lucky-shelf (branch `main`). Read `AGENTS.md` and
-`docs/lucky-shelf-kickoff.md` first — they're the source of truth.
+Last updated 2026-07-07. Read this first, then `docs/loop-redesign-v2-spec.md`.
 
-## How this project runs (role-play)
-Three AI roles + me relaying: **Fable** (orchestrator/director/reviewer — owns item
-table, balance, all fun/feel rulings), **Codex = Lane A** (sim/engine/economy/
-persistence/scaffolding), **Opus = Lane B** (UI/screens/Skia/juice/art). Each milestone a
-lane posts a Review Packet in `docs/review-packets/` and stops; Fable reviews. Rulings are
-numbered (R-1…R-43) and cited across packets. In practice the assistant wears all hats and
-builds directly when asked, and generates art via the Higgsfield MCP.
+## What the game is
+Cozy shopkeeper roguelike (React Native / Expo, native `ios/` project with Skia). You place items
+on a **3×4 shelf** (drag-drop); "Open Shop" runs a **deterministic scoring cascade** (adjacency
+rules, auras, named combos). **Rent** every 3 days, escalating, is the fail wall. Permanent Catalog
+meta. 36 base items + 5 signature items. Repo at `/Users/gentlegen/Desktop/lucky-shelf`.
 
-## State: M0–M5 complete + visual-polish passes, all pushed
-- Engine: full rule grammar, scoring traces, replay, determinism, fuzz — 59 tests green,
-  tsc strict clean.
-- Persistence: run saves, catalog, daily — all versioned + fail-safe.
-- Loop: draft → arrange (drag) → cascade (every coin explained) → rent → restock →
-  gameOver → summary → share.
-- Meta: catalog album (56 stamps), daily shelf (date-seeded, one attempt), share card,
-  dusk ambience, onboarding hint.
-- Art: 36 cozy-gouache item sprites + key art + icon (Higgsfield/nano_banana_2, style-
-  locked to the Shop Cat mascot). **All sprites are transparent PNGs** (background
-  removed), framed on padded mats so they float. Manifest: `assets/sprites/manifest.json`.
-- Polish: responsive centered device-frame column on wide screens; **Baloo 2 (display) +
-  Nunito (body)** via expo-font (`assets/fonts`); geometric View-based icons (no emoji);
-  even shelf geometry; contained offer-card tags.
+## Where the project is
+A **loop redesign** is underway to fix a device verdict: *too linear, one decision/day, no build
+identity*. Direction = deepen the loop toward a Luck-be-a-Landlord/Balatro shape. Spec + research:
+`docs/loop-redesign-v2-spec.md`, `docs/research-findings-depth-retention.md`.
 
-## Environment quirks (critical)
-- Default Node is v14 and BREAKS everything. Prepend
-  `export PATH="$HOME/.nvm/versions/node/v20.19.4/bin:$PATH"` (arm64; NOT v23.3.0 — x86).
-- corepack pnpm is broken. Run tools directly: `node_modules/.bin/tsc --noEmit`,
-  `node_modules/.bin/vitest run`, `node --import tsx <script>`.
-- Web preview via the `expo-web` launch config (port 8090). Metro regenerates expo-router
-  route types on bundle, so a brand-new route needs a bundle before tsc passes. New
-  bundled assets (sprites/fonts) may need a server restart to serve. Don't regress
-  `babel.config.js`. `ios/` is gitignored (regenerate via `expo prebuild`).
-- Drag placement can't be driven by synthetic web input (gesture-handler); a live run to
-  gameOver needs a real device. Seed localStorage to demo populated states (keys:
-  `luckyShelf:save:v1:activeRun`, `luckyShelf:catalog:v1`, `luckyShelf:daily:v1`).
-- Higgsfield starter plan caps at ~4 concurrent jobs; `remove_background` accepts a
-  generation `job_id` as `media_id`; collect results via `show_generations`.
+**Landed behind flags (all reviewed), in `src/sim/economy.ts`:**
+- **Depth levers** (default **ON**): Front Window spotlight (×3 slot) + Today's Order (tag-set ×1.5).
+  `SPOTLIGHT_ENABLED`, `DEMAND_*`.
+- **Loop v2 Phase 1** (default OFF, `LOOP_V2_ENABLED`): every day is a buy-multiple daily shop
+  (reuses the `restock` phase) + starting coins → board fills faster. APPROVED (orchestrator).
+- **Signature items Phase 2c** (default OFF, `SIGNATURE_ITEMS_ENABLED`): 5 run-defining items that
+  bend scoring (brass-scale, ledger-book, lucky-cat, consignment-sign, window-display). APPROVED
+  behind flag — see `docs/review-packets/A-M5b-fable-review.md`.
 
-## Open / optional (nothing blocking)
-- **Fun gate**: a device screen-recording of a full run (feel/haptics) — the one thing
-  that needs real hardware. Shot list in `docs/review-packets/B-M3-review.md`.
-- **Audio**: `expo-audio` is in the stack; user has Suno for mp3s. Prompts drafted (main/
-  arrange loop, rent-tension variant, title theme, cascade sting). Drop mp3s in
-  `assets/audio/` and wire playback hooks + a Settings mute toggle.
-- **Art chrome (§7)**: dusk backdrop, shelf frame, combo/stamp frames not yet generated
-  (user has Midjourney too — match palette #8A5A38 wood / #F4E8D3 cream / #FFD9A0
-  sunlight / #3E8E7E teal).
-- **Moat ledger**: `docs/product-moat-suggestions.md` (S-1…S-17) — post-MVP ideas.
+OFF path is byte-identical (determinism pin `8d48e1c5a6ad14c9`, goldens unchanged). To feel v2 on
+device: flip `LOOP_V2_ENABLED` + New Run.
 
-## Repo map
-`src/contracts` (frozen zod contract), `src/sim` (pure engine), `src/items` (Fable data),
-`src/persistence`, `src/state` (zustand stores: run/catalog/daily/onboarding),
-`src/app` (expo-router screens), `src/ui` (design system, tokens, icons),
-`src/juice` (Skia scene, cascade, sprites), `assets/` (sprites, fonts, branding),
-`docs/review-packets` (all reviews + rulings R-1…R-43).
+## Verified state
+- `tsc --noEmit` clean; **79 tests** pass; 6 M0 goldens unchanged.
+- **All Lane B UI verified on the iOS simulator** (iPhone 16 Pro): coin centering (pill+slam+offer
+  cards), both top bars centered, cascade footer (double-shelf) fixed, restock rebuilt as a clean
+  daily-shop list, tier-1 pip removed, selection contrast, assets shrunk ~96% (sprites 1024→256,
+  backgrounds PNG→JPG). See memory `ios-ui-verify-on-simulator`.
 
-Tell me which thread to pick up: wire Suno audio, generate §7 art chrome / Midjourney
-prompts, the device fun-gate, or something else.
+## Open loops / next work
+1. **Graduation gates** before any flag ships ON: real **Fable sign-off** on the v2 economy + the
+   signature scoring rule kinds (CCRs in the Codex packets); **device feel-gate** (does the fuller
+   board feel like real decisions?); **re-measure signature dominance** with forced-signature seeding
+   — `lucky-cat` hit 2.45× median in one run (yellow flag, tiny sample).
+2. **Remaining redesign phases:** 2a tag-archetype multipliers, 2b build-steering (supplier pick),
+   Phase 3 daily score-goal ladder, Phase 4 balance + more item variety + final UI polish.
+3. **Git:** work is committed on a branch off `main` (not merged, not pushed).
+
+## How we work (important)
+- **Lane split:** Codex = Lane A (sim/scoring/economy/persistence/fixtures/fuzz); Opus = Lane B
+  (UI/screens/juice/cascade). Briefs for Codex live in `docs/lane-a/`; Codex reads `AGENTS.md`.
+- **Review:** Fable is unavailable, so an **independent fresh-context Opus** reviews Lane B (the
+  implementer never self-signs-off); the orchestrator reviews Lane A. See memory
+  `reviewer-workflow-opus-split`. Reviews re-run the scenario (fuzz A/B, mutation check), not the diff.
+- **Verify RN/iOS UI on the simulator**, not web (web can't reach drag-gated gameplay screens). Build:
+  boot a sim, `CI=1 npx expo run:ios --device "iPhone 16 Pro"` (node v20 on PATH), drive with
+  computer-use. iOS text-centering needs `transform: translateY` (includeFontPadding is Android-only).
+
+## Key files & docs
+- Flags/economy: `src/sim/economy.ts`. Scoring: `src/sim/scoring.ts`. Engine/loop: `src/sim/engine.ts`.
+- UI: `src/app/{run,restock,draft,index}.tsx`, `src/ui/components/{CoinCounter,OfferCard}.tsx`,
+  `src/juice/{ShelfScene,cascade/*}.tsx`.
+- Spec: `docs/loop-redesign-v2-spec.md`. Research: `docs/research-*.md`. Briefs: `docs/lane-a/*`.
+  Review packets: `docs/review-packets/A-M5*`.
+- Project memory index: `~/.claude/projects/-Users-gentlegen-Desktop-lucky-shelf/memory/MEMORY.md`.
