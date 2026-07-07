@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -18,6 +19,13 @@ import { palette, shadows } from '@/ui/tokens';
 const COLUMN_MAX = 460;
 
 export default function RootLayout() {
+  // Load the cozy fonts; render regardless (they swap in on load) so a font
+  // hiccup can never blank the app — a brief fallback flash is the worst case.
+  useFonts({
+    Baloo2: require('../../assets/fonts/Baloo2.ttf'),
+    Nunito: require('../../assets/fonts/Nunito.ttf'),
+  });
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>

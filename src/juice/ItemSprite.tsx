@@ -103,8 +103,8 @@ export function ItemSprite({ item, glyph, size, hideValue = false }: ItemSpriteP
         {sprite ? (
           <Image
             source={sprite}
-            style={{ width: plinth, height: plinth, borderRadius: radii.md }}
-            resizeMode="cover"
+            style={{ width: plinth * 0.84, height: plinth * 0.84 }}
+            resizeMode="contain"
           />
         ) : (
           <Text style={[styles.glyph, { fontSize: glyphSize }]}>{glyph}</Text>

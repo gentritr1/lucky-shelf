@@ -92,7 +92,9 @@ function ItemStamp({ item }: { item: CatalogItemRow }) {
   return (
     <View style={[styles.stamp, item.discovered ? styles.stampFound : styles.stampLocked]}>
       {sprite ? (
-        <Image source={sprite} style={styles.stampSprite} resizeMode="cover" />
+        <View style={styles.stampArt}>
+          <Image source={sprite} style={styles.stampSprite} resizeMode="contain" />
+        </View>
       ) : (
         <View style={styles.stampMystery}>
           <Text style={styles.stampMysteryMark}>?</Text>
@@ -162,14 +164,24 @@ const styles = StyleSheet.create({
     ...shadows.float,
   },
   stampLocked: { backgroundColor: palette.parchment, borderColor: palette.parchmentEdge, opacity: 0.7 },
-  stampSprite: { borderRadius: radii.sm, height: 56, width: 56 },
+  // the art sits on a soft mat with breathing room, framed like a collectible
+  stampArt: {
+    alignItems: 'center',
+    aspectRatio: 1,
+    backgroundColor: palette.wallCream,
+    borderRadius: radii.sm,
+    justifyContent: 'center',
+    padding: spacing.sm,
+    width: '100%',
+  },
+  stampSprite: { height: '100%', width: '100%' },
   stampMystery: {
     alignItems: 'center',
+    aspectRatio: 1,
     backgroundColor: palette.woodInset,
     borderRadius: radii.sm,
-    height: 56,
     justifyContent: 'center',
-    width: 56,
+    width: '100%',
   },
   stampMysteryMark: { ...typeScale.title, color: palette.parchment },
   stampName: { ...typeScale.label, color: palette.inkSoft, fontSize: 9, letterSpacing: 0, textAlign: 'center' },

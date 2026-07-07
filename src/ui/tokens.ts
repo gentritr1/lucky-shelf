@@ -98,13 +98,22 @@ export const touch = {
 // Coins always render with tabular numerals so count-ups don't jitter.
 // ---------------------------------------------------------------------------
 
+// Cozy pairing (frontend-design: never generic system fonts). Baloo 2 — chunky,
+// rounded, storybook — carries display/headings and the coin numerals, echoing
+// the "chunky miniature" art. Nunito — warm, rounded, legible — carries body.
+// Loaded in _layout via expo-font; these family names must match.
+export const fonts = {
+  display: 'Baloo2',
+  body: 'Nunito',
+} as const;
+
 export const typeScale = {
-  display: { fontSize: 34, lineHeight: 38, fontWeight: '800' },
-  title: { fontSize: 24, lineHeight: 29, fontWeight: '800' },
-  heading: { fontSize: 18, lineHeight: 23, fontWeight: '700' },
-  body: { fontSize: 15, lineHeight: 21, fontWeight: '400' },
-  label: { fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6 },
-  coin: { fontSize: 20, lineHeight: 24, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  display: { fontFamily: fonts.display, fontSize: 34, lineHeight: 42, fontWeight: '800' },
+  title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, fontWeight: '700' },
+  heading: { fontFamily: fonts.display, fontSize: 18, lineHeight: 24, fontWeight: '600' },
+  body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, fontWeight: '400' },
+  label: { fontFamily: fonts.body, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6 },
+  coin: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
 } as const satisfies Record<string, TextStyle>;
 
 // ---------------------------------------------------------------------------

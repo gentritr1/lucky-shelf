@@ -31,7 +31,9 @@ export function OfferCard({ offer, selected = false, onPress }: OfferCardProps) 
       ]}
     >
       {offer.sprite ? (
-        <Image source={offer.sprite} style={styles.sprite} resizeMode="cover" />
+        <View style={styles.spriteMat}>
+          <Image source={offer.sprite} style={styles.sprite} resizeMode="contain" />
+        </View>
       ) : (
         <Text style={styles.glyph}>{offer.glyph}</Text>
       )}
@@ -81,10 +83,18 @@ const styles = StyleSheet.create({
   glyph: {
     fontSize: 40,
   },
-  sprite: {
+  spriteMat: {
+    alignItems: 'center',
+    backgroundColor: palette.wallCream,
     borderRadius: radii.sm,
-    height: 52,
-    width: 52,
+    height: 60,
+    justifyContent: 'center',
+    padding: spacing.xs,
+    width: 60,
+  },
+  sprite: {
+    height: '100%',
+    width: '100%',
   },
   name: {
     ...typeScale.label,
