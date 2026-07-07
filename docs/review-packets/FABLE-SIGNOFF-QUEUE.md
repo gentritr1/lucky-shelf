@@ -30,6 +30,10 @@ Updated 2026-07-07 by the Opus orchestrator.
 - **New scoring rule kinds:** 2c signature items (`tagFilteredShelfMultiplier`, `flatPerTagCount`, `copyHighestScoringOther`, `shelfMultiplierIfAnyTagCount`, `highestBaseValueMultiplier`).
 - **Contract (additive, no `ContractSchemaVersion` bump):** **2b** `GameState.supplierTag?` + `chooseSupplier{tag}` action; **3** `GameState.dailyTarget?` + `dailyTargetResult?` (`DailyTargetResultSchema`) + `freeRerollTokens?`.
 
+## Balance findings from the device feel-gate (2026-07-07)
+- Verdict was positive ("way better than before"); the gap was intuitiveness, addressed by UI fixes.
+- **Sell-back is +0 for tier-1 items** (`sellPrice = floor(baseValue/3)`): cheap items return 0 coins, so selling them is worthless. The Sell UI now shows the real value honestly; whether selling *should* be worthwhile is a balance call (raise the sell ratio / add a floor). Fable's call in the item-table pass.
+
 ## Cross-cutting notes for Fable
 - Every OFF path is byte-identical: determinism pin `8d48e1c5a6ad14c9`, 6 M0 goldens, and 6 M0 fixtures are unchanged with all flags off. That invariant is the graduation floor.
 - Balance numbers (ladder steps, `BUILD_STEER_BIAS`, goal targets, signature costs) are **provisional, fuzz-tuned starting values** isolated in `src/sim/economy.ts` for your pass.
