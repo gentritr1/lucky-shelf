@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { ItemInstance } from '@/contracts';
-import { palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
+import { borders, palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
 import { spriteFor } from './sprites';
 
@@ -109,12 +109,17 @@ export function ItemSprite({ item, glyph, size, hideValue = false }: ItemSpriteP
         ) : (
           <Text style={[styles.glyph, { fontSize: glyphSize }]}>{glyph}</Text>
         )}
+        {/* value badge hangs off the plinth's bottom edge — absolute so it never
+            shifts the plinth off the slot's center (Fable: placed item must sit
+            dead-centre in its well) */}
+        {hideValue ? null : (
+          <View style={styles.badgeWrap} pointerEvents="none">
+            <View style={styles.valueBadge}>
+              <Text style={styles.valueText}>{item.baseValue}</Text>
+            </View>
+          </View>
+        )}
       </View>
-      {hideValue ? null : (
-        <View style={styles.valueBadge}>
-          <Text style={styles.valueText}>{item.baseValue}</Text>
-        </View>
-      )}
     </Animated.View>
   );
 }
@@ -134,15 +139,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: palette.creamBright,
     borderColor: palette.parchmentEdge,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderRadius: radii.md, // item card nested in a well
+    borderWidth: borders.hairline,
     justifyContent: 'center',
     ...shadows.card,
   },
   sticky: {
     // honeyed ring hints "this one won't budge" before you even grab it
     borderColor: palette.goldDeep,
-    borderWidth: 2,
+    borderWidth: borders.strong,
   },
   blocked: {
     opacity: 0.6,
@@ -150,12 +155,18 @@ const styles = StyleSheet.create({
   glyph: {
     textAlign: 'center',
   },
+  badgeWrap: {
+    alignItems: 'center',
+    bottom: -9,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
   valueBadge: {
     backgroundColor: palette.coinGold,
     borderColor: palette.goldDeep,
     borderRadius: radii.pill,
     borderWidth: 1,
-    marginTop: -spacing.sm,
     paddingHorizontal: spacing.xs,
   },
   valueText: {
