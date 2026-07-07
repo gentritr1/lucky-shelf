@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Panel, SectionLabel, Toggle, layout, palette, spacing, typeScale, usePrefs } from '@/ui';
+import { Panel, SectionLabel, TopBar, Toggle, layout, palette, spacing, typeScale, usePrefs } from '@/ui';
 
 /**
  * Settings: motion, sound (music + SFX), and haptics toggles. The panel list
@@ -22,13 +22,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
-      <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
-          <Text style={styles.back}>‹ Back</Text>
-        </Pressable>
-        <Text style={styles.title}>Settings</Text>
-        <View style={styles.spacer} />
-      </View>
+      <TopBar title="Settings" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={styles.panels}
@@ -106,23 +100,6 @@ const styles = StyleSheet.create({
   panels: {
     gap: spacing.lg,
     paddingBottom: spacing.xl,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  back: {
-    ...typeScale.heading,
-    color: palette.tealDark,
-    width: 72,
-  },
-  title: {
-    ...typeScale.title,
-    color: palette.ink,
-  },
-  spacer: {
-    width: 72,
   },
   row: {
     alignItems: 'center',
