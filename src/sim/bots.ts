@@ -3,7 +3,7 @@ import { isSignatureItem } from '../items';
 
 import type { EngineDeps } from './engine';
 import { createRun, dispatch, legalActions } from './engine';
-import { TAG_SYNERGY_ELIGIBLE_TAGS, loopV2Enabled } from './economy';
+import { TAG_SYNERGY_ELIGIBLE_TAGS } from './economy';
 import { resolveOpenShop } from './scoring';
 import { rngFor } from './rng';
 
@@ -179,7 +179,7 @@ function chooseAction(
     const buys = legal.filter(
       (action): action is Extract<Action, { type: 'buyOffer' }> => action.type === 'buyOffer',
     );
-    if (buys.length > 0 && (loopV2Enabled() || rng.next() < 0.6)) {
+    if (buys.length > 0 && (state.loopV2 === true || rng.next() < 0.6)) {
       let best = buys[0] as Action;
       let bestScore = -1;
       for (const buy of buys) {

@@ -53,8 +53,8 @@ export const GOAL_LADDER_ENV_VAR = 'GOAL_LADDER_ENABLED';
 export const GOAL_LADDER_TARGETS: readonly number[] = [16, 24, 34, 39, 49, 59, 62, 68, 72, 74];
 export const GOAL_LADDER_REWARD_KIND = 'freeReroll' as const;
 
-export function goalLadderEnabled(): boolean {
-  return loopV2Enabled() && (GOAL_LADDER_ENABLED || process.env[GOAL_LADDER_ENV_VAR] === '1');
+export function goalLadderEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
+  return runIsLoopV2 && (GOAL_LADDER_ENABLED || process.env[GOAL_LADDER_ENV_VAR] === '1');
 }
 
 export function dailyGoalTarget(day: number): number {
@@ -261,12 +261,16 @@ export function generateOffers(
   table: ItemTable,
   salt: string,
   supplierTag: string | null = null,
+  // Run-scoped loop flag. The engine passes the run's snapshot (runLoopV2) so the
+  // offer count/cost matches the run it was created under; direct callers (tests)
+  // fall back to the live env read, unchanged.
+  loopV2: boolean = loopV2Enabled(),
 ): DeliveryOffer[] {
   const rng = rngFor(seed, 'offers', kind, day, salt);
   const count =
     kind === 'delivery'
       ? OFFERS_PER_DELIVERY
-      : loopV2Enabled()
+      : loopV2
         ? LOOP_V2_DAILY_SHOP_OFFERS
         : OFFERS_PER_RESTOCK;
   const pool = offerablePool(table).filter(
@@ -294,7 +298,7 @@ export function generateOffers(
       item: definition,
       cost:
         kind === 'restock'
-          ? loopV2Enabled()
+          ? loopV2
             ? dailyShopCost(definition, day)
             : restockCost(definition)
           : 0,

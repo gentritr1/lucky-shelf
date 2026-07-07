@@ -59,6 +59,9 @@ function withEnv<T>(updates: Record<string, string | undefined>, run: () => T): 
 function scoringState(dayTotal: 'hit' | 'miss', overrides?: Partial<GameState>): GameState {
   const baseValue = dayTotal === 'hit' ? dailyGoalTarget(1) : Math.max(0, dailyGoalTarget(1) - 1);
   return makeState([{ slot: { row: 0, col: 0 }, itemId: 'wine-bottle', baseValue }], {
+    // Goal ladder requires a v2 run; the engine now reads the per-run loopV2
+    // snapshot (not the env flag), so a seeded v2 state must declare it.
+    loopV2: true,
     phase: 'arrange',
     coins: 0,
     dailyTarget: dailyGoalTarget(1),

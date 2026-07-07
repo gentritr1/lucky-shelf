@@ -131,8 +131,12 @@ export function createRun(seed: string, deps: EngineDeps): GameState {
     spotlight: pickSpotlight(seed, 1, { rows: 3, cols: 4 }),
     dailyOrder: pickCycleOrder(seed, 1),
   };
+  // Pin the loop mode to this run for its whole lifetime. Only set when enabled,
+  // so an OFF-path run leaves the field undefined → stableStringify drops it →
+  // determinism pin + M0 goldens stay byte-identical.
+  if (loopV2Enabled()) state.loopV2 = true;
   if (buildSteeringEnabled()) state.supplierTag = null;
-  if (goalLadderEnabled()) {
+  if (goalLadderEnabled(runLoopV2(state))) {
     state.dailyTarget = dailyGoalTarget(state.day);
     state.freeRerollTokens = 0;
   }
@@ -155,9 +159,19 @@ function occupiedSlotCount(state: GameState): number {
   return state.shelf.slots.filter((entry) => entry.item !== null).length;
 }
 
+/**
+ * A run's loop mode is snapshotted onto `state.loopV2` at creation (see createRun),
+ * so every dispatch reads the value the run STARTED under — flipping LOOP_V2_ENABLED
+ * mid-session (hot reload / fuzz) can't split a run into a half-v1/half-v2 state.
+ * Strict `=== true`: an older save / v1 run (field absent) stays v1 regardless of env.
+ */
+function runLoopV2(state: GameState): boolean {
+  return state.loopV2 === true;
+}
+
 function isLoopV2StarterPlacement(state: GameState): boolean {
   return (
-    loopV2Enabled() &&
+    runLoopV2(state) &&
     state.phase === 'arrange' &&
     state.day === 1 &&
     state.runStats.daysSurvived === 0 &&
@@ -172,7 +186,7 @@ function supplierTagForOffers(state: GameState): string | null {
 }
 
 function freeRerollTokens(state: GameState): number {
-  return goalLadderEnabled() ? (state.freeRerollTokens ?? 0) : 0;
+  return goalLadderEnabled(runLoopV2(state)) ? (state.freeRerollTokens ?? 0) : 0;
 }
 
 function canChooseSupplier(state: GameState): boolean {
@@ -236,6 +250,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           deps.table,
           '',
           supplierTagForOffers(next),
+          runLoopV2(next),
         );
       }
       return next;
@@ -287,7 +302,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       next.runStats.daysSurvived = scoredDay;
       next.runStats.bestComboIds = addUnique(next.runStats.bestComboIds, result.discoveredComboIds);
 
-      if (goalLadderEnabled()) {
+      if (goalLadderEnabled(runLoopV2(next))) {
         const target = next.dailyTarget ?? dailyGoalTarget(scoredDay);
         const targetMet = result.dayTotal >= target;
         next.dailyTargetResult = {
@@ -365,7 +380,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       }
 
       next.day = scoredDay + 1;
-      if (goalLadderEnabled()) {
+      if (goalLadderEnabled(runLoopV2(next))) {
         next.dailyTarget = dailyGoalTarget(next.day);
       }
       next.spotlight = pickSpotlight(next.seed, next.day, next.shelf.size);
@@ -377,7 +392,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         paidMoveCost: paidMoveCost(next.rent.cycle),
       };
 
-      if (loopV2Enabled()) {
+      if (runLoopV2(next)) {
         next.phase = 'restock';
         next.currentOffers = generateOffers(
           next.seed,
@@ -386,6 +401,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           deps.table,
           '',
           supplierTagForOffers(next),
+          runLoopV2(next),
         );
       } else if (scoredDay % 3 === 0) {
         next.phase = 'restock';
@@ -396,6 +412,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           deps.table,
           '',
           supplierTagForOffers(next),
+          runLoopV2(next),
         );
       } else {
         next.phase = 'delivery';
@@ -406,6 +423,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           deps.table,
           '',
           supplierTagForOffers(next),
+          runLoopV2(next),
         );
       }
       return next;
@@ -440,6 +458,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         deps.table,
         salt,
         supplierTagForOffers(next),
+        runLoopV2(next),
       );
       return next;
     }
@@ -447,7 +466,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
     case 'endRestock': {
       requirePhase(next, 'restock');
       if (next.heldItem) throw new EngineError('Place the held item before ending restock.');
-      if (loopV2Enabled()) {
+      if (runLoopV2(next)) {
         next.phase = 'arrange';
         next.currentOffers = [];
         return next;

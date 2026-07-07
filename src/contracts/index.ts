@@ -567,6 +567,12 @@ export const GameStateSchema = z
     dailyTarget: positiveMoneySchema.optional(),
     dailyTargetResult: DailyTargetResultSchema.optional(),
     freeRerollTokens: nonNegativeIntSchema.optional(),
+    // Loop v2 Phase 1: snapshot of LOOP_V2_ENABLED taken once at run creation, so
+    // a run stays internally consistent (all v1 or all v2) even if the env flag is
+    // flipped mid-session (hot reload / fuzz). Additive + optional like the fields
+    // above — no ContractSchemaVersion bump, no wipe. Absent = flag off at creation
+    // / older save = a v1 run; only ever present (true) for a run started under v2.
+    loopV2: z.boolean().optional(),
   })
   .strict();
 
