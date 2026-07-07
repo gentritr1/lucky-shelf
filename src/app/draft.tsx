@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
 import { OfferCard, SectionLabel, WoodButton, palette, spacing, typeScale, type OfferCardData } from '@/ui';
-import { glyphFor, spriteFor } from '@/juice';
+import { glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 
@@ -22,6 +22,9 @@ export default function DraftScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [selected, setSelected] = useState(0);
+
+  // Everyday golden-hour bed while drafting.
+  useFocusEffect(useCallback(() => setMusicTrack('main'), []));
 
   useEffect(() => {
     const route = routeForGameState(gameState);

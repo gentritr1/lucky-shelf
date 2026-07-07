@@ -1,11 +1,11 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { GearIcon, WoodButton, palette, radii, shadows, spacing, typeScale } from '@/ui';
-import { spriteFor } from '@/juice';
+import { primeAudio, setMusicTrack, spriteFor } from '@/juice';
 import { useRunStore } from '../state/store';
 import { routeForGameState } from '../state/phaseRouting';
 import { dailySeedFor, dailySelectors, todayDateString, useDailyStore } from '../state/dailyStore';
@@ -28,17 +28,25 @@ export default function TitleScreen() {
     void loadDaily().catch(() => undefined);
   }, [loadDaily]);
 
+  // Storybook title bed. Re-asserted on focus so it resumes when returning from
+  // a run; the button handlers below `primeAudio()` to satisfy autoplay policy
+  // if it was blocked on cold load.
+  useFocusEffect(useCallback(() => setMusicTrack('title'), []));
+
   const onNewRun = () => {
+    primeAudio();
     const result = startNewRun();
     void result.save.catch(() => undefined);
     router.push(routeForGameState(result.gameState));
   };
 
   const onContinue = () => {
+    primeAudio();
     void continueRun().then((gameState) => router.push(routeForGameState(gameState)));
   };
 
   const onDaily = () => {
+    primeAudio();
     // Already played today → straight to the share card. Otherwise a fresh
     // date-seeded run (same offers worldwide, one attempt — enforced on end).
     if (playedToday) {

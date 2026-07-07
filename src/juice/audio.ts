@@ -1,0 +1,231 @@
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+
+import { usePrefs } from '@/ui/prefs';
+
+/**
+ * The single audio gateway (mirrors the `haptics` module's role). Screens and
+ * juice layers NEVER touch expo-audio directly — they name a music bed or an
+ * SFX cue and this module owns player lifecycles, crossfades, and the mute
+ * gates.
+ *
+ * Two channels, two prefs:
+ *   • MUSIC — one looping bed at a time (`title` / `main` / `rentWeek`), gated
+ *     by `usePrefs().musicEnabled`. Switching beds crossfades so the golden-hour
+ *     loop and the rent-week variant trade places without a hard cut.
+ *   • SFX — one-shot cues (the cascade payout sting), gated by `sfxEnabled`.
+ *
+ * Autoplay reality (web + iOS): the very first `play()` can be blocked until a
+ * user gesture. Every screen re-asserts its bed on focus, and the title screen
+ * calls `primeAudio()` from its buttons, so the bed starts on the first tap at
+ * the latest. All playback is fire-and-forget and wrapped so audio can never
+ * throw into the UI.
+ */
+
+export type MusicTrack = 'title' | 'main' | 'rentWeek';
+
+const MUSIC_SOURCES: Record<MusicTrack, number> = {
+  title: require('../../assets/audio/title.mp3'),
+  main: require('../../assets/audio/main.mp3'),
+  rentWeek: require('../../assets/audio/rent-week.mp3'),
+};
+
+const CASCADE_STING_SOURCE = require('../../assets/audio/cascade.mp3');
+
+// Beds sit under the UI; the sting is a reward and rides a touch louder.
+const MUSIC_VOLUME = 0.55;
+const STING_VOLUME = 0.85;
+const FADE_MS = 650;
+const FADE_STEP_MS = 40;
+
+const musicPlayers: Partial<Record<MusicTrack, AudioPlayer>> = {};
+const fadeTimers = new Map<AudioPlayer, ReturnType<typeof setInterval>>();
+let stingPlayer: AudioPlayer | null = null;
+
+let currentTrack: MusicTrack | null = null;
+let audioModeConfigured = false;
+let prefsSubscribed = false;
+
+function noop(): void {}
+
+/**
+ * Play music even when the hardware silent switch is on: the user opted into a
+ * music-forward cozy game and has an in-app mute. Called once, lazily, so we
+ * never touch the audio session until the game actually wants sound.
+ */
+function ensureAudioMode(): void {
+  if (audioModeConfigured) return;
+  audioModeConfigured = true;
+  void setAudioModeAsync({ playsInSilentMode: true }).catch(noop);
+}
+
+function ensureMusicPlayer(track: MusicTrack): AudioPlayer {
+  let player = musicPlayers[track];
+  if (!player) {
+    player = createAudioPlayer(MUSIC_SOURCES[track]);
+    player.loop = true;
+    player.volume = 0;
+    musicPlayers[track] = player;
+  }
+  return player;
+}
+
+/** Cancel any in-flight fade on a player before starting a new one. */
+function clearFade(player: AudioPlayer): void {
+  const timer = fadeTimers.get(player);
+  if (timer) {
+    clearInterval(timer);
+    fadeTimers.delete(player);
+  }
+}
+
+/** Linear volume ramp; `onDone` fires once the target is reached. */
+function fadeTo(player: AudioPlayer, target: number, ms: number, onDone?: () => void): void {
+  clearFade(player);
+  const start = player.volume;
+  const delta = target - start;
+  if (ms <= 0 || Math.abs(delta) < 0.001) {
+    try {
+      player.volume = target;
+    } catch {
+      /* player removed mid-fade */
+    }
+    onDone?.();
+    return;
+  }
+  const steps = Math.max(1, Math.round(ms / FADE_STEP_MS));
+  let step = 0;
+  const timer = setInterval(() => {
+    step += 1;
+    const t = Math.min(1, step / steps);
+    try {
+      player.volume = start + delta * t;
+    } catch {
+      clearFade(player);
+      return;
+    }
+    if (t >= 1) {
+      clearFade(player);
+      onDone?.();
+    }
+  }, FADE_STEP_MS);
+  fadeTimers.set(player, timer);
+}
+
+function subscribeToPrefs(): void {
+  if (prefsSubscribed) return;
+  prefsSubscribed = true;
+  let lastMusicEnabled = usePrefs.getState().musicEnabled;
+  usePrefs.subscribe((state) => {
+    if (state.musicEnabled === lastMusicEnabled) return;
+    lastMusicEnabled = state.musicEnabled;
+    if (state.musicEnabled) {
+      resumeCurrentBed();
+    } else {
+      pauseAllBeds();
+    }
+  });
+}
+
+function resumeCurrentBed(): void {
+  if (!currentTrack) return;
+  const player = ensureMusicPlayer(currentTrack);
+  try {
+    player.play();
+  } catch {
+    /* autoplay-gated; a later gesture re-asserts */
+  }
+  fadeTo(player, MUSIC_VOLUME, FADE_MS);
+}
+
+function pauseAllBeds(): void {
+  for (const player of Object.values(musicPlayers)) {
+    if (!player) continue;
+    fadeTo(player, 0, FADE_MS, () => {
+      try {
+        player.pause();
+      } catch {
+        /* removed */
+      }
+    });
+  }
+}
+
+/**
+ * Switch the looping background bed, crossfading from whatever is playing. Pass
+ * `null` to fade the music out entirely. Idempotent: re-asserting the current
+ * track just guarantees it is playing (used on screen focus for autoplay).
+ */
+export function setMusicTrack(track: MusicTrack | null): void {
+  ensureAudioMode();
+  subscribeToPrefs();
+
+  if (track === currentTrack) {
+    // Same bed: make sure it is actually running (autoplay recovery).
+    if (track && usePrefs.getState().musicEnabled) resumeCurrentBed();
+    return;
+  }
+
+  const previous = currentTrack;
+  currentTrack = track;
+
+  if (previous) {
+    const prevPlayer = musicPlayers[previous];
+    if (prevPlayer) {
+      fadeTo(prevPlayer, 0, FADE_MS, () => {
+        try {
+          prevPlayer.pause();
+        } catch {
+          /* removed */
+        }
+      });
+    }
+  }
+
+  if (!track) return;
+  if (!usePrefs.getState().musicEnabled) return;
+
+  const player = ensureMusicPlayer(track);
+  try {
+    player.volume = 0;
+    player.play();
+  } catch {
+    /* autoplay-gated; primeAudio()/next focus re-asserts */
+  }
+  fadeTo(player, MUSIC_VOLUME, FADE_MS);
+}
+
+/**
+ * Nudge the current bed after a user gesture — the reliable moment to satisfy
+ * browser/iOS autoplay policy. Safe to call from any button handler.
+ */
+export function primeAudio(): void {
+  ensureAudioMode();
+  if (usePrefs.getState().musicEnabled) resumeCurrentBed();
+}
+
+function ensureStingPlayer(): AudioPlayer {
+  if (!stingPlayer) {
+    stingPlayer = createAudioPlayer(CASCADE_STING_SOURCE);
+    stingPlayer.volume = STING_VOLUME;
+  }
+  return stingPlayer;
+}
+
+/** One-shot cascade payout flourish. No-op when SFX are muted. */
+export function playCascadeSting(): void {
+  ensureAudioMode();
+  if (!usePrefs.getState().sfxEnabled) return;
+  const player = ensureStingPlayer();
+  player.volume = STING_VOLUME;
+  // Rewind then play so back-to-back cascades always hear the full flourish.
+  void player
+    .seekTo(0)
+    .catch(noop)
+    .finally(() => {
+      try {
+        player.play();
+      } catch {
+        /* gated / removed */
+      }
+    });
+}

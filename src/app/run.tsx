@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,9 +15,14 @@ import {
   spacing,
   typeScale,
 } from '@/ui';
-import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene } from '@/juice';
+import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
+
+// Rent runs on a 3-day cycle (RENT_PERIOD_DAYS). The tension bed takes over on
+// the final morning before rent (dueInDays ≤ 1) — the same beat the DuskAmbience
+// ember becomes clearly visible.
+const RENT_TENSION_DUE_IN_DAYS = 1;
 
 /**
  * Run HUD shell: Lane B owns presentation; Lane A wires the contract state and
@@ -31,6 +36,16 @@ export default function RunHudScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [cascadeMount, setCascadeMount] = useState<CascadeMount | null>(null);
+
+  // Music bed follows rent proximity: the golden-hour loop until the last
+  // morning, then the sparser rent-week variant. Re-runs on focus and whenever
+  // dueInDays crosses the threshold mid-run.
+  const rentDueInDays = gameState.rent.dueInDays;
+  useFocusEffect(
+    useCallback(() => {
+      setMusicTrack(rentDueInDays <= RENT_TENSION_DUE_IN_DAYS ? 'rentWeek' : 'main');
+    }, [rentDueInDays]),
+  );
 
   useEffect(() => {
     if (cascadeMount) return;
@@ -63,6 +78,7 @@ export default function RunHudScreen() {
       if (!result.accepted) return;
       void result.save.catch(() => undefined);
       setCascadeMount(cascadeMountAfterOpenShop(beforeOpenShop, result.gameState));
+      playCascadeSting();
       return;
     }
     dispatchAndSave(primary.action);

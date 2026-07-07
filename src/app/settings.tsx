@@ -1,21 +1,24 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Panel, SectionLabel, Toggle, palette, spacing, typeScale, usePrefs } from '@/ui';
 
 /**
- * Settings shell (M1 minimum): only the toggles M1 needs to *prove* — reduced
- * motion and haptics. The full settings surface (sound, colorblind palette) lands
- * at M5; this exists so reduced-motion mode is demonstrable this milestone.
+ * Settings: motion, sound (music + SFX), and haptics toggles. The panel list
+ * scrolls so it never clips on short screens as more sections land.
  */
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reducedMotion = usePrefs((s) => s.reducedMotion);
   const hapticsEnabled = usePrefs((s) => s.hapticsEnabled);
+  const musicEnabled = usePrefs((s) => s.musicEnabled);
+  const sfxEnabled = usePrefs((s) => s.sfxEnabled);
   const setReducedMotion = usePrefs((s) => s.setReducedMotion);
   const setHapticsEnabled = usePrefs((s) => s.setHapticsEnabled);
+  const setMusicEnabled = usePrefs((s) => s.setMusicEnabled);
+  const setSfxEnabled = usePrefs((s) => s.setSfxEnabled);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.md }]}>
@@ -27,25 +30,46 @@ export default function SettingsScreen() {
         <View style={styles.spacer} />
       </View>
 
-      <Panel>
-        <SectionLabel>MOTION</SectionLabel>
-        <Row
-          label="Reduced motion"
-          hint="Springs snap, glow steadies, breathing stops — haptics stay."
-          value={reducedMotion}
-          onChange={setReducedMotion}
-        />
-      </Panel>
+      <ScrollView
+        contentContainerStyle={styles.panels}
+        showsVerticalScrollIndicator={false}
+      >
+        <Panel>
+          <SectionLabel>MOTION</SectionLabel>
+          <Row
+            label="Reduced motion"
+            hint="Springs snap, glow steadies, breathing stops — haptics stay."
+            value={reducedMotion}
+            onChange={setReducedMotion}
+          />
+        </Panel>
 
-      <Panel>
-        <SectionLabel>FEEDBACK</SectionLabel>
-        <Row
-          label="Haptics"
-          hint="Grab, drop, and rearrange ticks (device only)."
-          value={hapticsEnabled}
-          onChange={setHapticsEnabled}
-        />
-      </Panel>
+        <Panel>
+          <SectionLabel>SOUND</SectionLabel>
+          <Row
+            label="Music"
+            hint="Golden-hour bed that warms into rent-week tension."
+            value={musicEnabled}
+            onChange={setMusicEnabled}
+          />
+          <Row
+            label="Sound effects"
+            hint="The cascade payout flourish."
+            value={sfxEnabled}
+            onChange={setSfxEnabled}
+          />
+        </Panel>
+
+        <Panel>
+          <SectionLabel>FEEDBACK</SectionLabel>
+          <Row
+            label="Haptics"
+            hint="Grab, drop, and rearrange ticks (device only)."
+            value={hapticsEnabled}
+            onChange={setHapticsEnabled}
+          />
+        </Panel>
+      </ScrollView>
     </View>
   );
 }
@@ -78,6 +102,10 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: spacing.lg,
     paddingHorizontal: spacing.xl,
+  },
+  panels: {
+    gap: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   topBar: {
     alignItems: 'center',

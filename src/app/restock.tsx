@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer, Slot, SlotState } from '@/contracts';
@@ -17,7 +17,7 @@ import {
   typeScale,
   type OfferCardData,
 } from '@/ui';
-import { ITEM_GLYPHS, ShelfScene, glyphFor, spriteFor } from '@/juice';
+import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 
@@ -34,6 +34,9 @@ export default function RestockScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [sellMode, setSellMode] = useState(false);
+
+  // Rent was just paid before restock — back to the calm golden-hour bed.
+  useFocusEffect(useCallback(() => setMusicTrack('main'), []));
 
   useEffect(() => {
     const route = routeForGameState(gameState);
