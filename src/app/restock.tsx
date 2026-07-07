@@ -170,7 +170,9 @@ export default function RestockScreen() {
               onPress={reroll}
               style={({ pressed }) => [styles.reroll, pressed && styles.pressed]}
             >
-              <Text style={styles.rerollText}>Reroll · {REROLL_COST}</Text>
+              <Text style={styles.rerollText}>
+                {(gameState.freeRerollTokens ?? 0) > 0 ? '🎟️ Free reroll' : `Reroll · ${REROLL_COST}`}
+              </Text>
             </Pressable>
           </View>
           <View style={styles.shopList}>

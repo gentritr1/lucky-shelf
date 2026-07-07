@@ -17,7 +17,7 @@ import {
   spacing,
   typeScale,
 } from '@/ui';
-import { DEMAND_MULT } from '@/sim';
+import { DEMAND_MULT, TAG_SYNERGY_ELIGIBLE_TAGS, TAG_SYNERGY_LADDER, tagSynergyEnabled } from '@/sim';
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
@@ -132,6 +132,12 @@ export default function RunHudScreen() {
         <OrderBanner order={hudState.dailyOrder} shelf={hudState.shelf} />
       ) : null}
 
+      {!cascadeMount && gameState.dailyTarget != null ? (
+        <GoalBanner target={gameState.dailyTarget} freeRerolls={gameState.freeRerollTokens ?? 0} />
+      ) : null}
+
+      {!cascadeMount && tagSynergyEnabled() ? <SynergyBadge shelf={hudState.shelf} /> : null}
+
       {/* The cascade overlay draws its OWN shelf; rendering the HUD shelf too
           produced a second, misaligned shelf peeking behind the scrim (extra
           slots + a cut-off item under the Day Total). So the HUD shelf is only
@@ -205,6 +211,48 @@ function OrderBanner({ order, shelf }: { order: DailyOrder; shelf: GameState['sh
       </Text>
       <Text style={[styles.orderProgress, met ? styles.orderProgressMet : null]}>
         {met ? `FILLED ✓ (${have}/${order.count})` : `${have}/${order.count}`}
+      </Text>
+    </View>
+  );
+}
+
+function GoalBanner({ target, freeRerolls }: { target: number; freeRerolls: number }) {
+  const earned = freeRerolls > 0;
+  return (
+    <View style={[styles.orderBanner, earned ? styles.orderBannerMet : null]}>
+      <Text style={styles.orderText}>{`🎯 TODAY'S TARGET · ${target} coins`}</Text>
+      <Text style={[styles.orderProgress, earned ? styles.orderProgressMet : null]}>
+        {earned ? '🎟️ FREE REROLL' : 'BEAT IT →'}
+      </Text>
+    </View>
+  );
+}
+
+/** Dominant eligible tag on the shelf and its active ladder multiplier, or null. */
+function activeSynergy(shelf: GameState['shelf']): { tag: string; count: number; mult: number } | null {
+  const eligible = new Set(TAG_SYNERGY_ELIGIBLE_TAGS);
+  const counts = new Map<string, number>();
+  for (const slot of shelf.slots) {
+    const item = slot.item;
+    if (!item) continue;
+    for (const tag of item.tags) if (eligible.has(tag)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+  let best: { tag: string; count: number } | null = null;
+  for (const [tag, count] of counts) if (!best || count > best.count) best = { tag, count };
+  if (!best) return null;
+  let mult = 1;
+  for (const step of TAG_SYNERGY_LADDER) if (best.count >= step.minCount) mult = step.mult;
+  return mult > 1 ? { tag: best.tag, count: best.count, mult } : null;
+}
+
+function SynergyBadge({ shelf }: { shelf: GameState['shelf'] }) {
+  const active = activeSynergy(shelf);
+  if (!active) return null;
+  return (
+    <View style={[styles.orderBanner, styles.synergyBanner]}>
+      <Text style={styles.orderText}>{`🏷️ ${active.tag.toUpperCase()} SHELF`}</Text>
+      <Text style={[styles.orderProgress, styles.synergyProgress]}>
+        {`×${active.mult} · ${active.count} items`}
       </Text>
     </View>
   );
@@ -394,5 +442,12 @@ const styles = StyleSheet.create({
   },
   orderProgressMet: {
     color: palette.ink,
+  },
+  synergyBanner: {
+    backgroundColor: palette.sunlight,
+    borderColor: palette.goldDeep,
+  },
+  synergyProgress: {
+    color: palette.emberDark,
   },
 });

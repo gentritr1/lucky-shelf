@@ -33,6 +33,8 @@ export {
   SPOTLIGHT_ENABLED,
   SPOTLIGHT_MULT,
   STARTING_RENT,
+  TAG_SYNERGY_ELIGIBLE_TAGS,
+  TAG_SYNERGY_LADDER,
   buildSteeringEnabled,
   dailyShopCost,
   generateOffers,
@@ -43,6 +45,7 @@ export {
   sellPrice,
   signatureItemsEnabled,
   startingCoins,
+  tagSynergyEnabled,
 } from './economy';
 export {
   buildSlotMap,
