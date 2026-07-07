@@ -60,6 +60,30 @@ describe('M0 contract schemas', () => {
     expect(GameStateSchema.parse(withUnchosenSupplier).supplierTag).toBeNull();
   });
 
+  it('accepts optional goal ladder fields without requiring them in old fixtures', () => {
+    const fixtures = FixtureCollectionSchema.parse(loadFixtureJson());
+    const fixture = fixtures[0];
+    if (!fixture) throw new Error('Expected at least one fixture.');
+
+    expect('dailyTarget' in fixture.gameState).toBe(false);
+    expect('dailyTargetResult' in fixture.gameState).toBe(false);
+    expect('freeRerollTokens' in fixture.gameState).toBe(false);
+
+    const withGoalFields = structuredClone(fixture.gameState);
+    withGoalFields.dailyTarget = 15;
+    withGoalFields.dailyTargetResult = {
+      day: 1,
+      target: 15,
+      dayTotal: 16,
+      targetMet: true,
+      rewardKind: 'freeReroll',
+      rewardGranted: true,
+    };
+    withGoalFields.freeRerollTokens = 1;
+
+    expect(GameStateSchema.parse(withGoalFields).dailyTargetResult?.targetMet).toBe(true);
+  });
+
   it('rejects traces that do not end with a dayTotal event', () => {
     expect(() =>
       ScoringTraceSchema.parse({

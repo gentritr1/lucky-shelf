@@ -44,6 +44,30 @@ export function startingCoins(): number {
 }
 
 /**
+ * Loop redesign v2 Phase 3 — daily score-goal ladder. Default OFF pending
+ * Fable sign-off. The target curve is calibrated against the v2 daily-shop
+ * payout plateau, so the effective flag requires LOOP_V2 as well.
+ */
+export const GOAL_LADDER_ENABLED = false;
+export const GOAL_LADDER_ENV_VAR = 'GOAL_LADDER_ENABLED';
+export const GOAL_LADDER_TARGETS: readonly number[] = [16, 24, 34, 39, 49, 59, 62, 68, 72, 74];
+export const GOAL_LADDER_REWARD_KIND = 'freeReroll' as const;
+
+export function goalLadderEnabled(): boolean {
+  return loopV2Enabled() && (GOAL_LADDER_ENABLED || process.env[GOAL_LADDER_ENV_VAR] === '1');
+}
+
+export function dailyGoalTarget(day: number): number {
+  if (!Number.isInteger(day) || day < 1) {
+    throw new Error(`Daily goal day must be a positive integer, got ${day}.`);
+  }
+  const cappedIndex = Math.min(day, GOAL_LADDER_TARGETS.length) - 1;
+  const target = GOAL_LADDER_TARGETS[cappedIndex];
+  if (target === undefined) throw new Error('Goal ladder has no target values.');
+  return target;
+}
+
+/**
  * PROTOTYPE — "Front Window" spotlight (flagged, default ON for the feel build).
  * Each day one deterministic slot becomes the storefront window: whatever item's
  * total lands there is multiplied. Turn SPOTLIGHT_ENABLED off to restore the

@@ -390,6 +390,19 @@ export const CatalogDeltaSchema = z
   })
   .strict();
 
+// Loop v2 Phase 3 goal ladder result for the last scored day. Optional and
+// additive: older saves/fixtures omit it, and the flag-off path never creates it.
+export const DailyTargetResultSchema = z
+  .object({
+    day: positiveIntSchema,
+    target: positiveMoneySchema,
+    dayTotal: positiveMoneySchema,
+    targetMet: z.boolean(),
+    rewardKind: z.literal('freeReroll'),
+    rewardGranted: z.boolean(),
+  })
+  .strict();
+
 /**
  * The permanent Catalog — the collection meta (kickoff §1). Additive to the
  * frozen contract (GameState/Action/TraceEvent unchanged); Fable-approved M4.
@@ -548,6 +561,12 @@ export const GameStateSchema = z
     // Loop v2 Phase 2b build steering: optional supplier lean chosen at run start.
     // Absent = feature flag off / older save. Null = flag on, no lean chosen yet.
     supplierTag: idSchema.nullable().optional(),
+    // Loop v2 Phase 3 goal ladder: optional current-day target and last result.
+    // Absent = feature flag off / older save. freeRerollTokens are consumed by
+    // the existing reroll action before coins.
+    dailyTarget: positiveMoneySchema.optional(),
+    dailyTargetResult: DailyTargetResultSchema.optional(),
+    freeRerollTokens: nonNegativeIntSchema.optional(),
   })
   .strict();
 
@@ -642,6 +661,7 @@ export type RentState = z.infer<typeof RentStateSchema>;
 export type MoveState = z.infer<typeof MoveStateSchema>;
 export type RunStats = z.infer<typeof RunStatsSchema>;
 export type CatalogDelta = z.infer<typeof CatalogDeltaSchema>;
+export type DailyTargetResult = z.infer<typeof DailyTargetResultSchema>;
 export type CatalogStats = z.infer<typeof CatalogStatsSchema>;
 export type Catalog = z.infer<typeof CatalogSchema>;
 export type TraceEvent = z.infer<typeof TraceEventSchema>;

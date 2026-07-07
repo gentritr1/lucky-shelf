@@ -23,12 +23,12 @@ Updated 2026-07-07 by the Opus orchestrator.
 | Phase 2c — signature items (`SIGNATURE_ITEMS_ENABLED`) | [A-M5b-signature-items-review](A-M5b-signature-items-review.md) | [A-M5b-fable-review](A-M5b-fable-review.md) | Stand-in APPROVE | New scoring rule kinds (CCR); **dominance gate CLOSED** → [A-M5b-signature-dominance-gate](A-M5b-signature-dominance-gate.md) |
 | **Phase 2a — tag-set synergy** (`TAG_SYNERGY_ENABLED`) | [A-M5c-tag-synergy-review](A-M5c-tag-synergy-review.md) | [A-M5c-fable-review](A-M5c-fable-review.md) | **Stand-in APPROVE** (`5e0797a`) | Ladder magnitudes; best-tag-not-product; supersedes Today's Order; blocked-slot counting; p95 ceiling |
 | **Phase 2b — build steering** (`BUILD_STEERING_ENABLED`) | [A-M5e-build-steering-review](A-M5e-build-steering-review.md) | [A-M5e-fable-review](A-M5e-fable-review.md) | **Stand-in APPROVE** (`5e0797a`) | Additive contract (CCR-4: `supplierTag` + `chooseSupplier`); **mandatory pick** reading; `BUILD_STEER_BIAS`; needs Lane B picker |
-| Phase 3 — daily goal ladder (`GOAL_LADDER_ENABLED`) | *pending* | *pending* | **NOT yet reviewed** — code just landed in the working tree, no packet yet | (after review) target curve + reward semantics |
+| **Phase 3 — daily goal ladder** (`GOAL_LADDER_ENABLED`, requires `LOOP_V2`) | [A-M5d-goal-ladder-review](A-M5d-goal-ladder-review.md) | [A-M5d-fable-review](A-M5d-fable-review.md) | **Stand-in APPROVE** | Tuned target table `[16..74]` + day-10 cap; reward token semantics; `freeRerollTokens` count vs boolean for Lane B |
 
 ## Open CCRs awaiting real Fable (consolidated)
 - **Scoring-order:** order/spotlight mults (levers); **2a** tag-synergy mult that *supersedes* Today's Order when on. No schema change.
 - **New scoring rule kinds:** 2c signature items (`tagFilteredShelfMultiplier`, `flatPerTagCount`, `copyHighestScoringOther`, `shelfMultiplierIfAnyTagCount`, `highestBaseValueMultiplier`).
-- **Contract (additive, no `ContractSchemaVersion` bump):** **2b** `GameState.supplierTag?` + `chooseSupplier{tag}` action.
+- **Contract (additive, no `ContractSchemaVersion` bump):** **2b** `GameState.supplierTag?` + `chooseSupplier{tag}` action; **3** `GameState.dailyTarget?` + `dailyTargetResult?` (`DailyTargetResultSchema`) + `freeRerollTokens?`.
 
 ## Cross-cutting notes for Fable
 - Every OFF path is byte-identical: determinism pin `8d48e1c5a6ad14c9`, 6 M0 goldens, and 6 M0 fixtures are unchanged with all flags off. That invariant is the graduation floor.

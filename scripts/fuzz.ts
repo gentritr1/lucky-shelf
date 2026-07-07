@@ -3,6 +3,7 @@ import { playRun, type StrategyName } from '../src/sim/bots';
 import {
   BUILD_STEER_BIAS,
   buildSteeringEnabled,
+  goalLadderEnabled,
   loopV2Enabled,
   tagSynergyEnabled,
 } from '../src/sim/economy';
@@ -22,7 +23,7 @@ interface FuzzArgs {
   maxActions: number;
 }
 
-const DAY_METRIC_REPORT_LIMIT = 8;
+const DAY_METRIC_REPORT_LIMIT = 12;
 
 interface NumericSummary {
   mean: number;
@@ -125,6 +126,52 @@ function sortedDistribution(distribution: Map<string, number>): Record<string, n
   );
 }
 
+function incrementCount(metrics: Map<string, number>, key: string, value = 1): void {
+  metrics.set(key, (metrics.get(key) ?? 0) + value);
+}
+
+function summarizeRateByDay(
+  hitsByDay: Map<string, number>,
+  attemptsByDay: Map<string, number>,
+): Record<string, { hits: number; survivingDays: number; rate: number }> {
+  return Object.fromEntries(
+    [...attemptsByDay.entries()]
+      .filter(([day]) => Number(day) <= DAY_METRIC_REPORT_LIMIT)
+      .sort(([dayA], [dayB]) => Number(dayA) - Number(dayB))
+      .map(([day, attempts]) => {
+        const hits = hitsByDay.get(day) ?? 0;
+        return [
+          day,
+          {
+            hits,
+            survivingDays: attempts,
+            rate: attempts === 0 ? 0 : Number((hits / attempts).toFixed(3)),
+          },
+        ];
+      }),
+  );
+}
+
+function summarizeRateForDayRange(
+  hitsByDay: Map<string, number>,
+  attemptsByDay: Map<string, number>,
+  firstDay: number,
+  lastDay: number,
+): { hits: number; survivingDays: number; rate: number } {
+  let hits = 0;
+  let attempts = 0;
+  for (let day = firstDay; day <= lastDay; day += 1) {
+    const key = String(day);
+    hits += hitsByDay.get(key) ?? 0;
+    attempts += attemptsByDay.get(key) ?? 0;
+  }
+  return {
+    hits,
+    survivingDays: attempts,
+    rate: attempts === 0 ? 0 : Number((hits / attempts).toFixed(3)),
+  };
+}
+
 function signatureDominance(
   byItem: Map<string, number[]>,
   allSignatureBestDays: readonly number[],
@@ -164,11 +211,16 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
   const itemsBoughtPerRun: number[] = [];
   const signatureItemsBoughtPerRun: number[] = [];
   const boardOccupancyByDay = new Map<string, number[]>();
+  const dayTotalByDay = new Map<string, number[]>();
   const itemsBoughtByDay = new Map<string, number[]>();
   const dominantEligibleTagCountByDay = new Map<string, number[]>();
   const dominantEligibleTagCountDistribution = new Map<string, number>();
   const supplierTagCountByDay = new Map<string, number[]>();
   const supplierTagDistribution = new Map<string, number>();
+  const goalTargetAttemptsByDay = new Map<string, number>();
+  const goalTargetHitsByDay = new Map<string, number>();
+  const goalTargetByDay = new Map<string, number[]>();
+  const goalDayTotalByDay = new Map<string, number[]>();
   const finalDominantEligibleTagCounts: number[] = [];
   const finalSupplierTagCounts: number[] = [];
   let gameOvers = 0;
@@ -180,6 +232,10 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
   let synergyFireDays = 0;
   let synergyFires = 0;
   let scoredOccupiedSlots = 0;
+  let goalTargetDays = 0;
+  let goalMetDays = 0;
+  let goalRewardsGranted = 0;
+  let freeRerollsSpent = 0;
 
   for (let index = 0; index < args.runs; index += 1) {
     const run = playRun(`${args.seed}-${strategy}-${index}`, strategy, deps, args.maxActions);
@@ -190,6 +246,10 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
     synergyFireDays += run.metrics.synergyFireDays;
     synergyFires += run.metrics.synergyFires;
     scoredOccupiedSlots += run.metrics.scoredOccupiedSlots;
+    goalTargetDays += run.metrics.goalTargetDays;
+    goalMetDays += run.metrics.goalMetDays;
+    goalRewardsGranted += run.metrics.goalRewardsGranted;
+    freeRerollsSpent += run.metrics.freeRerollsSpent;
     itemsBoughtPerRun.push(run.metrics.itemsBought);
     signatureItemsBoughtPerRun.push(run.metrics.signatureItemsBought);
     finalDominantEligibleTagCounts.push(run.metrics.finalDominantEligibleTagCount);
@@ -201,12 +261,27 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
       pushDayMetric(boardOccupancyByDay, day, occupancy);
       pushDayMetric(itemsBoughtByDay, day, run.metrics.itemsBoughtByDay[day] ?? 0);
     }
+    for (const [day, dayTotal] of Object.entries(run.metrics.dayTotalByDay)) {
+      pushDayMetric(dayTotalByDay, day, dayTotal);
+    }
     for (const [day, count] of Object.entries(run.metrics.dominantEligibleTagCountByDay)) {
       pushDayMetric(dominantEligibleTagCountByDay, day, count);
       incrementDistribution(dominantEligibleTagCountDistribution, String(count));
     }
     for (const [day, count] of Object.entries(run.metrics.supplierTagCountByDay)) {
       pushDayMetric(supplierTagCountByDay, day, count);
+    }
+    for (const [day, count] of Object.entries(run.metrics.goalTargetEvaluationsByDay)) {
+      incrementCount(goalTargetAttemptsByDay, day, count);
+    }
+    for (const [day, count] of Object.entries(run.metrics.goalTargetHitsByDay)) {
+      incrementCount(goalTargetHitsByDay, day, count);
+    }
+    for (const [day, target] of Object.entries(run.metrics.goalTargetByDay)) {
+      pushDayMetric(goalTargetByDay, day, target);
+    }
+    for (const [day, dayTotal] of Object.entries(run.metrics.goalDayTotalByDay)) {
+      pushDayMetric(goalDayTotalByDay, day, dayTotal);
     }
     daysSurvived.push(stats.daysSurvived);
     coinsEarned.push(stats.totalCoinsEarned);
@@ -250,6 +325,7 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
       bestDayTotalsWithSignature,
     ),
     boardOccupancyByDay: summarizeDayMetrics(boardOccupancyByDay),
+    dayTotalByDay: summarizeDayMetrics(dayTotalByDay),
     itemsBoughtByDay: summarizeDayMetrics(itemsBoughtByDay),
     gameOverRate: Number((gameOvers / args.runs).toFixed(3)),
     diedAtRentCycle: summarize(rentDeaths),
@@ -260,6 +336,19 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
     synergyFireRate:
       scoredOccupiedSlots === 0 ? 0 : Number((synergyFires / scoredOccupiedSlots).toFixed(3)),
     synergyFiresPerScoredDay: scoredDays === 0 ? 0 : Number((synergyFires / scoredDays).toFixed(3)),
+    goalTargetHitRate:
+      goalTargetDays === 0 ? 0 : Number((goalMetDays / goalTargetDays).toFixed(3)),
+    goalTargetHitRateByDay: summarizeRateByDay(goalTargetHitsByDay, goalTargetAttemptsByDay),
+    goalTargetHitRateDays9To12: summarizeRateForDayRange(
+      goalTargetHitsByDay,
+      goalTargetAttemptsByDay,
+      9,
+      12,
+    ),
+    goalTargetByDay: summarizeDayMetrics(goalTargetByDay),
+    goalDayTotalByDay: summarizeDayMetrics(goalDayTotalByDay),
+    goalRewardsGranted,
+    freeRerollsSpent,
     dominantEligibleTagCountDistribution: sortedDistribution(dominantEligibleTagCountDistribution),
     dominantEligibleTagCountByDay: summarizeDayMetrics(dominantEligibleTagCountByDay),
     finalDominantEligibleTagCount: summarize(finalDominantEligibleTagCounts),
@@ -281,6 +370,7 @@ function main(): void {
     generatedAt: new Date().toISOString(),
     seedPrefix: args.seed,
     loopV2Enabled: loopV2Enabled(),
+    goalLadderEnabled: goalLadderEnabled(),
     tagSynergyEnabled: tagSynergyEnabled(),
     buildSteeringEnabled: buildSteeringEnabled(),
     buildSteerBias: BUILD_STEER_BIAS,

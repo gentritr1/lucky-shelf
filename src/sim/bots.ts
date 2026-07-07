@@ -36,10 +36,19 @@ export interface BotRunMetrics {
   itemsBought: number;
   signatureItemsBought: number;
   signatureItemsBoughtById: Record<string, number>;
+  goalTargetDays: number;
+  goalMetDays: number;
+  goalRewardsGranted: number;
+  freeRerollsSpent: number;
   occupancyByDay: Record<string, number>;
+  dayTotalByDay: Record<string, number>;
   itemsBoughtByDay: Record<string, number>;
   dominantEligibleTagCountByDay: Record<string, number>;
   supplierTagCountByDay: Record<string, number>;
+  goalTargetEvaluationsByDay: Record<string, number>;
+  goalTargetHitsByDay: Record<string, number>;
+  goalTargetByDay: Record<string, number>;
+  goalDayTotalByDay: Record<string, number>;
 }
 
 function nonQuitting(actions: readonly Action[]): Action[] {
@@ -187,6 +196,10 @@ function chooseAction(
       }
       return best;
     }
+    const freeReroll = legal.find((action) => action.type === 'reroll');
+    if ((state.freeRerollTokens ?? 0) > 0 && freeReroll && hasEmptySlot(state)) {
+      return freeReroll;
+    }
     const end = legal.find((action) => action.type === 'endRestock');
     return end ?? rng.pick(legal);
   }
@@ -235,6 +248,10 @@ function supplierTagShelfCount(state: GameState): number {
   return state.shelf.slots.filter((entry) => entry.item?.tags.includes(tag)).length;
 }
 
+function hasEmptySlot(state: GameState): boolean {
+  return state.shelf.slots.some((entry) => entry.item === null);
+}
+
 function incrementDayMetric(metrics: Record<string, number>, day: number): void {
   const key = String(day);
   metrics[key] = (metrics[key] ?? 0) + 1;
@@ -261,10 +278,19 @@ export function playRun(
     itemsBought: 0,
     signatureItemsBought: 0,
     signatureItemsBoughtById: {},
+    goalTargetDays: 0,
+    goalMetDays: 0,
+    goalRewardsGranted: 0,
+    freeRerollsSpent: 0,
     occupancyByDay: {},
+    dayTotalByDay: {},
     itemsBoughtByDay: {},
     dominantEligibleTagCountByDay: {},
     supplierTagCountByDay: {},
+    goalTargetEvaluationsByDay: {},
+    goalTargetHitsByDay: {},
+    goalTargetByDay: {},
+    goalDayTotalByDay: {},
   };
   for (let step = 0; step < maxActions && state.phase !== 'gameOver'; step += 1) {
     const action = chooseAction(state, strategy, deps, step);
@@ -293,10 +319,31 @@ export function playRun(
         metrics.signatureItemsBoughtById[offer.item.id] =
           (metrics.signatureItemsBoughtById[offer.item.id] ?? 0) + 1;
       }
+    } else if (action.type === 'reroll' && (beforeAction.freeRerollTokens ?? 0) > 0) {
+      metrics.freeRerollsSpent += 1;
     }
     actions.push(action);
     state = dispatch(beforeAction, action, deps);
     if (action.type === 'openShop') {
+      const dayKey = String(beforeAction.day);
+      const dayTotal = state.lastScoringTrace?.events.at(-1);
+      if (dayTotal?.kind === 'dayTotal') {
+        metrics.dayTotalByDay[dayKey] = dayTotal.coins;
+      }
+      const targetResult = state.dailyTargetResult;
+      if (targetResult?.day === beforeAction.day) {
+        metrics.goalTargetDays += 1;
+        incrementDayMetric(metrics.goalTargetEvaluationsByDay, targetResult.day);
+        metrics.goalTargetByDay[dayKey] = targetResult.target;
+        metrics.goalDayTotalByDay[dayKey] = targetResult.dayTotal;
+        if (targetResult.targetMet) {
+          metrics.goalMetDays += 1;
+          incrementDayMetric(metrics.goalTargetHitsByDay, targetResult.day);
+        }
+        if (targetResult.rewardGranted) {
+          metrics.goalRewardsGranted += 1;
+        }
+      }
       const synergyFires =
         state.lastScoringTrace?.events.filter(
           (event) => event.kind === 'ruleFire' && event.ruleId === 'synergy',

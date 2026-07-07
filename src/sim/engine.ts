@@ -21,7 +21,9 @@ import {
   SPOTLIGHT_ENABLED,
   STARTING_RENT,
   buildSteeringEnabled,
+  dailyGoalTarget,
   generateOffers,
+  goalLadderEnabled,
   isBuildSteeringTag,
   loopV2Enabled,
   nextRentAmount,
@@ -130,6 +132,10 @@ export function createRun(seed: string, deps: EngineDeps): GameState {
     dailyOrder: pickCycleOrder(seed, 1),
   };
   if (buildSteeringEnabled()) state.supplierTag = null;
+  if (goalLadderEnabled()) {
+    state.dailyTarget = dailyGoalTarget(state.day);
+    state.freeRerollTokens = 0;
+  }
   return state;
 }
 
@@ -163,6 +169,10 @@ function isLoopV2StarterPlacement(state: GameState): boolean {
 
 function supplierTagForOffers(state: GameState): string | null {
   return buildSteeringEnabled() ? (state.supplierTag ?? null) : null;
+}
+
+function freeRerollTokens(state: GameState): number {
+  return goalLadderEnabled() ? (state.freeRerollTokens ?? 0) : 0;
 }
 
 function canChooseSupplier(state: GameState): boolean {
@@ -277,6 +287,20 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       next.runStats.daysSurvived = scoredDay;
       next.runStats.bestComboIds = addUnique(next.runStats.bestComboIds, result.discoveredComboIds);
 
+      if (goalLadderEnabled()) {
+        const target = next.dailyTarget ?? dailyGoalTarget(scoredDay);
+        const targetMet = result.dayTotal >= target;
+        next.dailyTargetResult = {
+          day: scoredDay,
+          target,
+          dayTotal: result.dayTotal,
+          targetMet,
+          rewardKind: 'freeReroll',
+          rewardGranted: targetMet,
+        };
+        next.freeRerollTokens = targetMet ? 1 : 0;
+      }
+
       const shelfItemIds = next.shelf.slots
         .map((entry) => entry.item?.itemId)
         .filter((id): id is string => Boolean(id));
@@ -341,6 +365,9 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       }
 
       next.day = scoredDay + 1;
+      if (goalLadderEnabled()) {
+        next.dailyTarget = dailyGoalTarget(next.day);
+      }
       next.spotlight = pickSpotlight(next.seed, next.day, next.shelf.size);
       // Order is keyed on the (already-updated) rent cycle, so it stays fixed
       // across the cycle's 3 deliveries and only rotates when rent resets.
@@ -398,8 +425,13 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
 
     case 'reroll': {
       requirePhase(next, 'restock');
-      if (next.coins < REROLL_COST) throw new EngineError('Not enough coins to reroll.');
-      next.coins -= REROLL_COST;
+      const tokens = freeRerollTokens(next);
+      if (tokens > 0) {
+        next.freeRerollTokens = tokens - 1;
+      } else {
+        if (next.coins < REROLL_COST) throw new EngineError('Not enough coins to reroll.');
+        next.coins -= REROLL_COST;
+      }
       const salt = next.currentOffers.map((offer) => offer.offerId).join('|');
       next.currentOffers = generateOffers(
         next.seed,
@@ -500,7 +532,9 @@ export function legalActions(state: GameState, deps: EngineDeps): Action[] {
             actions.push({ type: 'buyOffer', offerIndex: index });
           }
         });
-        if (state.coins >= REROLL_COST) actions.push({ type: 'reroll' });
+        if (freeRerollTokens(state) > 0 || state.coins >= REROLL_COST) {
+          actions.push({ type: 'reroll' });
+        }
         for (const slot of occupiedSlots) actions.push({ type: 'sellItem', slot });
       }
       break;
