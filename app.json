@@ -7,6 +7,12 @@
     "scheme": "luckyshelf",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "icon": "./assets/branding/app-icon.png",
+    "splash": {
+      "image": "./assets/branding/app-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4E8D3"
+    },
     "ios": {
       "bundleIdentifier": "com.gentlegen.luckyshelf",
       "supportsTablet": false
@@ -15,7 +21,8 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static"
+      "output": "static",
+      "favicon": "./assets/branding/app-icon.png"
     },
     "plugins": [
       "expo-router"

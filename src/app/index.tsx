@@ -2,9 +2,12 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useEffect } from 'react';
+
 import { WoodButton, palette, radii, shadows, spacing, typeScale } from '@/ui';
 import { useRunStore } from '../state/store';
 import { routeForGameState } from '../state/phaseRouting';
+import { dailySeedFor, dailySelectors, todayDateString, useDailyStore } from '../state/dailyStore';
 
 /**
  * Title shell (M1): real layout + navigation, placeholder shop-front scene. The
@@ -16,6 +19,12 @@ export default function TitleScreen() {
   const insets = useSafeAreaInsets();
   const startNewRun = useRunStore((state) => state.startNewRun);
   const continueRun = useRunStore((state) => state.continueRun);
+  const loadDaily = useDailyStore((state) => state.loadDaily);
+  const playedToday = useDailyStore(dailySelectors.playedToday);
+
+  useEffect(() => {
+    void loadDaily().catch(() => undefined);
+  }, [loadDaily]);
 
   const onNewRun = () => {
     const result = startNewRun();
@@ -25,6 +34,18 @@ export default function TitleScreen() {
 
   const onContinue = () => {
     void continueRun().then((gameState) => router.push(routeForGameState(gameState)));
+  };
+
+  const onDaily = () => {
+    // Already played today → straight to the share card. Otherwise a fresh
+    // date-seeded run (same offers worldwide, one attempt — enforced on end).
+    if (playedToday) {
+      router.push('/share');
+      return;
+    }
+    const result = startNewRun(dailySeedFor(todayDateString()));
+    void result.save.catch(() => undefined);
+    router.push(routeForGameState(result.gameState));
   };
 
   return (
@@ -60,8 +81,15 @@ export default function TitleScreen() {
       {/* primary actions live in the bottom reach zone */}
       <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.xl }]}>
         <WoodButton label="New Run" onPress={onNewRun} />
-        <WoodButton label="Continue" variant="secondary" onPress={onContinue} />
-        <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
+        <WoodButton label={playedToday ? 'Daily ✓ — View Card' : 'Daily Shelf'} variant="secondary" onPress={onDaily} />
+        <View style={styles.secondaryRow}>
+          <View style={styles.grow}>
+            <WoodButton label="Continue" variant="secondary" onPress={onContinue} />
+          </View>
+          <View style={styles.grow}>
+            <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -162,5 +190,12 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: spacing.md,
+  },
+  secondaryRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  grow: {
+    flex: 1,
   },
 });

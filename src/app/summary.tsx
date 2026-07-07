@@ -7,6 +7,7 @@ import { CoinCounter, WoodButton, palette, spacing, typeScale } from '@/ui';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
 import { useCatalogStore } from '../state/catalogStore';
+import { isDailySeed, useDailyStore } from '../state/dailyStore';
 
 export default function RunSummaryScreen() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export default function RunSummaryScreen() {
   const gameState = useRunStore(runSelectors.gameState);
   const startNewRun = useRunStore((state) => state.startNewRun);
   const recordRunEnd = useCatalogStore((state) => state.recordRunEnd);
+  const recordDaily = useDailyStore((state) => state.recordDaily);
+  const isDaily = isDailySeed(gameState.seed);
 
   useEffect(() => {
     const route = routeForGameState(gameState);
@@ -21,10 +24,12 @@ export default function RunSummaryScreen() {
   }, [gameState, router]);
 
   // Fold this finished run into the permanent catalog (guarded by runId, so a
-  // re-mount can't double-count). This is the M4 merge point.
+  // re-mount can't double-count). This is the M4 merge point. A daily run also
+  // records its one-attempt result for the share card (M5).
   useEffect(() => {
     void recordRunEnd(gameState).catch(() => undefined);
-  }, [recordRunEnd, gameState]);
+    if (isDaily) void recordDaily(gameState).catch(() => undefined);
+  }, [recordRunEnd, recordDaily, gameState, isDaily]);
 
   const combosThisRun = gameState.catalogDelta.discoveredComboIds.length;
 
@@ -66,8 +71,11 @@ export default function RunSummaryScreen() {
       </View>
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.lg }]}>
-        <WoodButton label="New Run" onPress={newRun} />
+        <WoodButton label={isDaily ? 'Share Card' : 'New Run'} onPress={isDaily ? () => router.push('/share') : newRun} />
         <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
+        {isDaily ? null : (
+          <WoodButton label="Share Card" variant="secondary" onPress={() => router.push('/share')} />
+        )}
       </View>
     </View>
   );

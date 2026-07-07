@@ -7,6 +7,7 @@ import type { Action, DeliveryOffer, GameState, Slot } from '@/contracts';
 import {
   CoinCounter,
   MovesPips,
+  OnboardingHint,
   RentChip,
   SectionLabel,
   WoodButton,
@@ -150,6 +151,9 @@ export default function RunHudScreen() {
           />
         </View>
       ) : null}
+
+      {/* first-run coachmark — only during arrange, never over a cascade */}
+      {!cascadeMount && gameState.phase === 'arrange' ? <OnboardingHint /> : null}
     </View>
   );
 }
