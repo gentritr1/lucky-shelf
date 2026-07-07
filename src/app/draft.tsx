@@ -81,23 +81,23 @@ export default function DraftScreen() {
 
       {pendingSupplierTags ? (
         <View style={styles.pickBody}>
-          <View style={styles.labelPlate}>
+          <View style={styles.supplierPanel}>
             <SectionLabel>CHOOSE YOUR SUPPLIER</SectionLabel>
-          </View>
-          <Text style={styles.supplierHint}>
-            Lean into an archetype — the shop tilts toward it all run.
-          </Text>
-          <View style={styles.supplierGrid}>
-            {pendingSupplierTags.map((tag) => (
-              <Pressable
-                key={tag}
-                accessibilityRole="button"
-                style={styles.supplierChip}
-                onPress={() => chooseSupplier(tag)}
-              >
-                <Text style={styles.supplierChipText}>{capitalize(tag)}</Text>
-              </Pressable>
-            ))}
+            <Text style={styles.supplierHint}>
+              Lean into an archetype — the shop tilts toward it all run.
+            </Text>
+            <View style={styles.supplierGrid}>
+              {pendingSupplierTags.map((tag) => (
+                <Pressable
+                  key={tag}
+                  accessibilityRole="button"
+                  style={styles.supplierChip}
+                  onPress={() => chooseSupplier(tag)}
+                >
+                  <Text style={styles.supplierChipText}>{capitalize(tag)}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
         </View>
       ) : (
@@ -218,12 +218,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
   },
+  // Solid card so the picker reads cleanly over the busy delivery-room photo
+  // (bare text was washing out) and the archetype choice feels like one panel.
+  supplierPanel: {
+    backgroundColor: palette.creamBright,
+    borderColor: palette.parchmentEdge,
+    borderRadius: radii.lg,
+    borderWidth: borders.hairline,
+    gap: spacing.md,
+    padding: spacing.lg,
+    ...shadows.card,
+  },
   supplierHint: {
     ...typeScale.body,
-    alignSelf: 'center',
-    color: palette.ink,
+    color: palette.inkSoft,
     fontSize: 14,
-    paddingHorizontal: spacing.md,
     textAlign: 'center',
   },
   supplierGrid: {
