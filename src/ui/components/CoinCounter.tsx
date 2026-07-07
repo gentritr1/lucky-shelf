@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     // no-op, so nudge the glyph down to optically center it against the coin.
     // Calibrated on the iOS simulator (zoomed).
     includeFontPadding: false,
-    transform: [{ translateY: 2 }],
+    transform: [{ translateY: 1 }],
   },
   amountSlam: {
     ...typeScale.display,

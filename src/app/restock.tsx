@@ -404,9 +404,8 @@ const styles = StyleSheet.create({
     color: palette.creamBright,
     fontSize: 15,
     lineHeight: 18,
-    // iOS: Baloo2 digits sit high in their box; nudge down to center on the coin.
+    // Vertically center the digit on the coin dot (measured on the iOS sim).
     includeFontPadding: false,
-    transform: [{ translateY: 2 }],
   },
   offerCol: {
     flex: 1,
@@ -475,7 +474,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 16,
     includeFontPadding: false,
-    transform: [{ translateY: 2 }],
   },
   sellGrid: {
     flexDirection: 'row',
