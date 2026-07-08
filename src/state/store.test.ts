@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { createRun } from '../sim';
+import { emptyCatalog } from '../contracts';
+import {
+  UNLOCK_LADDER_ENV_VAR,
+  alwaysUnlockedItemIds,
+  createRun,
+  unlockedItemIds,
+} from '../sim';
 import { hashState } from '../sim/hash';
 import { makeState } from '../sim/testkit';
 import { loadCombos, loadItemTable } from '../items';
@@ -29,6 +35,23 @@ class MemoryStorage implements KeyValueStorage {
 }
 
 const deps = { table: loadItemTable(), combos: loadCombos() };
+
+function withEnv<T>(env: Record<string, string | undefined>, fn: () => T): T {
+  const previous: Record<string, string | undefined> = {};
+  for (const key of Object.keys(env)) {
+    previous[key] = process.env[key];
+    if (env[key] === undefined) delete process.env[key];
+    else process.env[key] = env[key];
+  }
+  try {
+    return fn();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
 
 describe('run store', () => {
   it('dispatches accepted actions through the engine and autosaves the new state', async () => {
@@ -129,5 +152,32 @@ describe('run store', () => {
     expect(result.gameState.currentOffers.map((offer) => offer.offerId)).toEqual(
       createRun('m3-new-run', deps).currentOffers.map((offer) => offer.offerId),
     );
+  });
+
+  it('snapshots loaded catalog unlocks for flagged new runs and falls back to starters while idle', () => {
+    withEnv({ [UNLOCK_LADDER_ENV_VAR]: '1' }, () => {
+      const loadedCatalog = emptyCatalog();
+      loadedCatalog.stats.runsPlayed = 5;
+      const expectedLoaded = unlockedItemIds(loadedCatalog);
+      const loadedStore = createRunStore({
+        deps,
+        persistence: createRunPersistence(new MemoryStorage()),
+        initialState: makeState([], { phase: 'gameOver' }),
+        catalogSnapshot: () => ({ catalog: loadedCatalog, loadStatus: 'loaded' }),
+      });
+
+      const loadedRun = loadedStore.getState().startNewRun('store-unlocks-loaded').gameState;
+      expect(loadedRun.unlockedItemIds).toEqual(expectedLoaded);
+      expect(loadedRun.unlockedItemIds).toContain('soap-bar');
+
+      const idleStore = createRunStore({
+        deps,
+        persistence: createRunPersistence(new MemoryStorage()),
+        initialState: makeState([], { phase: 'gameOver' }),
+        catalogSnapshot: () => ({ catalog: emptyCatalog(), loadStatus: 'idle' }),
+      });
+      const idleRun = idleStore.getState().startNewRun('store-unlocks-idle').gameState;
+      expect(idleRun.unlockedItemIds).toEqual(alwaysUnlockedItemIds());
+    });
   });
 });

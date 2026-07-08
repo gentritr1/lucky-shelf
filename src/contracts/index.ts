@@ -586,6 +586,10 @@ export const GameStateSchema = z
     // above — no ContractSchemaVersion bump, no wipe. Absent = flag off at creation
     // / older save = a v1 run; only ever present (true) for a run started under v2.
     loopV2: z.boolean().optional(),
+    // A-M7 unlock ladder: the offerable item ids snapshotted when this run was
+    // created. Additive + optional; absent means legacy/full-pool behavior.
+    // Sorted by the sim so replays and saves stay deterministic. No version bump.
+    unlockedItemIds: z.array(idSchema).optional(),
   })
   .strict();
 

@@ -1,6 +1,6 @@
 import type { Action, GameState } from '../contracts';
 
-import type { EngineDeps } from './engine';
+import type { CreateRunOptions, EngineDeps } from './engine';
 import { createRun, dispatch } from './engine';
 
 /**
@@ -13,8 +13,12 @@ export interface Replay {
   actions: readonly Action[];
 }
 
-export function runReplay(replay: Replay, deps: EngineDeps): GameState {
-  let state = createRun(replay.seed, deps);
+export function runReplay(
+  replay: Replay,
+  deps: EngineDeps,
+  options: CreateRunOptions = {},
+): GameState {
+  let state = createRun(replay.seed, deps, options);
   for (const action of replay.actions) {
     if (state.phase === 'gameOver') break;
     state = dispatch(state, action, deps);

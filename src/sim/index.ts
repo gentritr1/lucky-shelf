@@ -4,11 +4,27 @@
  * never these internals.
  */
 
-export { createRun, dispatch, legalActions, EngineError, type EngineDeps } from './engine';
+export {
+  createRun,
+  dispatch,
+  legalActions,
+  EngineError,
+  type CreateRunOptions,
+  type EngineDeps,
+} from './engine';
 export { resolveOpenShop, type ScoringResult } from './scoring';
 export { runReplay, type Replay } from './replay';
 export { hashState, stableStringify, fnv1a64 } from './hash';
 export { rngFor, hashString, type Rng } from './rng';
+export {
+  UNLOCK_LADDER,
+  alwaysUnlockedItemIds,
+  nextUnlocks,
+  unlockedItemIds,
+  type NextUnlock,
+  type UnlockPredicate,
+  type UnlockTable,
+} from './unlocks';
 export {
   DEMAND_COUNT,
   DEMAND_ENABLED,
@@ -38,6 +54,8 @@ export {
   STARTING_RENT,
   TAG_SYNERGY_ELIGIBLE_TAGS,
   TAG_SYNERGY_LADDER,
+  UNLOCK_LADDER_ENABLED,
+  UNLOCK_LADDER_ENV_VAR,
   WARM_OPENING_ENABLED,
   WARM_OPENING_ENV_VAR,
   buildSteeringEnabled,
@@ -52,6 +70,7 @@ export {
   signatureItemsEnabled,
   startingCoins,
   tagSynergyEnabled,
+  unlockLadderEnabled,
   warmOpeningEnabled,
 } from './economy';
 export {

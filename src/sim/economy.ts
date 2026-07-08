@@ -208,6 +208,18 @@ export function signatureItemsEnabled(): boolean {
   return SIGNATURE_ITEMS_ENABLED || process.env[SIGNATURE_ITEMS_ENV_VAR] === '1';
 }
 
+/**
+ * A-M7 — cross-run unlock ladder. Default OFF; when ON, createRun snapshots the
+ * catalog-derived unlocked item ids onto GameState and offer generation filters
+ * by that snapshot. Not loop-v2-gated because the catalog is cross-run meta.
+ */
+export const UNLOCK_LADDER_ENABLED = false;
+export const UNLOCK_LADDER_ENV_VAR = 'UNLOCK_LADDER_ENABLED';
+
+export function unlockLadderEnabled(): boolean {
+  return UNLOCK_LADDER_ENABLED || process.env[UNLOCK_LADDER_ENV_VAR] === '1';
+}
+
 export function nextRentAmount(amount: number, completedCycle: number, loopV2 = false): number {
   const lateFromCycle = loopV2 ? LOOP_V2_RENT_GROWTH_LATE_FROM_CYCLE : RENT_GROWTH_LATE_FROM_CYCLE;
   const lateGrowth = loopV2 ? LOOP_V2_RENT_GROWTH_LATE : RENT_GROWTH_LATE;
@@ -293,7 +305,10 @@ export function offerWeight(
 }
 
 /** Items that only exist as transform targets never show up in offers. */
-export function offerablePool(table: ItemTable): ItemDefinition[] {
+export function offerablePool(
+  table: ItemTable,
+  unlockedItemIds?: readonly string[],
+): ItemDefinition[] {
   const transformTargets = new Set<string>();
   for (const definition of table.values()) {
     if (definition.upgradesToItemId) transformTargets.add(definition.upgradesToItemId);
@@ -301,10 +316,12 @@ export function offerablePool(table: ItemTable): ItemDefinition[] {
       if (rule.kind === 'transformsAdjacent') transformTargets.add(rule.toItemId);
     }
   }
+  const unlocked = unlockedItemIds ? new Set(unlockedItemIds) : null;
   return [...table.values()].filter(
     (definition) =>
       !transformTargets.has(definition.id) &&
-      (signatureItemsEnabled() || !isSignatureItem(definition)),
+      (signatureItemsEnabled() || !isSignatureItem(definition)) &&
+      (!unlocked || unlocked.has(definition.id)),
   );
 }
 
@@ -376,6 +393,7 @@ function applyWarmOpening(
   salt: string,
   supplierTag: string | null,
   loopV2: boolean,
+  unlockedItemIds?: readonly string[],
 ): DeliveryOffer[] {
   if (!warmOpeningEnabled(loopV2) || kind !== 'restock' || day > 2) return offers;
 
@@ -386,7 +404,7 @@ function applyWarmOpening(
   if (cheapCount >= requiredCheapOffers) return warmOffers;
 
   const offeredIds = new Set(warmOffers.map((offer) => offer.item.id));
-  const weightedPool = offerablePool(table).filter(
+  const weightedPool = offerablePool(table, unlockedItemIds).filter(
     (definition) => offerWeight(definition, day, supplierTag) > 0,
   );
   const candidates = weightedPool.filter(
@@ -436,6 +454,7 @@ export function generateOffers(
   // offer count/cost matches the run it was created under; direct callers (tests)
   // fall back to the live env read, unchanged.
   loopV2: boolean = loopV2Enabled(),
+  unlockedItemIds?: readonly string[],
 ): DeliveryOffer[] {
   const rng = rngFor(seed, 'offers', kind, day, salt);
   const count =
@@ -444,7 +463,7 @@ export function generateOffers(
       : loopV2
         ? LOOP_V2_DAILY_SHOP_OFFERS
         : OFFERS_PER_RESTOCK;
-  const pool = offerablePool(table).filter(
+  const pool = offerablePool(table, unlockedItemIds).filter(
     (definition) => kind === 'restock' || !isSignatureItem(definition),
   );
   const remaining = pool.filter((definition) => offerWeight(definition, day, supplierTag) > 0);
@@ -466,5 +485,15 @@ export function generateOffers(
     if (!definition) break;
     offers.push(deliveryOffer(kind, day, index, definition, salt, loopV2));
   }
-  return applyWarmOpening(offers, seed, day, kind, table, salt, supplierTag, loopV2);
+  return applyWarmOpening(
+    offers,
+    seed,
+    day,
+    kind,
+    table,
+    salt,
+    supplierTag,
+    loopV2,
+    unlockedItemIds,
+  );
 }

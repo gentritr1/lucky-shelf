@@ -8,6 +8,7 @@ import {
   loopV2Enabled,
   shelfExpansionEnabled,
   tagSynergyEnabled,
+  unlockLadderEnabled,
   warmOpeningEnabled,
 } from '../src/sim/economy';
 
@@ -400,6 +401,7 @@ function main(): void {
     shelfExpansionEnabled: shelfExpansionEnabled(),
     warmOpeningEnabled: warmOpeningEnabled(),
     day2StarterEnabled: day2StarterEnabled(),
+    unlockLadderEnabled: unlockLadderEnabled(),
     buildSteerBias: BUILD_STEER_BIAS,
     maxActions: args.maxActions,
     results: strategies.map((strategy) => fuzzStrategy(strategy, args)),

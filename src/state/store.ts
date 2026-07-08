@@ -10,6 +10,7 @@ import {
 } from '../contracts';
 import { isSignatureItem, itemDefinition, loadCombos, loadItemTable } from '../items';
 import {
+  alwaysUnlockedItemIds,
   DEMAND_MULT,
   EngineError,
   REROLL_COST,
@@ -20,10 +21,13 @@ import {
   hashState,
   sellPrice,
   tagSynergyEnabled,
+  unlockLadderEnabled,
+  unlockedItemIds as catalogUnlockedItemIds,
 } from '../sim';
-import type { EngineDeps } from '../sim';
+import type { CreateRunOptions, EngineDeps } from '../sim';
 import { uiAffordances, type UiActionOfType } from '../sim/uiAffordances';
 import type { LoadActiveRunStatus, RunPersistence } from '../persistence';
+import { useCatalogStore, type CatalogStoreState } from './catalogStore';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
@@ -317,6 +321,7 @@ interface RunStoreOptions {
   persistence?: RunPersistence;
   seedFactory?: () => string;
   initialState?: GameState;
+  catalogSnapshot?: () => Pick<CatalogStoreState, 'catalog' | 'loadStatus'>;
 }
 
 const defaultDeps: EngineDeps = { table: loadItemTable(), combos: loadCombos() };
@@ -338,11 +343,24 @@ function isEngineError(error: unknown): error is EngineError {
   return error instanceof EngineError || (error instanceof Error && error.name === 'EngineError');
 }
 
+function createRunOptionsFromCatalog(
+  snapshot: Pick<CatalogStoreState, 'catalog' | 'loadStatus'>,
+): CreateRunOptions {
+  if (!unlockLadderEnabled()) return {};
+  if (snapshot.loadStatus === 'idle' || snapshot.loadStatus === 'loading') {
+    return { unlockedItemIds: alwaysUnlockedItemIds() };
+  }
+  return { unlockedItemIds: catalogUnlockedItemIds(snapshot.catalog) };
+}
+
 export function createRunStore(options: RunStoreOptions = {}) {
   const deps = options.deps ?? defaultDeps;
   const seedFactory = options.seedFactory ?? defaultSeed;
   const getPersistence = async () => options.persistence ?? defaultPersistence();
-  const initialState = options.initialState ?? createRun(seedFactory(), deps);
+  const getCatalogSnapshot = options.catalogSnapshot ?? (() => useCatalogStore.getState());
+  const createRunFromCatalog = (seed: string): GameState =>
+    createRun(seed, deps, createRunOptionsFromCatalog(getCatalogSnapshot()));
+  const initialState = options.initialState ?? createRunFromCatalog(seedFactory());
 
   return create<RunStoreState>()((set, get) => {
     const saveActiveRun = (gameState: GameState): Promise<void> => {
@@ -376,16 +394,16 @@ export function createRunStore(options: RunStoreOptions = {}) {
       lastSaveError: null,
 
       startNewRun(seed) {
-        return setRun(createRun(seed ?? seedFactory(), deps));
+        return setRun(createRunFromCatalog(seed ?? seedFactory()));
       },
 
       startFreshRun(seed) {
-        return setRun(createRun(seed ?? seedFactory(), deps));
+        return setRun(createRunFromCatalog(seed ?? seedFactory()));
       },
 
       async continueRun(seedForFallback) {
         set({ loadStatus: 'loading', lastRejectedAction: null });
-        const fallback = createRun(seedForFallback ?? seedFactory(), deps);
+        const fallback = createRunFromCatalog(seedForFallback ?? seedFactory());
         const result = await (await getPersistence()).loadActiveRun(fallback);
         set({ gameState: result.gameState, loadStatus: result.status });
         return result.gameState;

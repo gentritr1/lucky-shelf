@@ -1,7 +1,7 @@
 import type { Action, GameState } from '../contracts';
 import { isSignatureItem } from '../items';
 
-import type { EngineDeps } from './engine';
+import type { CreateRunOptions, EngineDeps } from './engine';
 import { createRun, dispatch, legalActions } from './engine';
 import { SHELF_EXPANSION_COST, TAG_SYNERGY_ELIGIBLE_TAGS } from './economy';
 import { resolveOpenShop } from './scoring';
@@ -53,6 +53,10 @@ export interface BotRunMetrics {
   goalTargetHitsByDay: Record<string, number>;
   goalTargetByDay: Record<string, number>;
   goalDayTotalByDay: Record<string, number>;
+}
+
+export interface PlayRunOptions {
+  createRunOptions?: CreateRunOptions;
 }
 
 function nonQuitting(actions: readonly Action[]): Action[] {
@@ -284,8 +288,9 @@ export function playRun(
   strategy: StrategyName,
   deps: EngineDeps,
   maxActions = 400,
+  options: PlayRunOptions = {},
 ): BotRun {
-  let state = createRun(seed, deps);
+  let state = createRun(seed, deps, options.createRunOptions);
   const actions: Action[] = [];
   const metrics: BotRunMetrics = {
     scoredDays: 0,

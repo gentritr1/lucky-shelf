@@ -33,10 +33,12 @@ import {
   sellPrice,
   shelfExpansionEnabled,
   startingCoins,
+  unlockLadderEnabled,
 } from './economy';
 import { buildSlotMap, occupiedNeighbors, rowMajorSlots, slotStateAt } from './grid';
 import { rngFor } from './rng';
 import { resolveOpenShop } from './scoring';
+import { alwaysUnlockedItemIds } from './unlocks';
 
 /**
  * PROTOTYPE (Front Window): the day's spotlight slot, chosen deterministically
@@ -81,6 +83,10 @@ export interface EngineDeps {
   combos: readonly NamedCombo[];
 }
 
+export interface CreateRunOptions {
+  unlockedItemIds?: readonly string[];
+}
+
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -106,7 +112,18 @@ function instantiate(offer: DeliveryOffer, deps: EngineDeps): ItemInstance {
   };
 }
 
-export function createRun(seed: string, deps: EngineDeps): GameState {
+function sortedUnique(values: readonly string[]): string[] {
+  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+}
+
+function runUnlockedItemIds(state: GameState): readonly string[] | undefined {
+  return state.unlockedItemIds;
+}
+
+export function createRun(seed: string, deps: EngineDeps, options: CreateRunOptions = {}): GameState {
+  const unlockedForRun = unlockLadderEnabled()
+    ? sortedUnique(options.unlockedItemIds ?? alwaysUnlockedItemIds())
+    : undefined;
   const state: GameState = {
     schemaVersion: ContractSchemaVersion,
     runId: `run-${seed}`,
@@ -120,7 +137,16 @@ export function createRun(seed: string, deps: EngineDeps): GameState {
     },
     rent: { amount: STARTING_RENT, dueInDays: RENT_PERIOD_DAYS, cycle: 1 },
     moves: { freeRemaining: FREE_MOVES_PER_DAY, paidMoveCost: paidMoveCost(1) },
-    currentOffers: generateOffers(seed, 1, 'delivery', deps.table, ''),
+    currentOffers: generateOffers(
+      seed,
+      1,
+      'delivery',
+      deps.table,
+      '',
+      null,
+      loopV2Enabled(),
+      unlockedForRun,
+    ),
     heldItem: null,
     lastScoringTrace: null,
     runStats: {
@@ -134,6 +160,7 @@ export function createRun(seed: string, deps: EngineDeps): GameState {
     spotlight: pickSpotlight(seed, 1, { rows: 3, cols: 4 }),
     dailyOrder: pickCycleOrder(seed, 1),
   };
+  if (unlockedForRun) state.unlockedItemIds = unlockedForRun;
   // Pin the loop mode to this run for its whole lifetime. Only set when enabled,
   // so an OFF-path run leaves the field undefined → stableStringify drops it →
   // determinism pin + M0 goldens stay byte-identical.
@@ -240,7 +267,16 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         throw new EngineError(`Supplier tag ${action.tag} is not eligible for build steering.`);
       }
       next.supplierTag = action.tag;
-      next.currentOffers = generateOffers(next.seed, next.day, 'delivery', deps.table, '', action.tag);
+      next.currentOffers = generateOffers(
+        next.seed,
+        next.day,
+        'delivery',
+        deps.table,
+        '',
+        action.tag,
+        runLoopV2(next),
+        runUnlockedItemIds(next),
+      );
       return next;
     }
 
@@ -275,6 +311,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           '',
           supplierTagForOffers(next),
           runLoopV2(next),
+          runUnlockedItemIds(next),
         );
       } else if (isDay2StarterPlacement(next)) {
         next.phase = 'restock';
@@ -286,6 +323,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           '',
           supplierTagForOffers(next),
           runLoopV2(next),
+          runUnlockedItemIds(next),
         );
       }
       return next;
@@ -444,6 +482,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           '',
           supplierTagForOffers(next),
           runLoopV2(next),
+          runUnlockedItemIds(next),
         );
       } else if (runLoopV2(next)) {
         next.phase = 'restock';
@@ -455,6 +494,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           '',
           supplierTagForOffers(next),
           runLoopV2(next),
+          runUnlockedItemIds(next),
         );
       } else if (scoredDay % 3 === 0) {
         next.phase = 'restock';
@@ -466,6 +506,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           '',
           supplierTagForOffers(next),
           runLoopV2(next),
+          runUnlockedItemIds(next),
         );
       } else {
         next.phase = 'delivery';
@@ -477,6 +518,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           '',
           supplierTagForOffers(next),
           runLoopV2(next),
+          runUnlockedItemIds(next),
         );
       }
       return next;
@@ -549,6 +591,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         salt,
         supplierTagForOffers(next),
         runLoopV2(next),
+        runUnlockedItemIds(next),
       );
       return next;
     }
@@ -569,6 +612,8 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         deps.table,
         '',
         supplierTagForOffers(next),
+        runLoopV2(next),
+        runUnlockedItemIds(next),
       );
       return next;
     }

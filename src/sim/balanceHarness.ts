@@ -11,6 +11,7 @@ import {
   SHELF_EXPANSION_ENV_VAR,
   SIGNATURE_ITEMS_ENV_VAR,
   TAG_SYNERGY_ENV_VAR,
+  UNLOCK_LADDER_ENV_VAR,
   WARM_OPENING_ENV_VAR,
 } from './economy';
 import { uiAffordances } from './uiAffordances';
@@ -23,6 +24,7 @@ export const BALANCE_FLAG_ENV_KEYS = [
   SHELF_EXPANSION_ENV_VAR,
   SIGNATURE_ITEMS_ENV_VAR,
   TAG_SYNERGY_ENV_VAR,
+  UNLOCK_LADDER_ENV_VAR,
   WARM_OPENING_ENV_VAR,
 ] as const;
 
