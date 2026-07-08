@@ -6,6 +6,16 @@
 > the full flag stack), sell-back and loose-economy balance rulings issued. Remaining gates are the
 > **economy-tightening pass** (brief inside the rulings doc) and the **human device feel-gate**.
 > The table below is kept as the historical stand-in record.
+>
+> **Round 2 (2026-07-08, late):** the three delegated follow-ups are reviewed:
+> **A-M6a shelf expansion — APPROVED** ([A-M6a-fable-review](A-M6a-fable-review.md), sink
+> confirmed on an independent seed, day-12 surplus 7.3×→3.2×); **B-M4 summary v2 — APPROVED**
+> ([B-M4-fable-review](B-M4-fable-review.md)), and the review surfaced + fixed a **pre-existing
+> P0: the persisted catalog was wiped whenever a run ended before the catalog screen loaded**;
+> **A-M6b warm opening — landed, floor acceptance NOT met**
+> ([A-M6b-fable-review](A-M6b-fable-review.md)): offer composition alone lifts the beginner floor
+> only ~1.25× — the remaining gap is a design decision (free day-2 starter / welcome-week rent /
+> accept the cliff), escalated to the human.
 
 **Purpose:** one landing page for Fable. Everything below is **landed behind a default-OFF flag** and
 was reviewed by an **Opus orchestrator stand-in** (Fable was unavailable — see project memory

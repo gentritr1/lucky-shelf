@@ -41,11 +41,24 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   guardrail band re-set 24→20 min, `balance:assert` green, 118/118 tests, OFF path byte-identical.
   Bonus: fixed a **save-corrupting buyout+reroll bug** (duplicate instanceIds; latent in v1 too;
   regression test added; determinism pin untouched — pinned runs never reroll).
-- **The two design briefs are now WRITTEN and ready to delegate:**
-  [A-M6a shelf-expansion coin sink](lane-a/coin-sink-shelf-expansion-brief.md) and
-  [A-M6b warm opening](lane-a/opening-warmup-brief.md) (Codex, sequential — both touch
-  economy/fuzz), plus [B-M4 summary v2 retention](lane-b/summary-v2-retention-brief.md)
-  (Opus 4.8, parallel-safe — Lane B only). Each ends in a review packet Fable re-runs.
+- **Delegated round DONE and reviewed (2026-07-08, late).** All three landed behind default-OFF
+  flags, all reviewed by Fable with independent re-runs (verdict files in `review-packets/`):
+  - **A-M6a shelf expansion (Codex) — APPROVED.** The coin sink works: day-12 surplus 7.3×→3.2×
+    on Fable's own seed; uptake ~0.9. Graduation gates: goal-table retune vs the FINAL flag set
+    (16 slots push days-9–12 hit to ~0.85, band top — third firing of the tune-vs-stack scar),
+    equal-n signature re-probe with expansion ON, and Lane B 4-row rendering.
+  - **B-M4 summary v2 (Opus 4.8) — APPROVED**, device-polished. The review also surfaced and
+    fixed a **pre-existing P0: `recordRunEnd` merged into a never-loaded catalog and saved it,
+    wiping every prior discovery/best** for players who didn't open the Catalog screen that
+    session. Load-guarded + boot hydration + runId-keyed pre-merge stash; regression tests in
+    `src/state/catalogStore.test.ts`.
+  - **A-M6b warm opening (Codex) — landed; floor acceptance NOT met.** Fable's flat-4 brief spec
+    was unsatisfiable on day 2 (min price 8); ruled a day-aware ceiling (4/10) + cheapest-first
+    replacement (protects premium stock). Even fixed, offer composition lifts the floor only
+    ~1.25× (loopV2 10→12.5%, allDepth 16.3→20%). **The remaining beginner-floor gap is a design
+    decision for you** — options: free day-2 starter delivery, welcome-week first rent, or accept
+    the cliff. Fable recommends the free day-2 starter as the next iteration if you want the
+    40–70% aspiration.
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
