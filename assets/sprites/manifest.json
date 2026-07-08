@@ -42,7 +42,12 @@
     "golden-scale": "golden-scale.png",
     "maneki-neko": "maneki-neko.png",
     "orrery": "orrery.png",
-    "music-box": "music-box.png"
+    "music-box": "music-box.png",
+    "brass-scale": "brass-scale.png",
+    "ledger-book": "ledger-book.png",
+    "lucky-cat": "lucky-cat.png",
+    "consignment-sign": "consignment-sign.png",
+    "window-display": "window-display.png"
   },
   "pending": []
 }

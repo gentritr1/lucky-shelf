@@ -42,6 +42,12 @@ export const ITEM_SPRITES: Readonly<Record<string, number>> = {
   'golden-scale': require('../../assets/sprites/golden-scale.png'),
   'maneki-neko': require('../../assets/sprites/maneki-neko.png'),
   orrery: require('../../assets/sprites/orrery.png'),
+  // Phase 2c signature stock (M4 addition — same Shop Cat recipe, transparent).
+  'brass-scale': require('../../assets/sprites/brass-scale.png'),
+  'ledger-book': require('../../assets/sprites/ledger-book.png'),
+  'lucky-cat': require('../../assets/sprites/lucky-cat.png'),
+  'consignment-sign': require('../../assets/sprites/consignment-sign.png'),
+  'window-display': require('../../assets/sprites/window-display.png'),
 };
 
 export function spriteFor(itemId: string): number | null {
