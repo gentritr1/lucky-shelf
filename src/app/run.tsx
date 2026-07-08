@@ -25,6 +25,7 @@ import {
   buildIdentityView,
   orderHudView,
   runSelectors,
+  sellShelfView,
   useRunStore,
   type BuildIdentityView,
   type OrderHudView,
@@ -80,6 +81,10 @@ export default function RunHudScreen() {
     dispatchAndSave({ type: 'placeItem', slot });
   };
 
+  const onSell = (slot: Slot) => {
+    dispatchAndSave({ type: 'sellItem', slot });
+  };
+
   const onPrimaryAction = () => {
     const primary = primaryActionFor(gameState);
     if (!primary) return;
@@ -123,6 +128,11 @@ export default function RunHudScreen() {
       : null;
   const sceneState =
     cascadeMount || !movementEnabled ? movementLockedSceneState(hudState) : gameState;
+  // Softlock guard (F-1): a held delivery item + a full shelf can't be placed and
+  // openShop refuses while holding — so surface selling here to free a slot. The
+  // engine already allows sellItem while holding; this exposes it.
+  const heldFull = Boolean(gameState.heldItem) && firstEmptySlot(gameState) === null;
+  const sellChoices = useMemo(() => (heldFull ? sellShelfView(gameState) : []), [heldFull, gameState]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
@@ -166,6 +176,21 @@ export default function RunHudScreen() {
               onPlace={onPlace}
             />
             <Text style={styles.hint}>{lastRejectedAction?.message ?? hintFor(gameState)}</Text>
+            {heldFull ? (
+              <View style={styles.sellRow}>
+                {sellChoices.map(({ slot, item, price }) => (
+                  <Pressable
+                    key={item.instanceId}
+                    accessibilityRole="button"
+                    onPress={() => onSell(slot)}
+                    style={({ pressed }) => [styles.sellChip, pressed && styles.sellChipPressed]}
+                  >
+                    <Text numberOfLines={1} style={styles.sellChipName}>{item.name}</Text>
+                    <Text style={styles.sellChipPrice}>{`Sell +${price}`}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
           </>
         )}
       </View>
@@ -343,7 +368,10 @@ function primaryActionFor(gameState: GameState): { label: string; action: Action
 function hintFor(gameState: GameState): string {
   if (gameState.phase === 'arrange' || gameState.phase === 'restock') {
     if (gameState.heldItem) {
-      return `Drag ${gameState.heldItem.itemId.replace(/-/g, ' ')} from the tray onto an empty shelf slot.`;
+      const name = gameState.heldItem.itemId.replace(/-/g, ' ');
+      return gameState.shelf.slots.some((slot) => slot.item === null)
+        ? `Drag ${name} from the tray onto an empty shelf slot.`
+        : `Shelf full — sell an item below to make room for ${name}.`;
     }
     if (gameState.moves.freeRemaining === 0 && gameState.coins < gameState.moves.paidMoveCost) {
       return 'No moves available.';
@@ -438,6 +466,40 @@ const styles = StyleSheet.create({
     color: palette.inkFaint,
     fontSize: 13,
     textAlign: 'center',
+  },
+  sellRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+  },
+  sellChip: {
+    alignItems: 'center',
+    backgroundColor: palette.creamBright,
+    borderColor: palette.rentEmber,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+  },
+  sellChipPressed: {
+    opacity: 0.7,
+  },
+  sellChipName: {
+    ...typeScale.label,
+    color: palette.ink,
+    fontSize: 11,
+    fontWeight: '700',
+    maxWidth: 100,
+  },
+  sellChipPrice: {
+    ...typeScale.label,
+    color: palette.rentEmber,
+    fontSize: 11,
+    fontWeight: '800',
   },
   actions: {
     marginTop: 'auto',
