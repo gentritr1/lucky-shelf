@@ -2,6 +2,7 @@
 
 export * from './tokens';
 export { usePrefs, useReducedMotion } from './prefs';
+export { AppText, type TextVariant } from './components/AppText';
 export { Panel } from './components/Panel';
 export { WoodButton } from './components/WoodButton';
 export { CoinCounter } from './components/CoinCounter';

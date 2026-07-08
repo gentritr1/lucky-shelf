@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
-import { borders, palette, radii, spacing, touch, typeScale } from '../tokens';
+import { borders, palette, radii, spacing, touch } from '../tokens';
+import { AppText } from './AppText';
 
 interface WoodButtonProps {
   label: string;
@@ -29,9 +30,9 @@ export function WoodButton({ label, onPress, variant = 'primary', disabled = fal
         disabled && styles.disabled,
       ]}
     >
-      <Text style={[styles.label, primary ? styles.labelPrimary : styles.labelSecondary]}>
+      <AppText variant="heading" align="center" style={primary ? styles.labelPrimary : styles.labelSecondary}>
         {label}
-      </Text>
+      </AppText>
     </Pressable>
   );
 }
@@ -61,9 +62,6 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
-  },
-  label: {
-    ...typeScale.heading,
   },
   labelPrimary: {
     color: palette.creamBright,

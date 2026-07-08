@@ -1,7 +1,8 @@
 import type { StyleProp, TextStyle } from 'react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { palette, spacing, typeScale } from '../tokens';
+import { palette, spacing } from '../tokens';
+import { AppText } from './AppText';
 
 interface SectionLabelProps {
   children: string;
@@ -17,7 +18,9 @@ interface SectionLabelProps {
 export function SectionLabel({ children, trailing, style }: SectionLabelProps) {
   return (
     <View style={styles.row}>
-      <Text style={[styles.label, style]}>{children}</Text>
+      <AppText variant="label" color={palette.inkFaint} style={style}>
+        {children}
+      </AppText>
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
     </View>
   );
@@ -29,10 +32,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     justifyContent: 'space-between',
-  },
-  label: {
-    ...typeScale.label,
-    color: palette.inkFaint,
   },
   trailing: {
     alignItems: 'center',

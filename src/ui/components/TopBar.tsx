@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { palette, typeScale } from '../tokens';
+import { palette } from '../tokens';
+import { AppText } from './AppText';
 
 /**
  * Shared screen header. The title is absolute-centered across the full bar so it
@@ -37,7 +38,7 @@ export function TopBar({
     left ??
     (onBack ? (
       <Pressable accessibilityRole="button" hitSlop={12} onPress={onBack}>
-        <Text style={styles.back}>{backLabel}</Text>
+        <AppText variant="heading" color={palette.tealDark}>{backLabel}</AppText>
       </Pressable>
     ) : (
       <View style={styles.edge} />
@@ -48,10 +49,14 @@ export function TopBar({
       {leftNode}
       {right ?? <View style={styles.edge} />}
       <View style={styles.center} pointerEvents="none">
-        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
-        <Text numberOfLines={1} style={titleVariant === 'heading' ? styles.titleHeading : styles.title}>
+        {eyebrow ? (
+          <AppText variant="label" align="center" color={palette.inkFaint}>
+            {eyebrow}
+          </AppText>
+        ) : null}
+        <AppText variant={titleVariant} align="center" color={palette.ink} numberOfLines={1}>
           {title}
-        </Text>
+        </AppText>
       </View>
     </View>
   );
@@ -73,10 +78,6 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  back: { ...typeScale.heading, color: palette.tealDark },
-  eyebrow: { ...typeScale.label, color: palette.inkFaint },
-  title: { ...typeScale.title, color: palette.ink, textAlign: 'center' },
-  titleHeading: { ...typeScale.heading, color: palette.ink, textAlign: 'center' },
   // Min tap target on an empty edge slot so space-between keeps a symmetric bar.
   edge: { minHeight: 44, minWidth: 44 },
 });

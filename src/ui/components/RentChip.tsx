@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { borders, palette, radii, spacing, typeScale } from '../tokens';
+import { borders, palette, radii, spacing } from '../tokens';
+import { AppText } from './AppText';
 
 interface RentChipProps {
   amount: number;
@@ -18,10 +19,10 @@ export function RentChip({ amount, dueInDays }: RentChipProps) {
   const dayWord = dueInDays === 1 ? 'day' : 'days';
   return (
     <View style={[styles.chip, tone]}>
-      <Text style={[styles.label, toneText]}>RENT {amount}</Text>
-      <Text style={[styles.due, toneText]}>
+      <AppText variant="label" style={toneText}>RENT {amount}</AppText>
+      <AppText variant="body" style={[styles.due, toneText]}>
         {dueInDays === 0 ? 'due today' : `due in ${dueInDays} ${dayWord}`}
-      </Text>
+      </AppText>
     </View>
   );
 }
@@ -49,11 +50,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.rentEmber,
     borderColor: palette.emberDark,
   },
-  label: {
-    ...typeScale.label,
-  },
   due: {
-    ...typeScale.body,
     fontSize: 13,
   },
   calmText: { color: palette.inkSoft },

@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { borders, palette, radii, spacing, typeScale } from '../tokens';
+import { borders, palette, radii, spacing } from '../tokens';
+import { AppText } from './AppText';
 
 interface MovesPipsProps {
   remaining: number;
@@ -22,7 +23,7 @@ export function MovesPips({ remaining, total = 3 }: MovesPipsProps) {
           <View key={index} style={[styles.pip, index < clamped ? styles.pipFilled : styles.pipSpent]} />
         ))}
       </View>
-      <Text style={styles.label}>MOVES</Text>
+      <AppText variant="label" color={palette.inkFaint} style={styles.label}>MOVES</AppText>
     </View>
   );
 }
@@ -51,8 +52,6 @@ const styles = StyleSheet.create({
     borderColor: palette.parchmentEdge,
   },
   label: {
-    ...typeScale.label,
-    color: palette.inkFaint,
     fontSize: 10,
   },
 });
