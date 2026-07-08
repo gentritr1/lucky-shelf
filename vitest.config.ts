@@ -8,6 +8,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // B-M7: stub react-native for the node env so pure ui token/logic modules
+      // (which import `Platform` at load) can be unit-tested. Only modules that
+      // import 'react-native' resolve here; sim/state tests are untouched.
+      'react-native': fileURLToPath(new URL('./src/test/react-native.stub.ts', import.meta.url)),
     },
   },
   test: {

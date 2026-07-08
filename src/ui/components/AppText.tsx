@@ -1,6 +1,7 @@
 import { Text, type StyleProp, type TextProps, type TextStyle } from 'react-native';
 
-import { typeScale } from '../tokens';
+import { resolvePalette, scaleTypeStyle, typeScale } from '../tokens';
+import { useHighContrast, useTextScale } from '../prefs';
 
 export type TextVariant = keyof typeof typeScale; // display | title | heading | body | label | coin
 
@@ -22,14 +23,26 @@ interface AppTextProps extends TextProps {
  * button/eyebrow text. Applies a `typeScale` role so type stays consistent by
  * construction; `<Text>` should only survive where a coin-adjacent digit needs
  * the optical nudge (there it pairs with `baloo2IconNudge`).
+ *
+ * B-M7 accessibility floor: this is THE central funnel for the two comfort prefs.
+ * `textScale` grows the role's font/line height here (via `scaleTypeStyle`) so no
+ * screen does per-screen font math; high contrast swaps the DEFAULT text color to
+ * the darker ink (only when the caller passes no explicit `color`). At the default
+ * prefs (scale 1, high contrast off) the output is byte-identical to before.
  */
 export function AppText({ variant = 'body', align, color, style, ...rest }: AppTextProps) {
+  const textScale = useTextScale();
+  const highContrast = useHighContrast();
+  // Only theme the default color; an explicit `color` prop is the caller's choice
+  // (remapping explicit colors to high contrast is part of the deferred
+  // static-StyleSheet → runtime-palette migration, not a per-component fork here).
+  const resolvedColor = color ?? (highContrast ? resolvePalette(true).ink : undefined);
   return (
     <Text
       {...rest}
       style={[
-        typeScale[variant],
-        color ? { color } : null,
+        scaleTypeStyle(typeScale[variant], textScale),
+        resolvedColor ? { color: resolvedColor } : null,
         align ? { textAlign: align } : null,
         style,
       ]}

@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { palette, shadows } from '@/ui/tokens';
+import { usePrefs } from '@/ui';
 import { ITEM_SPRITES } from '@/juice';
 import { useCatalogStore } from '../state/catalogStore';
 
@@ -66,6 +67,13 @@ export default function RootLayout() {
   // sees real persisted bests instead of the pre-load empty catalog.
   useEffect(() => {
     void useCatalogStore.getState().loadCatalog().catch(() => undefined);
+  }, []);
+
+  // Hydrate presentation prefs (B-M7): reduced-motion / sound / haptics / large
+  // text / high contrast. Writes are load-guarded, so this boot read is what lets
+  // a later toggle persist instead of being skipped as a pre-hydration default.
+  useEffect(() => {
+    void usePrefs.getState().loadPrefs().catch(() => undefined);
   }, []);
 
   // Keep the splash up (return nothing) until the fonts resolve; the native

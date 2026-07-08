@@ -61,6 +61,41 @@ export const palette = {
 } as const;
 
 /**
+ * High-contrast palette (B-M7 accessibility floor). A TOKEN-LEVEL alternate
+ * mapping — NOT a per-component color fork (the hard rule): ink goes darker,
+ * cream goes lighter, chip/border edges deepen for separation. Consuming code
+ * selects between this and `palette` via `resolvePalette(highContrast)`. Only the
+ * text-legibility-critical entries change; decorative anchors (wood, teal, ember)
+ * carry through unchanged so the store still reads as the Golden Hour General
+ * Store. Measured WCAG ratios for both palettes: `scripts/contrast-check.ts`.
+ *
+ * NOTE (wiring): today most screens read `palette` statically inside
+ * `StyleSheet.create` at module load, so flipping the pref cannot re-theme them
+ * live without migrating those reads to `resolvePalette` (see the B-M7 packet's
+ * "wiring reality" — staged, not a per-component fork). This mapping + its ratios
+ * are the delivered token layer; the app-wide swap is the deferred follow-up.
+ */
+/** The palette shape with widened string values — what an alternate mapping fills. */
+export type Palette = { readonly [K in keyof typeof palette]: string };
+
+export const highContrastPalette: Palette = {
+  ...palette,
+  wallCream: '#FBF4E6', // lighter wall so ink pops
+  creamBright: '#FFFDF9',
+  parchment: '#F1E3C6', // lighter chip bed for ink-on-chip
+  parchmentEdge: '#B08A50', // deeper chip edge for separation
+  ink: '#241109', // near-black brown for body/heading/coin text
+  inkSoft: '#3A2417',
+  inkFaint: '#584028', // darkened so hints/tag text clear AA on the lighter wall
+  goldDeep: '#B47C10', // deeper gold for coin-dot / accent borders on cream
+};
+
+/** Pick the live palette for the current high-contrast pref. No component fork. */
+export function resolvePalette(highContrast: boolean): Palette {
+  return highContrast ? highContrastPalette : palette;
+}
+
+/**
  * Colorblind-safe rule-arrow palette (Pillar 2 accessibility): four hues
  * separated in both hue and lightness; cascade arrows cycle through these.
  */
@@ -194,6 +229,22 @@ export const typeScale = {
   label: { fontFamily: fonts.body, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6 },
   coin: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
 } as const satisfies Record<string, TextStyle>;
+
+/**
+ * Large-text mode (B-M7 accessibility floor). Scales a type-scale role's font
+ * and line height by the pref's `textScale` (1 | 1.15 | 1.3). This is THE ONE
+ * place text grows — `AppText` applies it centrally so no screen does per-screen
+ * font math (the hard rule). `scale === 1` returns the base object unchanged so
+ * the default path is byte-identical. Only `fontSize`/`lineHeight` scale; weight,
+ * family, letterSpacing, tabular-nums are preserved.
+ */
+export function scaleTypeStyle(base: TextStyle, scale: number): TextStyle {
+  if (scale === 1) return base;
+  const scaled: TextStyle = { ...base };
+  if (typeof base.fontSize === 'number') scaled.fontSize = Math.round(base.fontSize * scale);
+  if (typeof base.lineHeight === 'number') scaled.lineHeight = Math.round(base.lineHeight * scale);
+  return scaled;
+}
 
 /**
  * Optical centering for a display-font (Baloo2) number/label sitting in a ROW
