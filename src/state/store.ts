@@ -6,16 +6,15 @@ import {
   type ItemDefinition,
   type ItemInstance,
   type Slot,
+  toSlotKey,
 } from '../contracts';
 import { isSignatureItem, itemDefinition, loadCombos, loadItemTable } from '../items';
 import {
-  BUILD_STEERING_ELIGIBLE_TAGS,
   DEMAND_MULT,
   EngineError,
   REROLL_COST,
   TAG_SYNERGY_ELIGIBLE_TAGS,
   TAG_SYNERGY_LADDER,
-  buildSteeringEnabled,
   createRun,
   dispatch as engineDispatch,
   hashState,
@@ -23,6 +22,7 @@ import {
   tagSynergyEnabled,
 } from '../sim';
 import type { EngineDeps } from '../sim';
+import { uiAffordances, type UiActionOfType } from '../sim/uiAffordances';
 import type { LoadActiveRunStatus, RunPersistence } from '../persistence';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
@@ -96,6 +96,91 @@ export interface OrderHudView {
   met: boolean;
 }
 
+export interface DraftAffordanceView {
+  chooseSupplierActions: readonly UiActionOfType<'chooseSupplier'>[];
+  draftActions: readonly UiActionOfType<'draftItem'>[];
+  pendingSupplierTags: readonly string[] | null;
+}
+
+export interface ArrangeAffordanceView {
+  placeActions: readonly UiActionOfType<'placeItem'>[];
+  sellActions: readonly UiActionOfType<'sellItem'>[];
+  openShopAction: UiActionOfType<'openShop'> | null;
+  primaryAction: { label: string; action: UiActionOfType<'openShop'> } | null;
+}
+
+export interface RestockAffordanceView {
+  placeActions: readonly UiActionOfType<'placeItem'>[];
+  buyActions: readonly UiActionOfType<'buyOffer'>[];
+  rerollAction: UiActionOfType<'reroll'> | null;
+  sellActions: readonly UiActionOfType<'sellItem'>[];
+  endRestockAction: UiActionOfType<'endRestock'> | null;
+}
+
+function actionsOfType<T extends Action['type']>(
+  actions: readonly Action[],
+  type: T,
+): UiActionOfType<T>[] {
+  return actions.filter((action): action is UiActionOfType<T> => action.type === type);
+}
+
+function firstActionOfType<T extends Action['type']>(
+  actions: readonly Action[],
+  type: T,
+): UiActionOfType<T> | null {
+  return actionsOfType(actions, type)[0] ?? null;
+}
+
+export function draftAffordanceView(gameState: GameState): DraftAffordanceView {
+  const actions = uiAffordances(gameState);
+  const chooseSupplierActions = actionsOfType(actions, 'chooseSupplier');
+  return {
+    chooseSupplierActions,
+    draftActions: actionsOfType(actions, 'draftItem'),
+    pendingSupplierTags:
+      chooseSupplierActions.length > 0 ? chooseSupplierActions.map((action) => action.tag) : null,
+  };
+}
+
+export function arrangeAffordanceView(gameState: GameState): ArrangeAffordanceView {
+  const actions = uiAffordances(gameState);
+  const openShopAction = firstActionOfType(actions, 'openShop');
+  return {
+    placeActions: actionsOfType(actions, 'placeItem'),
+    sellActions: actionsOfType(actions, 'sellItem'),
+    openShopAction,
+    primaryAction: openShopAction ? { label: 'Open Shop', action: openShopAction } : null,
+  };
+}
+
+export function restockAffordanceView(gameState: GameState): RestockAffordanceView {
+  const actions = uiAffordances(gameState);
+  return {
+    placeActions: actionsOfType(actions, 'placeItem'),
+    buyActions: actionsOfType(actions, 'buyOffer'),
+    rerollAction: firstActionOfType(actions, 'reroll'),
+    sellActions: actionsOfType(actions, 'sellItem'),
+    endRestockAction: firstActionOfType(actions, 'endRestock'),
+  };
+}
+
+type SlotAffordanceAction = UiActionOfType<'placeItem'> | UiActionOfType<'sellItem'>;
+
+export function slotActionFor<T extends SlotAffordanceAction>(
+  actions: readonly T[],
+  slot: Slot,
+): T | null {
+  const key = toSlotKey(slot);
+  return actions.find((action) => toSlotKey(action.slot) === key) ?? null;
+}
+
+export function hasSlotAction<T extends SlotAffordanceAction>(
+  actions: readonly T[],
+  slot: Slot,
+): boolean {
+  return slotActionFor(actions, slot) !== null;
+}
+
 export const runSelectors = {
   gameState: (state: RunStoreState) => state.gameState,
   shelf: (state: RunStoreState) => state.gameState.shelf,
@@ -116,11 +201,7 @@ export const runSelectors = {
   // delivery is waiting for a lean (flag on, none chosen yet), else null. The
   // UI reads this rather than importing the sim constant across the lane line.
   pendingSupplierTags: (state: RunStoreState): readonly string[] | null =>
-    buildSteeringEnabled() &&
-    state.gameState.phase === 'delivery' &&
-    state.gameState.supplierTag === null
-      ? BUILD_STEERING_ELIGIBLE_TAGS
-      : null,
+    draftAffordanceView(state.gameState).pendingSupplierTags,
   lastRejectedAction: (state: RunStoreState) => state.lastRejectedAction,
   rejectedActionCount: (state: RunStoreState) => state.rejectedActionCount,
   saveStatus: (state: RunStoreState) => state.saveStatus,

@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { Action, DeliveryOffer, GameState, Slot } from '@/contracts';
+import type { Action, GameState, Slot } from '@/contracts';
 import {
   CoinCounter,
   MovesPips,
@@ -22,10 +22,13 @@ import {
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
 import {
+  arrangeAffordanceView,
   buildIdentityView,
+  hasSlotAction,
   orderHudView,
   runSelectors,
   sellShelfView,
+  slotActionFor,
   useRunStore,
   type BuildIdentityView,
   type OrderHudView,
@@ -48,6 +51,7 @@ export default function RunHudScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [cascadeMount, setCascadeMount] = useState<CascadeMount | null>(null);
+  const affordances = useMemo(() => arrangeAffordanceView(gameState), [gameState]);
 
   // Music bed follows rent proximity: the golden-hour loop until the last
   // morning, then the sparser rent-week variant. Re-runs on focus and whenever
@@ -78,26 +82,26 @@ export default function RunHudScreen() {
   };
 
   const onPlace = (slot: Slot) => {
-    dispatchAndSave({ type: 'placeItem', slot });
+    const action = slotActionFor(affordances.placeActions, slot);
+    if (!action) return;
+    dispatchAndSave(action);
   };
 
   const onSell = (slot: Slot) => {
-    dispatchAndSave({ type: 'sellItem', slot });
+    const action = slotActionFor(affordances.sellActions, slot);
+    if (!action) return;
+    dispatchAndSave(action);
   };
 
   const onPrimaryAction = () => {
-    const primary = primaryActionFor(gameState);
+    const primary = affordances.primaryAction;
     if (!primary) return;
-    if (primary.action.type === 'openShop') {
-      const beforeOpenShop = gameState;
-      const result = dispatchAction(primary.action);
-      if (!result.accepted) return;
-      void result.save.catch(() => undefined);
-      setCascadeMount(cascadeMountAfterOpenShop(beforeOpenShop, result.gameState));
-      playCascadeSting();
-      return;
-    }
-    dispatchAndSave(primary.action);
+    const beforeOpenShop = gameState;
+    const result = dispatchAction(primary.action);
+    if (!result.accepted) return;
+    void result.save.catch(() => undefined);
+    setCascadeMount(cascadeMountAfterOpenShop(beforeOpenShop, result.gameState));
+    playCascadeSting();
   };
 
   const continueAfterCascade = () => {
@@ -106,7 +110,7 @@ export default function RunHudScreen() {
     router.replace(nextRoute);
   };
 
-  const primaryAction = primaryActionFor(gameState);
+  const primaryAction = affordances.primaryAction;
   const movementEnabled =
     (gameState.phase === 'arrange' || gameState.phase === 'restock') &&
     !gameState.heldItem &&
@@ -131,8 +135,17 @@ export default function RunHudScreen() {
   // Softlock guard (F-1): a held delivery item + a full shelf can't be placed and
   // openShop refuses while holding — so surface selling here to free a slot. The
   // engine already allows sellItem while holding; this exposes it.
-  const heldFull = Boolean(gameState.heldItem) && firstEmptySlot(gameState) === null;
-  const sellChoices = useMemo(() => (heldFull ? sellShelfView(gameState) : []), [heldFull, gameState]);
+  const heldFull =
+    Boolean(gameState.heldItem) &&
+    affordances.placeActions.length === 0 &&
+    affordances.sellActions.length > 0;
+  const sellChoices = useMemo(
+    () =>
+      heldFull
+        ? sellShelfView(gameState).filter(({ slot }) => hasSlotAction(affordances.sellActions, slot))
+        : [],
+    [affordances.sellActions, heldFull, gameState],
+  );
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
@@ -326,43 +339,6 @@ function labelPhase(phase: GameState['phase']): string {
     case 'gameOver':
       return 'Game Over';
   }
-}
-
-function firstEmptySlot(gameState: GameState): Slot | null {
-  return gameState.shelf.slots.find((slot) => !slot.item)?.slot ?? null;
-}
-
-function firstAffordableOffer(offers: readonly DeliveryOffer[], coins: number): number | null {
-  const index = offers.findIndex((offer) => offer.cost <= coins);
-  return index >= 0 ? index : null;
-}
-
-function primaryActionFor(gameState: GameState): { label: string; action: Action } | null {
-  if (gameState.phase === 'arrange') {
-    // Held item is placed by the delivery-tray drag gesture (F-M3-3), not a
-    // button — no primary action while something rides the tray.
-    if (gameState.heldItem) return null;
-    return { label: 'Open Shop', action: { type: 'openShop' } };
-  }
-
-  if (gameState.phase === 'delivery') {
-    const offerIndex = gameState.currentOffers.length > 0 ? 0 : null;
-    return offerIndex === null
-      ? null
-      : { label: 'Draft Delivery', action: { type: 'draftItem', offerIndex } };
-  }
-
-  if (gameState.phase === 'restock') {
-    // Purchased item is likewise tray-dragged onto the shelf.
-    if (gameState.heldItem) return null;
-    const offerIndex = firstAffordableOffer(gameState.currentOffers, gameState.coins);
-    if (offerIndex !== null && firstEmptySlot(gameState)) {
-      return { label: 'Buy Offer', action: { type: 'buyOffer', offerIndex } };
-    }
-    return { label: 'End Restock', action: { type: 'endRestock' } };
-  }
-
-  return null;
 }
 
 function hintFor(gameState: GameState): string {

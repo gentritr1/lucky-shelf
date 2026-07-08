@@ -7,7 +7,7 @@ import type { DeliveryOffer } from '@/contracts';
 import { OfferCard, SectionLabel, WoodButton, borders, buildAccents, layout, palette, radii, shadows, spacing, tagEmoji, touch, typeScale, type OfferCardData } from '@/ui';
 import { glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
-import { runSelectors, useRunStore } from '../state/store';
+import { draftAffordanceView, runSelectors, useRunStore } from '../state/store';
 
 /**
  * Delivery draft: renders the engine's real seeded offers and dispatches the
@@ -20,9 +20,9 @@ export default function DraftScreen() {
   const insets = useSafeAreaInsets();
   const gameState = useRunStore(runSelectors.gameState);
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
-  const pendingSupplierTags = useRunStore(runSelectors.pendingSupplierTags);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [selected, setSelected] = useState(0);
+  const affordances = useMemo(() => draftAffordanceView(gameState), [gameState]);
 
   // Everyday golden-hour bed while drafting.
   useFocusEffect(useCallback(() => setMusicTrack('main'), []));
@@ -43,10 +43,12 @@ export default function DraftScreen() {
     [gameState.currentOffers],
   );
   const selectedOffer = gameState.currentOffers[selected] ?? null;
+  const selectedDraftAction =
+    affordances.draftActions.find((action) => action.offerIndex === selected) ?? null;
 
   const draftSelected = () => {
-    if (!selectedOffer) return;
-    const result = dispatchAction({ type: 'draftItem', offerIndex: selected });
+    if (!selectedDraftAction) return;
+    const result = dispatchAction(selectedDraftAction);
     if (!result.accepted) return;
     void result.save.catch(() => undefined);
     router.replace(routeForGameState(result.gameState));
@@ -56,9 +58,12 @@ export default function DraftScreen() {
   // opening offers toward that tag and unblocks drafting. Stays on this screen —
   // the picker disappears once supplierTag is set.
   const chooseSupplier = (tag: string) => {
-    const result = dispatchAction({ type: 'chooseSupplier', tag });
+    const action = affordances.chooseSupplierActions.find((candidate) => candidate.tag === tag);
+    if (!action) return;
+    const result = dispatchAction(action);
     if (result.accepted) void result.save.catch(() => undefined);
   };
+  const pendingSupplierTags = affordances.pendingSupplierTags;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
@@ -132,7 +137,7 @@ export default function DraftScreen() {
           <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
             <WoodButton
               label={selectedOffer ? `Draft ${selectedOffer.item.name}` : 'No Offer'}
-              disabled={!selectedOffer}
+              disabled={!selectedDraftAction}
               onPress={draftSelected}
             />
           </View>

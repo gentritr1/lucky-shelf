@@ -3,7 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { DeliveryOffer, Slot, SlotState } from '@/contracts';
+import type { DeliveryOffer, Slot } from '@/contracts';
 import {
   CoinCounter,
   SectionLabel,
@@ -20,11 +20,14 @@ import {
 import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import {
+  hasSlotAction,
   rerollCost,
+  restockAffordanceView,
   runSelectors,
   sellShelfView,
   shopHeaderView,
   signatureBlurb,
+  slotActionFor,
   useRunStore,
 } from '../state/store';
 
@@ -41,6 +44,7 @@ export default function RestockScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [sellMode, setSellMode] = useState(false);
+  const affordances = useMemo(() => restockAffordanceView(gameState), [gameState]);
 
   // Rent was just paid before restock — back to the calm golden-hour bed.
   useFocusEffect(useCallback(() => setMusicTrack('main'), []));
@@ -54,9 +58,12 @@ export default function RestockScreen() {
     () => gameState.currentOffers.map((offer) => offerToCard(offer)),
     [gameState.currentOffers],
   );
-  const sellShelf = useMemo(() => sellShelfView(gameState), [gameState]);
+  const sellShelf = useMemo(
+    () => sellShelfView(gameState).filter(({ slot }) => hasSlotAction(affordances.sellActions, slot)),
+    [affordances.sellActions, gameState],
+  );
   const shopHeader = useMemo(() => shopHeaderView(gameState), [gameState]);
-  const emptySlot = firstEmptySlot(gameState);
+  const firstPlaceAction = affordances.placeActions[0] ?? null;
 
   const dispatchAndSave = (action: Parameters<typeof dispatchAction>[0]) => {
     const result = dispatchAction(action);
@@ -67,15 +74,20 @@ export default function RestockScreen() {
   };
 
   const buy = (offerIndex: number) => {
-    dispatchAndSave({ type: 'buyOffer', offerIndex });
+    const action = affordances.buyActions.find((candidate) => candidate.offerIndex === offerIndex);
+    if (!action) return;
+    dispatchAndSave(action);
   };
 
   const reroll = () => {
-    dispatchAndSave({ type: 'reroll' });
+    if (!affordances.rerollAction) return;
+    dispatchAndSave(affordances.rerollAction);
   };
 
   const sell = (slot: Slot) => {
-    dispatchAndSave({ type: 'sellItem', slot });
+    const action = slotActionFor(affordances.sellActions, slot);
+    if (!action) return;
+    dispatchAndSave(action);
   };
 
   const moveItem = (from: Slot, to: Slot) => {
@@ -83,18 +95,21 @@ export default function RestockScreen() {
   };
 
   const placePurchase = () => {
-    if (!emptySlot) return;
-    dispatchAndSave({ type: 'placeItem', slot: emptySlot });
+    if (!firstPlaceAction) return;
+    dispatchAndSave(firstPlaceAction);
   };
 
   // Drag-to-place: drop the held purchase on a specific slot (the button below
   // stays as a one-tap fallback that fills the first empty slot).
   const placeAt = (slot: Slot) => {
-    dispatchAndSave({ type: 'placeItem', slot });
+    const action = slotActionFor(affordances.placeActions, slot);
+    if (!action) return;
+    dispatchAndSave(action);
   };
 
   const endRestock = () => {
-    const result = dispatchAndSave({ type: 'endRestock' });
+    if (!affordances.endRestockAction) return;
+    const result = dispatchAndSave(affordances.endRestockAction);
     if (result.accepted) {
       router.replace(routeForGameState(result.gameState));
     }
@@ -133,8 +148,8 @@ export default function RestockScreen() {
             {lastRejectedAction?.message ?? `Drag ${gameState.heldItem.name} to a slot — or tap below.`}
           </Text>
           <WoodButton
-            label={emptySlot ? `Place ${gameState.heldItem.name}` : 'No Empty Slot'}
-            disabled={!emptySlot}
+            label={firstPlaceAction ? `Place ${gameState.heldItem.name}` : 'No Empty Slot'}
+            disabled={!firstPlaceAction}
             onPress={placePurchase}
           />
         </View>
@@ -184,7 +199,7 @@ export default function RestockScreen() {
             </View>
             <Pressable
               accessibilityRole="button"
-              disabled={Boolean(gameState.heldItem)}
+              disabled={!affordances.rerollAction}
               onPress={reroll}
               style={({ pressed }) => [styles.reroll, pressed && styles.pressed]}
             >
@@ -204,7 +219,7 @@ export default function RestockScreen() {
               <Text style={styles.caption}>No offers left — reroll or end the day.</Text>
             ) : (
               offers.map((offer, index) => {
-                const canBuy = gameState.coins >= offer.cost && Boolean(emptySlot);
+                const canBuy = affordances.buyActions.some((action) => action.offerIndex === index);
                 return (
                   <View
                     key={offer.offerId}
@@ -267,7 +282,7 @@ export default function RestockScreen() {
                 ? 'Done Shopping'
                 : 'End Restock'
           }
-          disabled={Boolean(gameState.heldItem)}
+          disabled={!affordances.endRestockAction}
           onPress={endRestock}
         />
       </View>
@@ -295,10 +310,6 @@ function offerToCard(offer: DeliveryOffer): RestockOfferCard {
     tags: offer.item.tags,
     blurb: signatureBlurb(offer.item),
   };
-}
-
-function firstEmptySlot(gameState: { shelf: { slots: readonly SlotState[] } }): Slot | null {
-  return gameState.shelf.slots.find((slot) => !slot.item)?.slot ?? null;
 }
 
 const styles = StyleSheet.create({

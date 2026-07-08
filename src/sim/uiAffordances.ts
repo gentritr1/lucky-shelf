@@ -6,10 +6,10 @@
  * the UI never exposes (exactly the full-shelf softlock — engine kept `sellItem`
  * legal while holding, but the Arrange screen didn't show it until `06771cf`).
  *
- * This function models the actions each SCREEN actually exposes for a state, so a
- * liveness fuzz can assert the *player* is never stuck. It is a hand-maintained
- * mirror of the screens below — keep it in sync (the Codex brief proposes making
- * the screens derive their affordances from here so drift is impossible):
+ * This function is the authoritative list of progressing actions each SCREEN
+ * exposes for a state, so a liveness fuzz can assert the *player* is never stuck.
+ * Route screens derive their buttons/chips from store view-models backed by this
+ * source, so UI affordances and the fuzz model change together:
  *   - delivery → src/app/draft.tsx
  *   - arrange  → src/app/run.tsx
  *   - restock  → src/app/restock.tsx
@@ -25,6 +25,8 @@ import {
   buildSteeringEnabled,
   goalLadderEnabled,
 } from './economy';
+
+export type UiActionOfType<T extends Action['type']> = Extract<Action, { type: T }>;
 
 function emptySlots(state: GameState): Slot[] {
   return state.shelf.slots.filter((s) => s.item === null).map((s) => s.slot);
@@ -82,6 +84,13 @@ export function uiAffordances(state: GameState): Action[] {
     }
   }
   return acts;
+}
+
+export function uiActionsOfType<T extends Action['type']>(
+  state: GameState,
+  type: T,
+): UiActionOfType<T>[] {
+  return uiAffordances(state).filter((action): action is UiActionOfType<T> => action.type === type);
 }
 
 /** A state is a player dead-end if it isn't game over yet exposes no screen action. */
