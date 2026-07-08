@@ -126,10 +126,26 @@ describe('rule primitives', () => {
     expect(eventsOf('vanish', result.trace.events)).toHaveLength(0);
   });
 
-  it('copiesNeighbor pointing at an unresolved or empty slot copies zero', () => {
+  it('copiesNeighbor pointing off-shelf copies zero without an invalid trace slot', () => {
     const state = makeState([{ slot: { row: 0, col: 0 }, itemId: 'mirror' }]);
     const { trace } = resolveOpenShop(state, table, combos);
     expect(totalAt(trace.events, 0, 0)).toBe(0);
+    expect(
+      eventsOf('ruleFire', trace.events).filter(
+        (event) => event.kind === 'ruleFire' && event.ruleId === 'mirror-copy-left',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('copiesNeighbor pointing at an empty on-shelf slot copies zero with a valid target', () => {
+    const state = makeState([{ slot: { row: 0, col: 1 }, itemId: 'mirror' }]);
+    const { trace } = resolveOpenShop(state, table, combos);
+    expect(totalAt(trace.events, 0, 1)).toBe(0);
+    expect(
+      eventsOf('ruleFire', trace.events).find(
+        (event) => event.kind === 'ruleFire' && event.ruleId === 'mirror-copy-left',
+      ),
+    ).toMatchObject({ targetSlot: { row: 0, col: 0 }, delta: { flat: 0 } });
   });
 
   it('grantsAdjacent sticky lands in shelfAfter, not the pre-scoring state (R-5)', () => {

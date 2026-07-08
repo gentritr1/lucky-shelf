@@ -506,6 +506,7 @@ export function resolveOpenShop(
           const offsets = { left: [0, -1], right: [0, 1], up: [-1, 0], down: [1, 0] } as const;
           const [dRow, dCol] = offsets[rule.direction];
           const targetSlot = { row: slot.row + dRow, col: slot.col + dCol };
+          if (!slotMap.has(toSlotKey(targetSlot))) break;
           const copied = resolvedTotals.get(toSlotKey(targetSlot)) ?? 0;
           running += copied;
           events.push({
