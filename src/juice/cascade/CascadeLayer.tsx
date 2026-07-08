@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import type { GameState, ItemInstance, ScoringTrace, Slot } from '@/contracts';
+import type { DailyTargetResult, GameState, ItemInstance, ScoringTrace, Slot } from '@/contracts';
 import { toSlotKey } from '@/contracts';
 import { arrowPalette, motion, palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
@@ -47,6 +47,9 @@ interface CascadeLayerProps {
   autoPlay?: boolean;
   /** Rent-due day → the dayTotal slam is followed by the rent thud (R-18). */
   rentDue?: boolean;
+  /** Goal-ladder outcome (Phase 3). When the target was met, the cascade
+   *  celebrates it as the day total lands. Absent = goal ladder off. */
+  targetResult?: DailyTargetResult | undefined;
   /**
    * R-36/R-39: the layer owns its beat. When the cascade reaches the terminal
    * dayTotal (by playing through OR by skip), it retires its transport and shows
@@ -64,6 +67,7 @@ export function CascadeLayer({
   trace,
   autoPlay = false,
   rentDue = false,
+  targetResult,
   onComplete,
   completeLabel = 'Collect ▸',
 }: CascadeLayerProps) {
@@ -188,6 +192,10 @@ export function CascadeLayer({
           )}
         </View>
 
+        {frame.dayTotal !== null && targetResult?.targetMet ? (
+          <TargetRewardBanner result={targetResult} reduced={reduced} />
+        ) : null}
+
         {/* R-36/R-39: once the cascade is done the transport retires and a single
             advance affordance owns the beat. Skip jumps to the same done-state,
             so this collect tap is always the one and only way past the cascade. */}
@@ -257,6 +265,29 @@ function SlotPop({ center, label, color, reduced }: SlotPopProps) {
       ]}
     >
       <Text style={styles.popText}>{label}</Text>
+    </Animated.View>
+  );
+}
+
+/** Celebration that pops in just after the day total lands when the daily target
+ *  was met — the "that reward matters" beat (Phase 3 goal ladder). */
+function TargetRewardBanner({ result, reduced }: { result: DailyTargetResult; reduced: boolean }) {
+  const t = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    t.value = reduced ? 1 : withDelay(180, withSpring(1, { damping: 8, stiffness: 150 }));
+  }, [t, reduced]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: t.value,
+    transform: [{ scale: 0.7 + t.value * 0.3 }],
+  }));
+
+  return (
+    <Animated.View style={[styles.targetBanner, style]}>
+      <Text style={styles.targetTitle}>{`🎯 TARGET HIT · ${result.dayTotal}/${result.target}`}</Text>
+      {result.rewardGranted ? (
+        <Text style={styles.targetReward}>🔁 Free reroll earned</Text>
+      ) : null}
     </Animated.View>
   );
 }
@@ -681,6 +712,30 @@ const styles = StyleSheet.create({
   totalLabel: {
     ...typeScale.label,
     color: palette.inkFaint,
+  },
+  targetBanner: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: palette.sunlight,
+    borderColor: palette.goldDeep,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    gap: 2,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+  },
+  targetTitle: {
+    ...typeScale.label,
+    color: palette.emberDark,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  targetReward: {
+    ...typeScale.label,
+    color: palette.ink,
+    fontSize: 12,
+    fontWeight: '700',
   },
   totalPlaceholder: {
     alignItems: 'center',

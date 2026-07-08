@@ -193,6 +193,7 @@ export default function RunHudScreen() {
             gameState={cascadeMount.gameState}
             trace={cascadeMount.trace}
             rentDue={cascadeMount.rentDue}
+            targetResult={cascadeMount.targetResult}
             autoPlay
             onComplete={continueAfterCascade}
             completeLabel={cascadeMount.nextRoute === '/summary' ? 'See Results ▸' : 'Collect ▸'}

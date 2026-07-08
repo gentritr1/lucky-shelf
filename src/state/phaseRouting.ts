@@ -1,4 +1,4 @@
-import type { GamePhase, GameState, ScoringTrace } from '../contracts';
+import type { DailyTargetResult, GamePhase, GameState, ScoringTrace } from '../contracts';
 
 export type RunRoute = '/draft' | '/run' | '/restock' | '/summary';
 
@@ -7,6 +7,9 @@ export interface CascadeMount {
   trace: ScoringTrace;
   nextRoute: RunRoute;
   rentDue: boolean;
+  /** Goal-ladder outcome for this day (Phase 3), so the cascade can celebrate a
+   *  hit target as the day total lands. Absent when the goal ladder is off. */
+  targetResult?: DailyTargetResult;
 }
 
 export function routeForPhase(phase: GamePhase): RunRoute {
@@ -37,5 +40,6 @@ export function cascadeMountAfterOpenShop(beforeOpenShop: GameState, afterOpenSh
     trace: afterOpenShop.lastScoringTrace,
     nextRoute: routeForGameState(afterOpenShop),
     rentDue: beforeOpenShop.rent.dueInDays === 1,
+    ...(afterOpenShop.dailyTargetResult ? { targetResult: afterOpenShop.dailyTargetResult } : {}),
   };
 }
