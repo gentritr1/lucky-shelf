@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { emptyCatalog, type Catalog, type GameState } from '../contracts';
+import { emptyCatalog, type Catalog, type CatalogStats, type GameState, type RunStats } from '../contracts';
 import { loadCombos, loadItemTable } from '../items';
 import type { NamedCombo } from '../items';
 import { mergeRunIntoCatalog } from '../persistence/catalog';
@@ -17,6 +17,10 @@ export interface CatalogStoreState {
   catalog: Catalog;
   loadStatus: LoadCatalogStatus | 'idle' | 'loading';
   lastRecordedRunId: string | null;
+  /** The standing catalog stats captured just BEFORE the named run merged in —
+   *  what "New record!" must compare against. Keyed by runId so a consumer can
+   *  tell whose pre-merge snapshot this is. */
+  prevRunStats: { runId: string; stats: CatalogStats } | null;
   loadCatalog(): Promise<Catalog>;
   recordRunEnd(gameState: GameState): Promise<Catalog>;
 }
@@ -47,6 +51,7 @@ export function createCatalogStore(options: CatalogStoreOptions = {}) {
     catalog: options.initialCatalog ?? emptyCatalog(),
     loadStatus: 'idle',
     lastRecordedRunId: null,
+    prevRunStats: null,
 
     async loadCatalog() {
       set({ loadStatus: 'loading' });
@@ -58,8 +63,21 @@ export function createCatalogStore(options: CatalogStoreOptions = {}) {
     async recordRunEnd(gameState) {
       // Guard: the same finished run never merges twice (summary re-mount, etc.).
       if (get().lastRecordedRunId === gameState.runId) return get().catalog;
-      const merged = mergeRunIntoCatalog(get().catalog, gameState);
-      set({ catalog: merged, lastRecordedRunId: gameState.runId });
+      // Merge against the PERSISTED catalog, never a not-yet-loaded empty one.
+      // Finishing a run before any screen had loaded the catalog used to merge
+      // into emptyCatalog() and save THAT — wiping every prior discovery and
+      // best on disk (found in the B-M4 Fable review).
+      if (get().loadStatus === 'idle' || get().loadStatus === 'loading') {
+        await get().loadCatalog();
+        if (get().lastRecordedRunId === gameState.runId) return get().catalog;
+      }
+      const previous = get().catalog;
+      const merged = mergeRunIntoCatalog(previous, gameState);
+      set({
+        catalog: merged,
+        lastRecordedRunId: gameState.runId,
+        prevRunStats: { runId: gameState.runId, stats: previous.stats },
+      });
       await (await getPersistence()).saveCatalog(merged);
       return merged;
     },
@@ -67,6 +85,52 @@ export function createCatalogStore(options: CatalogStoreOptions = {}) {
 }
 
 export const useCatalogStore = createCatalogStore();
+
+// --- View model: this run's headline stats against the persisted personal best. ---
+
+export type PersonalBestKind = 'coin' | 'days' | 'count';
+
+export interface PersonalBestRow {
+  key: 'bestDay' | 'longestRun' | 'deepestRent';
+  label: string;
+  /** This run's value for the stat. */
+  thisRun: number;
+  /** The all-time best INCLUDING this run (max of prior best and this run). */
+  best: number;
+  /** True when this run strictly beat the prior best — the "New record!" state. */
+  isRecord: boolean;
+  /** How the value renders: a coin pill, a day count, or a plain count. */
+  kind: PersonalBestKind;
+}
+
+/**
+ * The summary's personal-best rows. Pass the catalog stats captured BEFORE this
+ * run was folded in (`prevStats`) so `isRecord` reflects whether the run beat the
+ * standing record — comparing against the post-merge catalog would always tie.
+ * `best` is the max of the prior best and this run, so it's correct to show
+ * whether or not a record fell.
+ */
+export function personalBestsView(prevStats: CatalogStats, runStats: RunStats): PersonalBestRow[] {
+  const row = (
+    key: PersonalBestRow['key'],
+    label: string,
+    thisRun: number,
+    priorBest: number,
+    kind: PersonalBestKind,
+  ): PersonalBestRow => ({
+    key,
+    label,
+    thisRun,
+    best: Math.max(priorBest, thisRun),
+    isRecord: thisRun > priorBest,
+    kind,
+  });
+  return [
+    row('bestDay', 'Best day', runStats.bestDayTotal, prevStats.bestDayTotal, 'coin'),
+    row('longestRun', 'Longest run', runStats.daysSurvived, prevStats.longestRun, 'days'),
+    row('deepestRent', 'Deepest rent', runStats.deepestRentSurvived, prevStats.deepestRentSurvived, 'count'),
+  ];
+}
 
 // --- View model: join the item/combo tables with discovery state for the album. ---
 

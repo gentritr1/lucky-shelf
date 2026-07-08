@@ -91,4 +91,57 @@ describe('catalog persistence', () => {
     expect(result.status).toBe('versionMismatch');
     expect(result.catalog).toEqual(emptyCatalog());
   });
+
+  // --- B-M4 migration posture: `longestRun` is an additive stat with a safe
+  // default (0). An older persisted catalog (saved before B-M4, so its `stats`
+  // object has no `longestRun`) MUST still load with every existing field intact
+  // and no wipe. This test freezes that guarantee. ---
+  it('loads a pre-B-M4 catalog (stats without longestRun) without data loss', async () => {
+    const legacySave = JSON.stringify({
+      schemaVersion: 1,
+      savedAt: '2026-07-01T00:00:00.000Z',
+      catalog: {
+        schemaVersion: 1,
+        discoveredItemIds: ['wine-bottle', 'cheese-wheel'],
+        achievedComboIds: ['wine-and-dine'],
+        comboCounts: { 'wine-and-dine': 3 },
+        // NOTE: pre-B-M4 shape — no `longestRun` key here on purpose.
+        stats: {
+          runsPlayed: 7,
+          bestDayTotal: 88,
+          deepestRentSurvived: 4,
+          mostCoinsInARun: 260,
+          totalCoinsAllTime: 940,
+        },
+      },
+    });
+    const result = await createCatalogPersistence(
+      memoryStorage({ [CatalogSaveKey]: legacySave }),
+    ).loadCatalog();
+
+    // Loads (not corrupt / not wiped) and every existing field is preserved.
+    expect(result.status).toBe('loaded');
+    expect(result.catalog.discoveredItemIds).toEqual(['wine-bottle', 'cheese-wheel']);
+    expect(result.catalog.achievedComboIds).toEqual(['wine-and-dine']);
+    expect(result.catalog.comboCounts).toEqual({ 'wine-and-dine': 3 });
+    expect(result.catalog.stats).toEqual({
+      runsPlayed: 7,
+      bestDayTotal: 88,
+      deepestRentSurvived: 4,
+      mostCoinsInARun: 260,
+      totalCoinsAllTime: 940,
+      // absent in the old save → filled by the safe default, not derived history.
+      longestRun: 0,
+    });
+  });
+
+  it('advances longestRun to the max daysSurvived across recorded runs', () => {
+    let catalog = emptyCatalog();
+    catalog = mergeRunIntoCatalog(catalog, finishedRun({ daysSurvived: 6 }, [], []));
+    expect(catalog.stats.longestRun).toBe(6);
+    catalog = mergeRunIntoCatalog(catalog, finishedRun({ daysSurvived: 4 }, [], []));
+    expect(catalog.stats.longestRun).toBe(6); // shorter run keeps the record
+    catalog = mergeRunIntoCatalog(catalog, finishedRun({ daysSurvived: 9 }, [], []));
+    expect(catalog.stats.longestRun).toBe(9); // longer run advances it
+  });
 });

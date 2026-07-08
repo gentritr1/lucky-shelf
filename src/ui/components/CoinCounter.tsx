@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -150,6 +150,10 @@ const styles = StyleSheet.create({
     color: palette.ink,
     // Optically center the Baloo2 digit against the coin dot (shared helper).
     ...baloo2IconNudge(typeScale.coin.fontSize),
+    // Device feel-gate (2026-07-08): the shared helper's +2 sat the digit a hair
+    // low against the 18px dot in the pill; trim to +1 so the numeral reads
+    // dead-centre. Pill-only — the slam keeps the helper's value.
+    ...(Platform.OS === 'ios' ? { transform: [{ translateY: 1 }] } : null),
   },
   amountSlam: {
     ...typeScale.display,

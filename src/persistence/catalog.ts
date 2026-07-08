@@ -116,6 +116,7 @@ export function mergeRunIntoCatalog(catalog: Catalog, gameState: GameState): Cat
       deepestRentSurvived: Math.max(catalog.stats.deepestRentSurvived, runStats.deepestRentSurvived),
       mostCoinsInARun: Math.max(catalog.stats.mostCoinsInARun, runStats.totalCoinsEarned),
       totalCoinsAllTime: catalog.stats.totalCoinsAllTime + runStats.totalCoinsEarned,
+      longestRun: Math.max(catalog.stats.longestRun, runStats.daysSurvived),
     },
   };
 }

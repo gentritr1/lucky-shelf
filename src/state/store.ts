@@ -290,6 +290,20 @@ export function signatureBlurb(item: ItemDefinition): string | null {
   return 'Run-defining signature stock';
 }
 
+/** Below this coins-to-spare margin, the run's tightest rent payment reads as a
+ *  near-miss worth dramatizing on the summary. Kept in the view-model layer so
+ *  the screen never reaches into economy/sim for the threshold. */
+export const NEAR_MISS_MARGIN = 5;
+
+/** Near-miss drama for the summary: the tightest coins-to-spare margin the run
+ *  cleared rent by, but only when it was a genuine squeaker (≤ NEAR_MISS_MARGIN).
+ *  Null when the run never paid rent (field absent) or always paid comfortably. */
+export function nearMissView(gameState: GameState): { coinsToSpare: number } | null {
+  const margin = gameState.runStats.closestRentMargin;
+  if (margin === undefined || margin > NEAR_MISS_MARGIN) return null;
+  return { coinsToSpare: margin };
+}
+
 /** Today's-Order signpost with live shelf progress, or null when no order. */
 export function orderHudView(gameState: GameState): OrderHudView | null {
   const order = gameState.dailyOrder;
