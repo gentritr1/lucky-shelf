@@ -17,7 +17,8 @@ scoring emits an animatable ScoringTrace. Clones that skipped determinism cannot
 - **S-2 Puzzle mode.** A puzzle = GameState JSON + goal ("38 coins in 2 moves").
   Community-authored shelves = UGC with zero server infra; solutions are action lists,
   validated by replay. (Foundation: contract-parsed states + dispatcher legality.)
-- **S-3 Ghost dailies.** Daily shelf (M5) + asynchronous ghosts: see how a friend
+- **S-3 Ghost dailies.** **PROMOTED 2026-07-08** (P3 in `docs/state-of-game-review-2026-07-08.md`)
+  as the flagship post-graduation feature. Daily shelf (M5) + asynchronous ghosts: see how a friend
   arranged the identical delivery, decision by decision. Leaderboards submit decision
   lists and are verified by replay — cheat-proof by construction, no anti-cheat team.
 - **S-4 Best-combo replays in Catalog.** Each named-combo stamp stores the trace

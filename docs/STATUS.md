@@ -75,9 +75,13 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
 ### 3. Strategic gaps promoted 2026-07-08 — see `docs/state-of-game-review-2026-07-08.md`
 Whole-game review found two gaps in no plan anywhere + two promotions. Priority order (none block
 the current critical path of day-2 starter + device feel-gate):
-- **P1 Unlock ladder** (between-run meta-progression; all 36 items currently available from run 1 —
-  the "what do I get next run?" hook is missing). Needs a lane-A brief; flag-gated, additive save
-  field, wipe-check first.
+- **P1 Unlock ladder** — **brief WRITTEN and delegated** ([A-M7](lane-a/unlock-ladder-brief.md),
+  Codex): predicates read existing catalog stats (zero new persisted fields → zero wipe risk);
+  replay integrity via an additive `GameState.unlockedItemIds?` snapshot at createRun. Companion
+  Lane B briefs for the pre-test content push: [B-M5 retention surfaces](lane-b/retention-surfaces-brief.md)
+  (daily streak now; silhouettes + next-unlock teaser after A-M7) and
+  [B-M6 cascade spectacle](lane-b/cascade-spectacle-brief.md) (P4, parallel-safe, recording-gated)
+  — both Opus 4.8.
 - **P2 Real-playtest milestone** (TestFlight ~10 people × 3 days, after flags graduate) — all
   balance evidence so far is bot-derived, and bots understate intent mechanics (recorded scar).
 - **P3 Daily seed + ghosts** (S-3 promoted from the moat ledger) — flagship post-graduation
