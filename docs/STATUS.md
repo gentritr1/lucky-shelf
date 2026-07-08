@@ -90,6 +90,18 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   [A-M6a-G2 dominance re-probe](lane-a/signature-dominance-expansion-reprobe-brief.md)
   (equal-n signature measurement on 4×4 boards; lands a permanent probe script so the gate is
   cheap to re-run at every graduating-set change).
+- **Round 4 Lane B REVIEWED + landed (2026-07-09):** **B-M8 receipt model APPROVED** (`7a19976`
+  — grammar structurally enforced, golden-trace snapshots as regression fixtures, row-aura
+  attribution solved in-model without touching the trace; UI surface + look = next Lane B step,
+  device-gated) and **B-M7 accessibility floor APPROVED** (`a66f80d` — the audit found usePrefs
+  NEVER persisted, incl. reduce-motion; fixed load-test-first; textScale/HC funnels central and
+  byte-identical at defaults). B-M7's escalated architecture call ruled: staged wiring approved,
+  the static-StyleSheet conversion is now
+  [B-M9 runtime-theme migration](lane-b/runtime-theme-migration-brief.md) (mechanical, one
+  screen per commit, byte-identical at default prefs). **Lane B queue for the freed sessions:
+  B-M5 Parts 2–3 (silhouettes + next-unlock teaser — collision with B-M7's sweep now cleared),
+  then B-M9.** A-M8 placement hints is mid-flight in the tree (Codex — do not touch
+  src/sim/placementHints*).
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
