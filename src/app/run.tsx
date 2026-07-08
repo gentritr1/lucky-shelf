@@ -128,7 +128,7 @@ export default function RunHudScreen() {
       {/* rent proximity felt as warmth (behind content); hidden during cascade */}
       {cascadeMount ? null : <DuskAmbience dueInDays={hudState.rent.dueInDays} />}
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.replace('/')}>
           <Text style={styles.back}>‹ Menu</Text>
         </Pressable>
         <View style={styles.dayWrap}>
@@ -173,7 +173,7 @@ export default function RunHudScreen() {
         <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
           <WoodButton
             label={primaryAction ? primaryAction.label : 'Run Complete'}
-            onPress={primaryAction ? onPrimaryAction : () => router.back()}
+            onPress={primaryAction ? onPrimaryAction : () => router.replace('/')}
           />
         </View>
       ) : null}

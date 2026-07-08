@@ -72,7 +72,7 @@ export default function DraftScreen() {
       <View pointerEvents="none" style={styles.scrim} />
 
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.replace('/')}>
           <Text style={styles.back}>‹ Menu</Text>
         </Pressable>
         <Text style={styles.title}>Delivery</Text>
