@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Action, GameState, Slot } from '@/contracts';
@@ -151,6 +151,15 @@ export default function RunHudScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       {/* rent proximity felt as warmth (behind content); hidden during cascade */}
       {cascadeMount ? null : <DuskAmbience dueInDays={hudState.rent.dueInDays} />}
+      {/* Scroll only when the softlock sell-list is up (shelf full + held item) —
+          that content overflows and the shelf has no gestures in that state, so a
+          ScrollView can't steal the drag. Normal states stay a static column. */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={heldFull}
+        showsVerticalScrollIndicator={heldFull}
+      >
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.replace('/')}>
           <Text style={styles.back}>‹ Menu</Text>
@@ -216,6 +225,7 @@ export default function RunHudScreen() {
           />
         </View>
       ) : null}
+      </ScrollView>
 
       {/* R-36: the cascade is a modal overlay over the arrange HUD — it dims the
           scored shelf behind it, owns its single advance affordance, and only
@@ -381,6 +391,15 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: palette.wallCream,
     flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    // flexGrow so the column fills the screen (shelf stays centered via shelfWrap
+    // flex) when it fits; when the softlock sell-list makes it overflow, it grows
+    // past the viewport and scrolls instead of spilling over the panels above.
+    flexGrow: 1,
     gap: spacing.lg,
     paddingHorizontal: layout.screenPadX,
   },
