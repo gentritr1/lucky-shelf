@@ -83,7 +83,13 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   Promote-Now list: [B-M7 accessibility floor](lane-b/accessibility-floor-brief.md) and
   [B-M8 receipt cascade + cause-effect grammar](lane-b/receipt-cascade-brief.md) (both Opus 4.8,
   headless cores now, device shots batched for later). Velvet Snap drag feel waits for the
-  human's device-iteration window.
+  human's device-iteration window. **Lane A round 4 (Codex, sequential):**
+  [A-M8 placement-hint model](lane-a/placement-hints-brief.md) — the mockup's "ghost preview"
+  under Fable's ruling (qualitative, discovered-rules-only, no numbers; pure leaf module, no
+  sim-side flag) — then
+  [A-M6a-G2 dominance re-probe](lane-a/signature-dominance-expansion-reprobe-brief.md)
+  (equal-n signature measurement on 4×4 boards; lands a permanent probe script so the gate is
+  cheap to re-run at every graduating-set change).
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
