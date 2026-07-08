@@ -63,6 +63,17 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
     aspiration re-anchors to the **P2 real-playtest milestone** (§3 below); welcome-week rent is
     the one documented unpulled lever, only if real humans bounce off rent 1. No further
     beginner-floor briefs until playtest data exists.
+- **Round 3 (pre-test content) DONE and reviewed** (verdicts in `review-packets/*-fable-review.md`):
+  **A-M7 unlock ladder APPROVED** (predicates over existing stats, replay-integrity snapshot;
+  hard graduation gate ruled: daily seeds must pin a canonical pool before the flag ships ON, or
+  personal unlocks break "same shelf worldwide"); **B-M5 Part 1 daily streak APPROVED** (the
+  cold-relaunch streak-reset was caught by the recorded scar — load-guarded + regression-tested;
+  Parts 2–3 now unblocked by A-M7); **B-M6 cascade spectacle logic APPROVED** with the apex
+  frequency ruled rare-and-special (~once per 2 runs) — thresholds retuned against measured
+  percentiles after the brief's constants failed live curves a FOURTH time (rule promoted: no
+  brief threshold without a measurement script). **Two human gates open: the B-M6 apex/big
+  recording (one-tap /cascade-harness demos) and the B-M5 streak screenshots (seed recipe in
+  packet).**
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
