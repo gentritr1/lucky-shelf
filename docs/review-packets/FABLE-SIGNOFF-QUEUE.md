@@ -1,5 +1,12 @@
 # Fable sign-off queue — loop-redesign v2 (start here when Fable returns)
 
+> **✅ RESOLVED 2026-07-08 — Fable's authoritative pass is done.** See
+> **[FABLE-RULINGS-2026-07-08.md](FABLE-RULINGS-2026-07-08.md)**: all six phases ruled (five
+> APPROVED; goal-ladder CCR approved but its target table gets REQUEST CHANGES — out of band under
+> the full flag stack), sell-back and loose-economy balance rulings issued. Remaining gates are the
+> **economy-tightening pass** (brief inside the rulings doc) and the **human device feel-gate**.
+> The table below is kept as the historical stand-in record.
+
 **Purpose:** one landing page for Fable. Everything below is **landed behind a default-OFF flag** and
 was reviewed by an **Opus orchestrator stand-in** (Fable was unavailable — see project memory
 `reviewer-workflow-opus-split`). The stand-in verdicts are `*-fable-review.md`; they are **provisional

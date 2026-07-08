@@ -29,18 +29,24 @@ here: `nvm use 23.3.0` + `NODE_OPTIONS=--experimental-sqlite` for pnpm; UTF-8 lo
 
 ## What's next — ordered by owner (nothing below is blocked on code I can just write)
 
-### 1. Fable (external sign-off authority — unavailable in-session; needs auth/return)
-Start at **`docs/review-packets/FABLE-SIGNOFF-QUEUE.md`**. Outstanding:
-- Sign-off on the 6 flagged phases (scoring-order CCRs, new rule kinds, additive contract fields incl.
-  `loopV2?`), + the balance findings: **+0 sell-back** for tier-1 items, and the **loose economy**
-  (earnings ~4–7× rent, data-backed).
-- FYI: the `copiesNeighbor` trace fix (`97deee1`) — correctness only, no ruling needed.
+### 1. Fable — ✅ DONE (2026-07-08 pass, in-session)
+Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-08.md`**:
+- All 6 phases ruled: levers/P1/2a/2b/2c **APPROVED** (every open CCR question answered);
+  goal-ladder **CCR approved, target table REQUEST CHANGES** — under the full flag stack the
+  days-9–12 hit rate is 0.89–0.93, out of the 65–85% band (verified by a fresh 120-run fuzz,
+  seed `fable-signoff-0708`).
+- Balance ruled: sell-back gets a **v2-gated floor of 1** (19/41 items currently sell for 0);
+  loose economy gets a **single coherent tightening pass** (v2-gated rent steepening / coin sink,
+  goal-table retune, sell floor, beginner-opening ease, then re-set §6 bands). Brief is in the
+  rulings doc; implementation is unstarted.
+- FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
 - **Device feel-gate to graduate the depth flags** — everything above is default-OFF; it needs your
   hands-on pass before the flags ship ON.
-- **The economy is measurably too loose with all flags on** (Fable's tuning call, but a human/design
-  decision on the target feel). Linked to the softlock (loose economy → shelf overflow).
+- **The economy is measurably too loose with all flags on** — Fable has now ruled the tuning
+  direction (see rulings doc §8); the target *feel* remains your call and final acceptance is your
+  device gate. Linked to the softlock (loose economy → shelf overflow).
 
 ### 3. The "soft spot" target bands — DONE (guardrail set 2026-07-08)
 The §6 bands are now set on a **guardrail** basis (bracket current reality; catch future drift; don't
