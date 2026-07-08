@@ -41,10 +41,11 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   guardrail band re-set 24→20 min, `balance:assert` green, 118/118 tests, OFF path byte-identical.
   Bonus: fixed a **save-corrupting buyout+reroll bug** (duplicate instanceIds; latent in v1 too;
   regression test added; determinism pin untouched — pinned runs never reroll).
-- **Honest misses, now design briefs (Fable's next items):** day-9 surplus still ~7× — needs a
-  designed **coin sink** (recommended: purchasable shelf expansion); beginner first-rent floor
-  10–25% — needs a designed **opening mechanic**. Constants alone provably violate the guardrails
-  (tried, reverted, recorded).
+- **The two design briefs are now WRITTEN and ready to delegate:**
+  [A-M6a shelf-expansion coin sink](lane-a/coin-sink-shelf-expansion-brief.md) and
+  [A-M6b warm opening](lane-a/opening-warmup-brief.md) (Codex, sequential — both touch
+  economy/fuzz), plus [B-M4 summary v2 retention](lane-b/summary-v2-retention-brief.md)
+  (Opus 4.8, parallel-safe — Lane B only). Each ends in a review packet Fable re-runs.
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
