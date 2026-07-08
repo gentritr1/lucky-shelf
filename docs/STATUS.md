@@ -55,10 +55,11 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   - **A-M6b warm opening (Codex) — landed; floor acceptance NOT met.** Fable's flat-4 brief spec
     was unsatisfiable on day 2 (min price 8); ruled a day-aware ceiling (4/10) + cheapest-first
     replacement (protects premium stock). Even fixed, offer composition lifts the floor only
-    ~1.25× (loopV2 10→12.5%, allDepth 16.3→20%). **The remaining beginner-floor gap is a design
-    decision for you** — options: free day-2 starter delivery, welcome-week first rent, or accept
-    the cliff. Fable recommends the free day-2 starter as the next iteration if you want the
-    40–70% aspiration.
+    ~1.25× (loopV2 10→12.5%, allDepth 16.3→20%). **Beginner-floor decision MADE (human,
+    2026-07-08): free day-2 starter delivery.** Brief ready to delegate:
+    [A-M6c day-2 starter](lane-a/day2-starter-brief.md) — `DAY2_STARTER_ENABLED`, no contract
+    surface, acceptance combined floor ≥ 0.30 with an honest-stop clause (no compensating via
+    prices/rent if the mechanic tops out short).
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
