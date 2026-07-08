@@ -7,6 +7,7 @@ import type { DeliveryOffer, Slot } from '@/contracts';
 import {
   CoinCounter,
   SectionLabel,
+  TagChip,
   Toggle,
   WoodButton,
   baloo2IconNudge,
@@ -247,9 +248,7 @@ export default function RestockScreen() {
                       ) : (
                         <View style={styles.shopTags}>
                           {offer.tags.slice(0, 2).map((tag) => (
-                            <View key={tag} style={styles.shopTag}>
-                              <Text style={styles.shopTagText}>{tag}</Text>
-                            </View>
+                            <TagChip key={tag} label={tag} />
                           ))}
                         </View>
                       )}
@@ -424,17 +423,6 @@ const styles = StyleSheet.create({
   shopTags: {
     flexDirection: 'row',
     gap: spacing.xxs,
-  },
-  shopTag: {
-    backgroundColor: palette.parchment,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 1,
-  },
-  shopTagText: {
-    color: palette.inkFaint,
-    fontSize: 9,
-    fontWeight: '600',
   },
   shopRowSignature: {
     backgroundColor: palette.sunlight,

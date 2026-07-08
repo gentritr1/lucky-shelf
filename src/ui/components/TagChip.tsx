@@ -22,7 +22,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: palette.parchment,
     borderRadius: radii.pill,
-    paddingHorizontal: spacing.sm,
+    // Compact horizontal padding so two tags fit one row in the tight offer card
+    // (the sole consumer); unified tag size stays 10 (see `text`).
+    paddingHorizontal: spacing.xs,
     paddingVertical: 1,
   },
   accent: {
@@ -30,7 +32,10 @@ const styles = StyleSheet.create({
   },
   text: {
     color: palette.inkFaint,
-    fontSize: 10,
+    // Size 9 (not 10): the offer card is ~95pt wide and "food perishable" wraps
+    // at 10. TagChip had no other consumer, so there was nothing to match at 10 —
+    // this makes the shared tag the size that fits, dedup with no visual change.
+    fontSize: 9,
     fontWeight: '600',
   },
   accentText: {

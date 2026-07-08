@@ -1,6 +1,7 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { baloo2IconNudge, borders, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { TagChip } from './TagChip';
 
 export interface OfferCardData {
   name: string;
@@ -53,9 +54,7 @@ export function OfferCard({ offer, selected = false, onPress }: OfferCardProps) 
       </View>
       <View style={styles.tags}>
         {offer.tags.slice(0, 2).map((tag) => (
-          <View key={tag} style={styles.tag}>
-            <Text style={styles.tagText}>{tag}</Text>
-          </View>
+          <TagChip key={tag} label={tag} />
         ))}
       </View>
     </Pressable>
@@ -145,17 +144,5 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.xxs,
     justifyContent: 'center',
-  },
-  tag: {
-    backgroundColor: palette.parchment,
-    borderRadius: radii.pill,
-    maxWidth: '100%',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 1,
-  },
-  tagText: {
-    color: palette.inkFaint,
-    fontSize: 9,
-    fontWeight: '600',
   },
 });
