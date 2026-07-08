@@ -9,6 +9,7 @@ import {
   SectionLabel,
   Toggle,
   WoodButton,
+  baloo2IconNudge,
   layout,
   palette,
   radii,
@@ -484,8 +485,8 @@ const styles = StyleSheet.create({
     color: palette.creamBright,
     fontSize: 15,
     lineHeight: 18,
-    // Vertically center the digit on the coin dot (measured on the iOS sim).
-    includeFontPadding: false,
+    // Optically center the Baloo2 digit against the coin dot (shared helper).
+    ...baloo2IconNudge(15),
   },
   offerCol: {
     flex: 1,
@@ -553,7 +554,7 @@ const styles = StyleSheet.create({
     color: palette.tealDark,
     fontSize: 14,
     lineHeight: 16,
-    includeFontPadding: false,
+    ...baloo2IconNudge(14),
   },
   sellGrid: {
     flexDirection: 'row',
@@ -601,6 +602,9 @@ const styles = StyleSheet.create({
     color: palette.ink,
     fontSize: 13,
     lineHeight: 16,
+    // Block-centered label inside a pill (NOT beside a coin dot), so the shared
+    // icon nudge does not apply. A small manual lift keeps the Baloo2 phrase
+    // optically centered in the tight pill; verified on the sim.
     includeFontPadding: false,
     transform: [{ translateY: 1 }],
   },

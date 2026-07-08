@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { borders, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { baloo2IconNudge, borders, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
 import { useReducedMotion } from '../prefs';
 
 interface CoinCounterProps {
@@ -143,17 +143,13 @@ const styles = StyleSheet.create({
   amount: {
     ...typeScale.coin,
     color: palette.ink,
-    // Baloo2 digits sit high in their line box; on iOS includeFontPadding is a
-    // no-op, so nudge the glyph down to optically center it against the coin.
-    // Calibrated on the iOS simulator (zoomed).
-    includeFontPadding: false,
-    transform: [{ translateY: 1 }],
+    // Optically center the Baloo2 digit against the coin dot (shared helper).
+    ...baloo2IconNudge(typeScale.coin.fontSize),
   },
   amountSlam: {
     ...typeScale.display,
     color: palette.ink,
     fontVariant: ['tabular-nums'],
-    includeFontPadding: false,
-    transform: [{ translateY: 5 }],
+    ...baloo2IconNudge(typeScale.display.fontSize),
   },
 });

@@ -1,6 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { borders, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { baloo2IconNudge, borders, palette, radii, shadows, spacing, typeScale } from '../tokens';
 
 export interface OfferCardData {
   name: string;
@@ -136,10 +136,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     color: palette.ink,
-    // Match CoinCounter: nudge the digit down so it centers against the coin dot
-    // (Baloo2 sits high; iOS ignores includeFontPadding). Calibrated on the sim.
-    includeFontPadding: false,
-    transform: [{ translateY: 2 }],
+    // Optically center the Baloo2 digit against the coin dot (shared helper).
+    ...baloo2IconNudge(16),
   },
   tags: {
     alignSelf: 'stretch',

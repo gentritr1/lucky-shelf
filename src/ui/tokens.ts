@@ -195,6 +195,29 @@ export const typeScale = {
   coin: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
 } as const satisfies Record<string, TextStyle>;
 
+/**
+ * Optical centering for a display-font (Baloo2) number/label sitting in a ROW
+ * beside a SHORTER neighbor — a coin dot, an icon. Baloo2 glyphs sit high in
+ * their line box, so `alignItems:'center'` leaves the glyph above the neighbor's
+ * center; this nudges it down to sit dead-center. THE ONE place that knowledge
+ * lives — previously hand-copied as translateY 1/2/5 across CoinCounter,
+ * OfferCard, restock. Calibrated on the iOS simulator (zoomed): dy ≈ 0.12·size
+ * (16px→2, 20px→2, 34px→4).
+ *
+ * Icon-adjacent ONLY. Do NOT use for block-centered text (buttons, titles): a
+ * `<Text>` that is the sole centered child of a box is already centered by
+ * flexbox, and this would push it low. iOS nudges via `translateY`
+ * (`includeFontPadding`/`textAlignVertical` are Android no-ops); Android centers
+ * within the padded line box instead. Callers with their own `transform` must
+ * compose manually — spreading this replaces `transform`.
+ */
+export function baloo2IconNudge(fontSize: number): TextStyle {
+  if (Platform.OS === 'android') {
+    return { includeFontPadding: false, textAlignVertical: 'center' };
+  }
+  return { includeFontPadding: false, transform: [{ translateY: Math.round(fontSize * 0.12) }] };
+}
+
 // ---------------------------------------------------------------------------
 // Shadows (iOS shadow* + Android elevation together).
 //
