@@ -7,8 +7,10 @@ import {
   BUILD_STEERING_ENV_VAR,
   GOAL_LADDER_ENV_VAR,
   LOOP_V2_ENV_VAR,
+  SHELF_EXPANSION_ENV_VAR,
   SIGNATURE_ITEMS_ENV_VAR,
   TAG_SYNERGY_ENV_VAR,
+  WARM_OPENING_ENV_VAR,
 } from './economy';
 import { uiAffordances } from './uiAffordances';
 
@@ -16,8 +18,10 @@ export const BALANCE_FLAG_ENV_KEYS = [
   BUILD_STEERING_ENV_VAR,
   GOAL_LADDER_ENV_VAR,
   LOOP_V2_ENV_VAR,
+  SHELF_EXPANSION_ENV_VAR,
   SIGNATURE_ITEMS_ENV_VAR,
   TAG_SYNERGY_ENV_VAR,
+  WARM_OPENING_ENV_VAR,
 ] as const;
 
 export interface BalanceFlagConfig {
@@ -27,8 +31,21 @@ export interface BalanceFlagConfig {
 
 export const BALANCE_FLAG_CONFIGS = [
   { name: 'baseline', env: {} },
+  { name: 'baselineWarmOpening', env: { [WARM_OPENING_ENV_VAR]: '1' } },
   { name: 'buildSteering', env: { [BUILD_STEERING_ENV_VAR]: '1' } },
+  {
+    name: 'buildSteeringWarmOpening',
+    env: { [BUILD_STEERING_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' },
+  },
   { name: 'loopV2', env: { [LOOP_V2_ENV_VAR]: '1', [GOAL_LADDER_ENV_VAR]: '1' } },
+  {
+    name: 'loopV2WarmOpening',
+    env: {
+      [LOOP_V2_ENV_VAR]: '1',
+      [GOAL_LADDER_ENV_VAR]: '1',
+      [WARM_OPENING_ENV_VAR]: '1',
+    },
+  },
   {
     name: 'allDepth',
     env: {
@@ -37,6 +54,17 @@ export const BALANCE_FLAG_CONFIGS = [
       [TAG_SYNERGY_ENV_VAR]: '1',
       [BUILD_STEERING_ENV_VAR]: '1',
       [GOAL_LADDER_ENV_VAR]: '1',
+    },
+  },
+  {
+    name: 'allDepthWarmOpening',
+    env: {
+      [LOOP_V2_ENV_VAR]: '1',
+      [SIGNATURE_ITEMS_ENV_VAR]: '1',
+      [TAG_SYNERGY_ENV_VAR]: '1',
+      [BUILD_STEERING_ENV_VAR]: '1',
+      [GOAL_LADDER_ENV_VAR]: '1',
+      [WARM_OPENING_ENV_VAR]: '1',
     },
   },
 ] as const satisfies readonly BalanceFlagConfig[];

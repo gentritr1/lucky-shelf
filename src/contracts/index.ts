@@ -380,6 +380,13 @@ export const RunStatsSchema = z
     daysSurvived: nonNegativeIntSchema,
     bestDayTotal: positiveMoneySchema,
     bestComboIds: z.array(idSchema),
+    // B-M4 near-miss drama (CCR for Fable): the minimum coins-to-spare across the
+    // run's successful rent payments, for the summary's "paid with N to spare"
+    // line. Optional + additive — older saves/fixtures omit it, and it is only
+    // ever written on a successful rent payment, so the M0 goldens (trace-only)
+    // and the determinism-fixture run (dies day 3 before paying) are untouched.
+    // No ContractSchemaVersion bump.
+    closestRentMargin: nonNegativeIntSchema.optional(),
   })
   .strict();
 
@@ -418,6 +425,12 @@ export const CatalogStatsSchema = z
     deepestRentSurvived: nonNegativeIntSchema,
     mostCoinsInARun: positiveMoneySchema,
     totalCoinsAllTime: positiveMoneySchema,
+    // B-M4 personal best: the longest run (days survived) ever. Additive with a
+    // safe default — an older persisted catalog omits it, so `.default(0)` fills
+    // it on load (absent = unknown history → 0, then rebuilt by Math.max on the
+    // next recorded run). Old catalogs still parse; no CatalogSchemaVersion bump,
+    // never a wipe. See the migration note in the B-M4 review packet.
+    longestRun: nonNegativeIntSchema.default(0),
   })
   .strict();
 
@@ -626,6 +639,11 @@ export const ActionSchema = z.discriminatedUnion('type', [
     .strict(),
   z
     .object({
+      type: z.literal('expandShelf'),
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal('endRestock'),
     })
     .strict(),
@@ -718,6 +736,7 @@ export function emptyCatalog(): Catalog {
       deepestRentSurvived: 0,
       mostCoinsInARun: 0,
       totalCoinsAllTime: 0,
+      longestRun: 0,
     },
   };
 }

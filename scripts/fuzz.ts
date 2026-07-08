@@ -5,7 +5,9 @@ import {
   buildSteeringEnabled,
   goalLadderEnabled,
   loopV2Enabled,
+  shelfExpansionEnabled,
   tagSynergyEnabled,
+  warmOpeningEnabled,
 } from '../src/sim/economy';
 
 /**
@@ -210,7 +212,11 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
   const rentDeaths: number[] = [];
   const itemsBoughtPerRun: number[] = [];
   const signatureItemsBoughtPerRun: number[] = [];
+  const expansionsPerRun: number[] = [];
   const boardOccupancyByDay = new Map<string, number[]>();
+  const coinsBeforeScoringByDay = new Map<string, number[]>();
+  const rentAmountByDay = new Map<string, number[]>();
+  const surplusRatioByDay = new Map<string, number[]>();
   const dayTotalByDay = new Map<string, number[]>();
   const itemsBoughtByDay = new Map<string, number[]>();
   const dominantEligibleTagCountByDay = new Map<string, number[]>();
@@ -252,6 +258,7 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
     freeRerollsSpent += run.metrics.freeRerollsSpent;
     itemsBoughtPerRun.push(run.metrics.itemsBought);
     signatureItemsBoughtPerRun.push(run.metrics.signatureItemsBought);
+    expansionsPerRun.push(run.metrics.expansionsPerRun);
     finalDominantEligibleTagCounts.push(run.metrics.finalDominantEligibleTagCount);
     finalSupplierTagCounts.push(run.metrics.finalSupplierTagCount);
     if (run.metrics.supplierTag) {
@@ -260,6 +267,15 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
     for (const [day, occupancy] of Object.entries(run.metrics.occupancyByDay)) {
       pushDayMetric(boardOccupancyByDay, day, occupancy);
       pushDayMetric(itemsBoughtByDay, day, run.metrics.itemsBoughtByDay[day] ?? 0);
+    }
+    for (const [day, coins] of Object.entries(run.metrics.coinsBeforeScoringByDay)) {
+      pushDayMetric(coinsBeforeScoringByDay, day, coins);
+    }
+    for (const [day, rent] of Object.entries(run.metrics.rentAmountByDay)) {
+      pushDayMetric(rentAmountByDay, day, rent);
+    }
+    for (const [day, ratio] of Object.entries(run.metrics.surplusRatioByDay)) {
+      pushDayMetric(surplusRatioByDay, day, ratio);
     }
     for (const [day, dayTotal] of Object.entries(run.metrics.dayTotalByDay)) {
       pushDayMetric(dayTotalByDay, day, dayTotal);
@@ -317,6 +333,10 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
     },
     deepestRentSurvived: summarize(deepestRents),
     itemsBoughtPerRun: summarize(itemsBoughtPerRun),
+    expansionsPerRun: summarize(expansionsPerRun),
+    expansionRunRate: Number(
+      (expansionsPerRun.filter((count) => count > 0).length / args.runs).toFixed(3),
+    ),
     signatureItemsBoughtPerRun: summarize(signatureItemsBoughtPerRun),
     signaturePickupRunRate: Number((signatureRuns / args.runs).toFixed(3)),
     bestDayTotalBySignatureItem: summarizeMetricMap(bestDayTotalsBySignatureItem),
@@ -325,6 +345,9 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
       bestDayTotalsWithSignature,
     ),
     boardOccupancyByDay: summarizeDayMetrics(boardOccupancyByDay),
+    coinsBeforeScoringByDay: summarizeDayMetrics(coinsBeforeScoringByDay),
+    rentAmountByDay: summarizeDayMetrics(rentAmountByDay),
+    surplusRatioByDay: summarizeDayMetrics(surplusRatioByDay),
     dayTotalByDay: summarizeDayMetrics(dayTotalByDay),
     itemsBoughtByDay: summarizeDayMetrics(itemsBoughtByDay),
     gameOverRate: Number((gameOvers / args.runs).toFixed(3)),
@@ -373,6 +396,8 @@ function main(): void {
     goalLadderEnabled: goalLadderEnabled(),
     tagSynergyEnabled: tagSynergyEnabled(),
     buildSteeringEnabled: buildSteeringEnabled(),
+    shelfExpansionEnabled: shelfExpansionEnabled(),
+    warmOpeningEnabled: warmOpeningEnabled(),
     buildSteerBias: BUILD_STEER_BIAS,
     maxActions: args.maxActions,
     results: strategies.map((strategy) => fuzzStrategy(strategy, args)),

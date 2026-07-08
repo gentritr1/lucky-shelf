@@ -3,7 +3,7 @@ import { isSignatureItem } from '../items';
 
 import type { EngineDeps } from './engine';
 import { createRun, dispatch, legalActions } from './engine';
-import { TAG_SYNERGY_ELIGIBLE_TAGS } from './economy';
+import { SHELF_EXPANSION_COST, TAG_SYNERGY_ELIGIBLE_TAGS } from './economy';
 import { resolveOpenShop } from './scoring';
 import { rngFor } from './rng';
 
@@ -40,7 +40,11 @@ export interface BotRunMetrics {
   goalMetDays: number;
   goalRewardsGranted: number;
   freeRerollsSpent: number;
+  expansionsPerRun: number;
   occupancyByDay: Record<string, number>;
+  coinsBeforeScoringByDay: Record<string, number>;
+  rentAmountByDay: Record<string, number>;
+  surplusRatioByDay: Record<string, number>;
   dayTotalByDay: Record<string, number>;
   itemsBoughtByDay: Record<string, number>;
   dominantEligibleTagCountByDay: Record<string, number>;
@@ -124,6 +128,16 @@ function chooseAction(
     return best;
   }
 
+  const expansion = legal.find((action) => action.type === 'expandShelf');
+  if (
+    expansion &&
+    state.day >= 9 &&
+    shelfIsFull(state) &&
+    state.coins - SHELF_EXPANSION_COST >= state.rent.amount
+  ) {
+    return expansion;
+  }
+
   // greedy / combo: evaluate placement-affecting choices by simulated payout.
   const placements = legal.filter(
     (action): action is Extract<Action, { type: 'placeItem' }> => action.type === 'placeItem',
@@ -178,7 +192,11 @@ function chooseAction(
     // V1 restock is conservative; v2 daily shops spend until coins or slots stop it.
     const buys = legal.filter(
       (action): action is Extract<Action, { type: 'buyOffer' }> => action.type === 'buyOffer',
-    );
+    ).filter((buy) => {
+      if (state.shelf.size.rows <= 3) return true;
+      const offer = state.currentOffers[buy.offerIndex];
+      return Boolean(offer && state.coins - offer.cost >= state.rent.amount * 2);
+    });
     if (buys.length > 0 && (state.loopV2 === true || rng.next() < 0.6)) {
       let best = buys[0] as Action;
       let bestScore = -1;
@@ -252,6 +270,10 @@ function hasEmptySlot(state: GameState): boolean {
   return state.shelf.slots.some((entry) => entry.item === null);
 }
 
+function shelfIsFull(state: GameState): boolean {
+  return !hasEmptySlot(state);
+}
+
 function incrementDayMetric(metrics: Record<string, number>, day: number): void {
   const key = String(day);
   metrics[key] = (metrics[key] ?? 0) + 1;
@@ -282,7 +304,11 @@ export function playRun(
     goalMetDays: 0,
     goalRewardsGranted: 0,
     freeRerollsSpent: 0,
+    expansionsPerRun: 0,
     occupancyByDay: {},
+    coinsBeforeScoringByDay: {},
+    rentAmountByDay: {},
+    surplusRatioByDay: {},
     dayTotalByDay: {},
     itemsBoughtByDay: {},
     dominantEligibleTagCountByDay: {},
@@ -299,6 +325,12 @@ export function playRun(
     if (action.type === 'openShop') {
       metrics.scoredDays += 1;
       metrics.occupancyByDay[String(beforeAction.day)] = shelfOccupancy(beforeAction);
+      metrics.coinsBeforeScoringByDay[String(beforeAction.day)] = beforeAction.coins;
+      metrics.rentAmountByDay[String(beforeAction.day)] = beforeAction.rent.amount;
+      metrics.surplusRatioByDay[String(beforeAction.day)] =
+        beforeAction.rent.amount > 0
+          ? Number((beforeAction.coins / beforeAction.rent.amount).toFixed(3))
+          : 0;
       metrics.scoredOccupiedSlots += shelfOccupancy(beforeAction);
       metrics.dominantEligibleTagCountByDay[String(beforeAction.day)] =
         dominantEligibleTagCount(beforeAction);
@@ -321,6 +353,8 @@ export function playRun(
       }
     } else if (action.type === 'reroll' && (beforeAction.freeRerollTokens ?? 0) > 0) {
       metrics.freeRerollsSpent += 1;
+    } else if (action.type === 'expandShelf') {
+      metrics.expansionsPerRun += 1;
     }
     actions.push(action);
     state = dispatch(beforeAction, action, deps);

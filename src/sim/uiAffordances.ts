@@ -22,8 +22,10 @@ import type { Action, GameState, Slot } from '../contracts';
 import {
   BUILD_STEERING_ELIGIBLE_TAGS,
   REROLL_COST,
+  SHELF_EXPANSION_COST,
   buildSteeringEnabled,
   goalLadderEnabled,
+  shelfExpansionEnabled,
 } from './economy';
 
 export type UiActionOfType<T extends Action['type']> = Extract<Action, { type: T }>;
@@ -34,6 +36,16 @@ function emptySlots(state: GameState): Slot[] {
 
 function occupiedSlots(state: GameState): Slot[] {
   return state.shelf.slots.filter((s) => s.item !== null).map((s) => s.slot);
+}
+
+function canExpandShelf(state: GameState): boolean {
+  return (
+    shelfExpansionEnabled(state.loopV2 === true) &&
+    (state.phase === 'arrange' || state.phase === 'restock') &&
+    state.heldItem === null &&
+    state.shelf.size.rows < 4 &&
+    state.coins >= SHELF_EXPANSION_COST
+  );
 }
 
 export function uiAffordances(state: GameState): Action[] {
@@ -62,6 +74,7 @@ export function uiAffordances(state: GameState): Action[] {
         else for (const slot of occupied) acts.push({ type: 'sellItem', slot });
       } else {
         acts.push({ type: 'openShop' });
+        if (canExpandShelf(state)) acts.push({ type: 'expandShelf' });
       }
       break;
     }
@@ -77,6 +90,7 @@ export function uiAffordances(state: GameState): Action[] {
         });
         const freeReroll = goalLadderEnabled() && (state.freeRerollTokens ?? 0) > 0;
         if (freeReroll || state.coins >= REROLL_COST) acts.push({ type: 'reroll' });
+        if (canExpandShelf(state)) acts.push({ type: 'expandShelf' });
         for (const slot of occupied) acts.push({ type: 'sellItem', slot });
         acts.push({ type: 'endRestock' });
       }

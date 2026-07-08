@@ -19,6 +19,7 @@ import {
   RENT_PERIOD_DAYS,
   REROLL_COST,
   SPOTLIGHT_ENABLED,
+  SHELF_EXPANSION_COST,
   STARTING_RENT,
   buildSteeringEnabled,
   dailyGoalTarget,
@@ -29,6 +30,7 @@ import {
   nextRentAmount,
   paidMoveCost,
   sellPrice,
+  shelfExpansionEnabled,
   startingCoins,
 } from './economy';
 import { buildSlotMap, occupiedNeighbors, rowMajorSlots, slotStateAt } from './grid';
@@ -167,6 +169,16 @@ function occupiedSlotCount(state: GameState): number {
  */
 function runLoopV2(state: GameState): boolean {
   return state.loopV2 === true;
+}
+
+function canExpandShelf(state: GameState): boolean {
+  return (
+    shelfExpansionEnabled(runLoopV2(state)) &&
+    (state.phase === 'arrange' || state.phase === 'restock') &&
+    state.heldItem === null &&
+    state.shelf.size.rows < 4 &&
+    state.coins >= SHELF_EXPANSION_COST
+  );
 }
 
 function isLoopV2StarterPlacement(state: GameState): boolean {
@@ -337,6 +349,13 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         }
         next.coins -= next.rent.amount;
         next.runStats.deepestRentSurvived = next.rent.cycle;
+        // B-M4 near-miss drama: coins left after clearing rent = "coins to spare".
+        // Track the tightest such margin across the run for the summary line. Only
+        // written on a successful payment, so the OFF-path pin/goldens are safe.
+        next.runStats.closestRentMargin =
+          next.runStats.closestRentMargin === undefined
+            ? next.coins
+            : Math.min(next.runStats.closestRentMargin, next.coins);
         next.rent.amount = nextRentAmount(next.rent.amount, next.rent.cycle, runLoopV2(next));
         next.rent.cycle += 1;
         next.rent.dueInDays = RENT_PERIOD_DAYS;
@@ -425,6 +444,31 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
           supplierTagForOffers(next),
           runLoopV2(next),
         );
+      }
+      return next;
+    }
+
+    case 'expandShelf': {
+      requirePhase(next, 'arrange', 'restock');
+      if (!shelfExpansionEnabled(runLoopV2(next))) {
+        throw new EngineError('Shelf expansion is disabled.');
+      }
+      if (next.heldItem) {
+        throw new EngineError('Place the held item before expanding the shelf.');
+      }
+      if (next.shelf.size.rows >= 4) {
+        throw new EngineError('Shelf is already fully expanded.');
+      }
+      if (next.coins < SHELF_EXPANSION_COST) {
+        throw new EngineError('Not enough coins to expand the shelf.');
+      }
+
+      const newRow = next.shelf.size.rows;
+      const cols = next.shelf.size.cols;
+      next.coins -= SHELF_EXPANSION_COST;
+      next.shelf.size.rows = newRow + 1;
+      for (let col = 0; col < cols; col += 1) {
+        next.shelf.slots.push({ slot: { row: newRow, col }, item: null });
       }
       return next;
     }
@@ -539,6 +583,7 @@ export function legalActions(state: GameState, deps: EngineDeps): Action[] {
         for (const slot of occupiedSlots) actions.push({ type: 'sellItem', slot });
       } else {
         actions.push({ type: 'openShop' });
+        if (canExpandShelf(state)) actions.push({ type: 'expandShelf' });
         const canPayMove = state.moves.freeRemaining > 0 || state.coins >= state.moves.paidMoveCost;
         if (canPayMove) {
           for (const from of occupiedSlots) {
@@ -558,6 +603,7 @@ export function legalActions(state: GameState, deps: EngineDeps): Action[] {
         for (const slot of occupiedSlots) actions.push({ type: 'sellItem', slot });
       } else {
         actions.push({ type: 'endRestock' });
+        if (canExpandShelf(state)) actions.push({ type: 'expandShelf' });
         state.currentOffers.forEach((offer, index) => {
           if (state.coins >= offer.cost && emptySlots.length > 0) {
             actions.push({ type: 'buyOffer', offerIndex: index });

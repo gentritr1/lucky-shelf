@@ -35,6 +35,7 @@ describe('M0 contract schemas', () => {
       { type: 'openShop' },
       { type: 'buyOffer', offerIndex: 1 },
       { type: 'reroll' },
+      { type: 'expandShelf' },
       { type: 'endRestock' },
       { type: 'abandonRun' },
     ];

@@ -109,9 +109,9 @@ export default function TitleScreen() {
 
       {/* mascot over the room + the wordmark on a translucent shop-sign plate */}
       <Entrance index={0} style={styles.scene}>
-        {catSprite ? (
+        {catSprite !== null ? (
           <Animated.View style={catAnim}>
-            <Image source={catSprite} style={styles.catImg} resizeMode="contain" />
+            <Image source={catSprite as number} style={styles.catImg} resizeMode="contain" />
           </Animated.View>
         ) : null}
         <View style={styles.titlePlate}>
@@ -196,7 +196,10 @@ const styles = StyleSheet.create({
     ...typeScale.display,
     color: palette.ink,
     fontSize: 44,
-    lineHeight: 48,
+    // Baloo 2 has very tall natural metrics (~1.58x em); a tight lineHeight clips
+    // the ascender hooks (the "f"/"l"/"h" tops read cut off). Give it ~1.35x room
+    // so the wordmark sits centred and uncropped.
+    lineHeight: 60,
   },
   tagline: {
     ...typeScale.body,

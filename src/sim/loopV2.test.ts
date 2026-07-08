@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import type { GameState, TraceEvent } from '../contracts';
+import { GameStateSchema, type GameState, type TraceEvent } from '../contracts';
 import { loadCombos, loadItemTable } from '../items';
 import { playRun } from './bots';
 import {
   LOOP_V2_DAILY_SHOP_OFFERS,
   LOOP_V2_ENV_VAR,
   LOOP_V2_STARTING_COINS,
+  SHELF_EXPANSION_COST,
+  SHELF_EXPANSION_ENV_VAR,
 } from './economy';
-import { EngineError, createRun, dispatch } from './engine';
+import { EngineError, createRun, dispatch, legalActions } from './engine';
+import { makeInstance, makeState } from './testkit';
+import { uiAffordances } from './uiAffordances';
 
 const deps = { table: loadItemTable(), combos: loadCombos() };
 
@@ -21,6 +25,18 @@ function withLoopV2<T>(enabled: boolean, run: () => T): T {
   } finally {
     if (previous === undefined) delete process.env[LOOP_V2_ENV_VAR];
     else process.env[LOOP_V2_ENV_VAR] = previous;
+  }
+}
+
+function withShelfExpansion<T>(enabled: boolean, run: () => T): T {
+  const previous = process.env[SHELF_EXPANSION_ENV_VAR];
+  if (enabled) process.env[SHELF_EXPANSION_ENV_VAR] = '1';
+  else delete process.env[SHELF_EXPANSION_ENV_VAR];
+  try {
+    return run();
+  } finally {
+    if (previous === undefined) delete process.env[SHELF_EXPANSION_ENV_VAR];
+    else process.env[SHELF_EXPANSION_ENV_VAR] = previous;
   }
 }
 
@@ -100,8 +116,8 @@ describe('loop v2 phase 1', () => {
       expect(state.coins).toBe(LOOP_V2_STARTING_COINS + state.runStats.totalCoinsEarned);
     }));
 
-  it('never re-issues a bought offer id when the shop is bought out and rerolled', () =>
-    withLoopV2(true, () => {
+  it('never re-issues a bought offer id when the expanded shop is bought out and rerolled', () =>
+    withLoopV2(true, () => withShelfExpansion(true, () => {
       let state = createRun('loop-v2-buyout-reroll', deps);
       state = dispatch(state, { type: 'draftItem', offerIndex: 0 }, deps);
       state = dispatch(state, { type: 'placeItem', slot: { row: 0, col: 0 } }, deps);
@@ -109,19 +125,14 @@ describe('loop v2 phase 1', () => {
       // Rich-player scenario: afford the entire shop plus a reroll. Coins are
       // sim-internal (not RNG-derived), so granting them keeps offers untouched.
       state.coins = 500;
+      state = dispatch(state, { type: 'expandShelf' }, deps);
+      expect(state.shelf.size.rows).toBe(4);
 
       const seenOfferIds = new Set(state.currentOffers.map((offer) => offer.offerId));
       const boughtInstanceIds = new Set<string>();
-      const slots = [
-        { row: 0, col: 1 },
-        { row: 0, col: 2 },
-        { row: 1, col: 0 },
-        { row: 1, col: 1 },
-        { row: 1, col: 2 },
-        { row: 2, col: 0 },
-        { row: 2, col: 1 },
-        { row: 2, col: 2 },
-      ];
+      const slots = state.shelf.slots
+        .filter((entry) => entry.item === null)
+        .map((entry) => entry.slot);
 
       // Two full buyout+reroll cycles: the reroll after an EMPTY shop is the
       // degenerate case that used to reproduce the day's opening offer set
@@ -130,7 +141,9 @@ describe('loop v2 phase 1', () => {
         while (state.currentOffers.length > 0) {
           state = dispatch(state, { type: 'buyOffer', offerIndex: 0 }, deps);
           boughtInstanceIds.add(state.heldItem!.instanceId);
-          state = dispatch(state, { type: 'placeItem', slot: slots.shift()! }, deps);
+          const slot = slots.shift();
+          if (!slot) throw new Error('Expected enough expanded shelf slots for the buyout.');
+          state = dispatch(state, { type: 'placeItem', slot }, deps);
         }
         state = dispatch(state, { type: 'reroll' }, deps);
         for (const offer of state.currentOffers) {
@@ -145,7 +158,7 @@ describe('loop v2 phase 1', () => {
         .map((entry) => entry.item?.instanceId)
         .filter((id): id is string => Boolean(id));
       expect(new Set(placed).size).toBe(placed.length);
-    }));
+    })));
 
   it('fills the shelf faster than v1 on the same scripted bot arc', () => {
     const seed = 'loop-v2-arc';
@@ -159,4 +172,82 @@ describe('loop v2 phase 1', () => {
     expect(v2Day3).toBeGreaterThan(v1Day3);
     expect(v2.metrics.itemsBought).toBeGreaterThan(v1.metrics.itemsBought);
   });
+});
+
+describe('shelf expansion coin sink', () => {
+  it('expands a loop-v2 run from 3x4 to 4x4 exactly once at exact cost', () =>
+    withLoopV2(true, () => withShelfExpansion(true, () => {
+      const state = makeState([], {
+        phase: 'arrange',
+        coins: SHELF_EXPANSION_COST,
+        loopV2: true,
+      });
+
+      const after = dispatch(state, { type: 'expandShelf' }, deps);
+
+      expect(after.coins).toBe(0);
+      expect(after.shelf.size).toEqual({ rows: 4, cols: 4 });
+      expect(after.shelf.slots).toHaveLength(16);
+      expect(after.shelf.slots.slice(12)).toEqual([
+        { slot: { row: 3, col: 0 }, item: null },
+        { slot: { row: 3, col: 1 }, item: null },
+        { slot: { row: 3, col: 2 }, item: null },
+        { slot: { row: 3, col: 3 }, item: null },
+      ]);
+      expect(GameStateSchema.parse(JSON.parse(JSON.stringify(after)) as unknown)).toEqual(after);
+    })));
+
+  it('rejects a second expansion at 4 rows', () =>
+    withLoopV2(true, () => withShelfExpansion(true, () => {
+      const state = makeState([], {
+        phase: 'restock',
+        coins: SHELF_EXPANSION_COST,
+        loopV2: true,
+      });
+      const expanded = dispatch(state, { type: 'expandShelf' }, deps);
+
+      expect(() =>
+        dispatch({ ...expanded, coins: SHELF_EXPANSION_COST }, { type: 'expandShelf' }, deps),
+      ).toThrow(EngineError);
+    })));
+
+  it('rejects expansion while an item is held', () =>
+    withLoopV2(true, () => withShelfExpansion(true, () => {
+      const state = makeState([], {
+        phase: 'restock',
+        coins: SHELF_EXPANSION_COST,
+        loopV2: true,
+        heldItem: makeInstance(
+          { slot: { row: 0, col: 0 }, itemId: 'observation-hive', baseValue: 4 },
+          99,
+        ),
+      });
+
+      expect(() => dispatch(state, { type: 'expandShelf' }, deps)).toThrow(EngineError);
+    })));
+
+  it('keeps expansion illegal and hidden when the expansion flag is off', () =>
+    withLoopV2(true, () => withShelfExpansion(false, () => {
+      const state = makeState([], {
+        phase: 'restock',
+        coins: SHELF_EXPANSION_COST,
+        loopV2: true,
+      });
+
+      expect(legalActions(state, deps).some((action) => action.type === 'expandShelf')).toBe(false);
+      expect(uiAffordances(state).some((action) => action.type === 'expandShelf')).toBe(false);
+      expect(() => dispatch(state, { type: 'expandShelf' }, deps)).toThrow(EngineError);
+    })));
+
+  it('keeps expansion illegal for v1 runs even when the env flag is on', () =>
+    withLoopV2(false, () => withShelfExpansion(true, () => {
+      const state = makeState([], {
+        phase: 'arrange',
+        coins: SHELF_EXPANSION_COST,
+      });
+
+      expect(legalActions(state, deps).some((action) => action.type === 'expandShelf')).toBe(false);
+      expect(uiAffordances(state).some((action) => action.type === 'expandShelf')).toBe(false);
+      expect(() => dispatch(state, { type: 'expandShelf' }, deps)).toThrow(EngineError);
+    })));
 });

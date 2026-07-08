@@ -74,6 +74,31 @@ export function goalLadderEnabled(runIsLoopV2: boolean = loopV2Enabled()): boole
   return runIsLoopV2 && (GOAL_LADDER_ENABLED || process.env[GOAL_LADDER_ENV_VAR] === '1');
 }
 
+/**
+ * A-M6a — shelf expansion coin sink. Default OFF pending Fable review. Effective
+ * only for runs that were created under LOOP_V2, matching the goal-ladder
+ * snapshot pattern so older/v1 saves cannot opt in mid-run by env flip.
+ */
+export const SHELF_EXPANSION_ENABLED = false;
+export const SHELF_EXPANSION_ENV_VAR = 'SHELF_EXPANSION_ENABLED';
+export const SHELF_EXPANSION_COST = 250;
+
+export function shelfExpansionEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
+  return runIsLoopV2 && (SHELF_EXPANSION_ENABLED || process.env[SHELF_EXPANSION_ENV_VAR] === '1');
+}
+
+/**
+ * A-M6b — warm opening offer guarantee. Default OFF pending Fable review.
+ * Effective only for loop-v2 runs. This changes offer composition only; prices,
+ * starting coins, rent, and schemas stay untouched.
+ */
+export const WARM_OPENING_ENABLED = false;
+export const WARM_OPENING_ENV_VAR = 'WARM_OPENING_ENABLED';
+
+export function warmOpeningEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
+  return runIsLoopV2 && (WARM_OPENING_ENABLED || process.env[WARM_OPENING_ENV_VAR] === '1');
+}
+
 export function dailyGoalTarget(day: number): number {
   if (!Number.isInteger(day) || day < 1) {
     throw new Error(`Daily goal day must be a positive integer, got ${day}.`);
@@ -271,6 +296,118 @@ export function offerablePool(table: ItemTable): ItemDefinition[] {
   );
 }
 
+function offerCost(
+  definition: ItemDefinition,
+  day: number,
+  kind: 'delivery' | 'restock',
+  loopV2: boolean,
+): number {
+  if (kind !== 'restock') return 0;
+  return loopV2 ? dailyShopCost(definition, day) : restockCost(definition);
+}
+
+function offerId(
+  kind: 'delivery' | 'restock',
+  day: number,
+  index: number,
+  definition: ItemDefinition,
+  salt: string,
+): string {
+  return `${kind}-${day}-${index}-${definition.id}-${hashString(salt).toString(36)}`;
+}
+
+function deliveryOffer(
+  kind: 'delivery' | 'restock',
+  day: number,
+  index: number,
+  definition: ItemDefinition,
+  salt: string,
+  loopV2: boolean,
+): DeliveryOffer {
+  return {
+    offerId: offerId(kind, day, index, definition, salt),
+    item: definition,
+    cost: offerCost(definition, day, kind, loopV2),
+  };
+}
+
+function cheapestWarmCandidate(
+  candidates: readonly ItemDefinition[],
+  day: number,
+  rng: ReturnType<typeof rngFor>,
+): ItemDefinition | null {
+  if (candidates.length === 0) return null;
+  const cheapestCost = Math.min(...candidates.map((definition) => dailyShopCost(definition, day)));
+  const cheapest = candidates.filter(
+    (definition) => dailyShopCost(definition, day) === cheapestCost,
+  );
+  return rng.pick(cheapest);
+}
+
+/**
+ * Fable ruling (A-M6b review): the ceiling is day-aware. The brief's flat 4 was
+ * unsatisfiable on day 2 — dailyShopCost's day premium makes the CHEAPEST day-2
+ * item cost 8 — so the guarantee silently degraded to a day-1-only mechanic.
+ * Day 2's ceiling of 10 admits the tier-1 pool (costs 8–10) without touching
+ * any price.
+ */
+function warmOpeningCostCeiling(day: number): number {
+  return day <= 1 ? 4 : 10;
+}
+
+function applyWarmOpening(
+  offers: DeliveryOffer[],
+  seed: string,
+  day: number,
+  kind: 'delivery' | 'restock',
+  table: ItemTable,
+  salt: string,
+  supplierTag: string | null,
+  loopV2: boolean,
+): DeliveryOffer[] {
+  if (!warmOpeningEnabled(loopV2) || kind !== 'restock' || day > 2) return offers;
+
+  const warmOffers = [...offers];
+  const costCeiling = warmOpeningCostCeiling(day);
+  let cheapCount = warmOffers.filter((offer) => offer.cost <= costCeiling).length;
+  const requiredCheapOffers = 2;
+  if (cheapCount >= requiredCheapOffers) return warmOffers;
+
+  const offeredIds = new Set(warmOffers.map((offer) => offer.item.id));
+  const weightedPool = offerablePool(table).filter(
+    (definition) => offerWeight(definition, day, supplierTag) > 0,
+  );
+  const candidates = weightedPool.filter(
+    (definition) =>
+      !offeredIds.has(definition.id) && dailyShopCost(definition, day) <= costCeiling,
+  );
+  // Fable ruling (A-M6b review): replace the CHEAPEST non-qualifying offers,
+  // not the priciest. Swapping out the premium offers measurably dented strong
+  // openings (day-9 ceiling −6–7% in the same-seed A/B); swapping the offers
+  // closest to the ceiling keeps the guarantee while leaving premium stock on
+  // the table for players who can afford it.
+  const replaceIndices = warmOffers
+    .map((offer, index) => ({ index, cost: offer.cost }))
+    .filter((entry) => entry.cost > costCeiling)
+    .sort((a, b) => a.cost - b.cost || a.index - b.index)
+    .map((entry) => entry.index);
+  const rng = rngFor(seed, 'warmopen', day, salt);
+
+  for (const replaceIndex of replaceIndices) {
+    if (cheapCount >= requiredCheapOffers) break;
+    const candidate = cheapestWarmCandidate(candidates, day, rng);
+    if (!candidate) break;
+
+    const candidateIndex = candidates.findIndex((definition) => definition.id === candidate.id);
+    candidates.splice(candidateIndex, 1);
+    offeredIds.add(candidate.id);
+    warmOffers[replaceIndex] = deliveryOffer(kind, day, replaceIndex, candidate, salt, loopV2);
+    cheapCount += 1;
+  }
+
+  return warmOffers;
+}
+
 /**
  * Seeded, tier-weighted offer generation. `salt` folds in the current offer
  * ids so a reroll deterministically produces a different set without an RNG
@@ -315,16 +452,7 @@ export function generateOffers(
     }
     const definition = remaining.splice(chosenIndex, 1)[0];
     if (!definition) break;
-    offers.push({
-      offerId: `${kind}-${day}-${index}-${definition.id}-${hashString(salt).toString(36)}`,
-      item: definition,
-      cost:
-        kind === 'restock'
-          ? loopV2
-            ? dailyShopCost(definition, day)
-            : restockCost(definition)
-          : 0,
-    });
+    offers.push(deliveryOffer(kind, day, index, definition, salt, loopV2));
   }
-  return offers;
+  return applyWarmOpening(offers, seed, day, kind, table, salt, supplierTag, loopV2);
 }
