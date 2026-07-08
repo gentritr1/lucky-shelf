@@ -151,3 +151,40 @@ tightening pass; setting them now would enshrine the 5–7× economy the pass ex
 **No flag flips ON from this document.** The remaining path to graduation is:
 economy-tightening pass (implementation brief above) → `pnpm m1` green with flags SET →
 device feel-gate → flags ON.
+
+---
+
+## Implementation record — economy pass executed (same day, later session)
+
+**Shipped (all v2-gated unless noted; OFF path verified byte-identical — pin `8d48e1c5a6ad14c9`,
+goldens, fixtures all green in the 118/118 suite):**
+- `LOOP_V2_RENT_GROWTH_LATE = 1.75` from cycle 4 (v1 keeps 1.6): ceiling median 30d → **27d**,
+  deepest rent cycle 9–10 → **8**, total coins ~3336 → ~2900–3000.
+- `LOOP_V2_SELL_FLOOR = 1` (ruling §7), mirrored in the sell-view model so shown price = paid price.
+- `GOAL_LADDER_TARGETS = [18, 28, 40, 46, 56, 66, 74, 80, 86, 90]` — re-tuned against the FULL
+  stack per finding §6. **VERIFIED (executed): 400-run fuzz, every day 0.67–0.82 for greedy and
+  combo, days 9–12 aggregate 0.806/0.814** — inside the 65–85% band across the whole curve.
+- Run-length guardrail min re-set 24→20 (documented in `balanceHarness.ts`); `balance:assert`
+  (80-run, authoritative) **green**, build swing back inside [1.3, 2.0].
+
+**Bonus fix — save-corrupting bug found by the pass:** buying out the shop then rerolling
+reproduced the day's offer set (reroll salt collapsed to `''` = the opening generation's salt),
+minting duplicate `instanceId`s → schema-invalid state. Latent in v1 too; exposed when tuning made
+buyouts affordable to bots. Fixed engine-wide (salt now folds coins + all live instanceIds);
+regression test added; pinned trajectories contain zero rerolls (instrumented and checked), so the
+determinism floor is untouched.
+
+**Tried and reverted (recorded so it isn't re-tried):**
+- Day-2 shop discount as beginner ease → **build swing collapsed to 1.13–1.26** (ceiling bots fill
+  up on cheap stock; builds stop mattering). The guardrail caught it. Reverted.
+- Rent steepening from cycle 3 → run length crashed to 21–24d, out of band. Reverted to cycle 4.
+- Starting coins 8→10 → broke the day-one two-buys acceptance path. Reverted.
+
+**Honest misses — now design work, not constants (both feel-gated, both mine to brief):**
+1. **Day-9 surplus is still ~7×.** Rent through cycle 3 is v1-pinned and every steeper curve
+   variant breached the run-length/swing guardrails. The structural fix is a **coin sink**
+   (recommended: purchasable shelf expansion — converts surplus into build space and doubles as
+   progression; see the retention roadmap doc). Surplus bands stay deferred until a sink exists.
+2. **Beginner floor unchanged** (first-rent survival 10–25% across configs — the v2 config is the
+   *lowest* at 10%). Needs a designed opening mechanic (guaranteed-cheap day-1 offers or first-rent
+   forgiveness), not a cost constant — the constant version measurably damaged build identity.

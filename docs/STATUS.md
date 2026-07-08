@@ -35,10 +35,16 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   goal-ladder **CCR approved, target table REQUEST CHANGES** — under the full flag stack the
   days-9–12 hit rate is 0.89–0.93, out of the 65–85% band (verified by a fresh 120-run fuzz,
   seed `fable-signoff-0708`).
-- Balance ruled: sell-back gets a **v2-gated floor of 1** (19/41 items currently sell for 0);
-  loose economy gets a **single coherent tightening pass** (v2-gated rent steepening / coin sink,
-  goal-table retune, sell floor, beginner-opening ease, then re-set §6 bands). Brief is in the
-  rulings doc; implementation is unstarted.
+- Balance ruled AND **the economy pass is now implemented + verified** (see the implementation
+  record at the bottom of the rulings doc): v2 rent 1.75 from cycle 4 (ceiling 30d→27d), v2 sell
+  floor 1, goal table re-tuned vs the full stack (400-run fuzz: every day 0.67–0.82, in band),
+  guardrail band re-set 24→20 min, `balance:assert` green, 118/118 tests, OFF path byte-identical.
+  Bonus: fixed a **save-corrupting buyout+reroll bug** (duplicate instanceIds; latent in v1 too;
+  regression test added; determinism pin untouched — pinned runs never reroll).
+- **Honest misses, now design briefs (Fable's next items):** day-9 surplus still ~7× — needs a
+  designed **coin sink** (recommended: purchasable shelf expansion); beginner first-rent floor
+  10–25% — needs a designed **opening mechanic**. Constants alone provably violate the guardrails
+  (tried, reverted, recorded).
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
