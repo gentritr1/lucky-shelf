@@ -120,7 +120,7 @@ export default function RestockScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.replace('/')}>
+        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
           <Text style={styles.back}>‹ Menu</Text>
         </Pressable>
         <View style={styles.titleWrap} pointerEvents="none">

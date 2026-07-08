@@ -28,29 +28,24 @@ export default function ShareScreen() {
   const dateLabel = isDaily ? gameState.seed.replace('daily-', '') : `Run · Day ${gameState.day}`;
   const catSprite = spriteFor('shop-cat');
 
-  const shareText =
-    `Lucky Shelf ${isDaily ? `— Daily ${dateLabel}` : ''}\n` +
-    `Survived ${stats.daysSurvived} days · ${stats.totalCoinsEarned}c earned\n` +
-    `Best day ${stats.bestDayTotal}c · Deepest rent ${stats.deepestRentSurvived}\n` +
-    `Catalog ${view.completionPct}% collected`;
-
   const cardRef = useRef<View>(null);
 
   const onShare = async () => {
-    // Prefer sharing the card as an image (the social artifact); fall back to
-    // text if the view capture fails (e.g. web, or the ref not yet laid out).
+    // The card is the artifact; send only the captured PNG, with no generated
+    // text attached to the share sheet.
     try {
       const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
-      await Share.share({ url: uri, message: shareText });
+      await Share.share({ url: uri });
     } catch {
-      await Share.share({ message: shareText }).catch(() => undefined);
+      // No text fallback: if image capture is unavailable, avoid sharing a
+      // different artifact than the player tapped for.
     }
   };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
           <Text style={styles.back}>‹ Menu</Text>
         </Pressable>
         <Text style={styles.title}>Share</Text>
@@ -98,7 +93,7 @@ export default function ShareScreen() {
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
         <WoodButton label="Share" onPress={onShare} />
-        <WoodButton label="Done" variant="secondary" onPress={() => router.replace('/')} />
+        <WoodButton label="Done" variant="secondary" onPress={() => router.dismissTo('/')} />
       </View>
     </View>
   );

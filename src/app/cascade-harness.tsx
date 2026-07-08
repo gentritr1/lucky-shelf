@@ -60,7 +60,7 @@ export default function CascadeHarnessScreen() {
   return (
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
           <Text style={styles.back}>‹ Menu</Text>
         </Pressable>
         <Text style={styles.title}>Cascade Harness</Text>

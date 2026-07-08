@@ -22,7 +22,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
-      <TopBar title="Settings" onBack={() => router.back()} />
+      <TopBar title="Settings" onBack={() => router.dismissTo('/')} />
 
       <ScrollView
         contentContainerStyle={styles.panels}

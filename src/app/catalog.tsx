@@ -32,7 +32,7 @@ export default function CatalogScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
-      <TopBar title="Catalog" backLabel="‹ Menu" onBack={() => router.back()} />
+      <TopBar title="Catalog" backLabel="‹ Menu" onBack={() => router.dismissTo('/')} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + layout.screenBottomGap }]}

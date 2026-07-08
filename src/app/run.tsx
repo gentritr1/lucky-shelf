@@ -161,7 +161,7 @@ export default function RunHudScreen() {
         showsVerticalScrollIndicator={heldFull}
       >
       <View style={styles.topBar}>
-        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.replace('/')}>
+        <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
           <Text style={styles.back}>‹ Menu</Text>
         </Pressable>
         <View style={styles.dayWrap}>
@@ -221,7 +221,7 @@ export default function RunHudScreen() {
         <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
           <WoodButton
             label={primaryAction ? primaryAction.label : 'Run Complete'}
-            onPress={primaryAction ? onPrimaryAction : () => router.replace('/')}
+            onPress={primaryAction ? onPrimaryAction : () => router.dismissTo('/')}
           />
         </View>
       ) : null}
