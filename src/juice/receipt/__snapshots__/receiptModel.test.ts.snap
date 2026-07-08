@@ -1,0 +1,943 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-bamboo-transform > lines 1`] = `
+[
+  {
+    "amount": "1",
+    "detail": {
+      "base": 1,
+      "itemName": "Lucky Bamboo",
+      "kind": "item",
+      "slot": {
+        "col": 0,
+        "row": 0,
+      },
+    },
+    "eventIndex": 0,
+    "indent": 0,
+    "kind": "item",
+    "label": "Lucky Bamboo",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "5",
+    "detail": {
+      "base": 5,
+      "itemName": "Cheese Wheel",
+      "kind": "item",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 2,
+    "indent": 0,
+    "kind": "item",
+    "label": "Cheese Wheel",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "",
+    "detail": {
+      "fromItem": "cheese-wheel",
+      "fromName": "Cheese Wheel",
+      "kind": "transform",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+      "toItem": "cheese-wheel-tier-2",
+      "toName": "Aged Cheese Wheel",
+    },
+    "eventIndex": 4,
+    "indent": 0,
+    "kind": "transform",
+    "label": "→ Cheese Wheel became Aged Cheese Wheel",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "6",
+    "detail": {
+      "coins": 6,
+      "kind": "total",
+    },
+    "eventIndex": 5,
+    "indent": 0,
+    "kind": "total",
+    "label": "DAY TOTAL",
+    "slots": [],
+  },
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-bamboo-transform > paper 1`] = `
+[
+  "Lucky Bamboo ......................... 1",
+  "Cheese Wheel ......................... 5",
+  "→ Cheese Wheel became Aged Cheese Wheel",
+  "DAY TOTAL ............................ 6",
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-basic-wine-cheese > lines 1`] = `
+[
+  {
+    "amount": "4",
+    "detail": {
+      "base": 4,
+      "itemName": "Wine Bottle",
+      "kind": "item",
+      "slot": {
+        "col": 0,
+        "row": 0,
+      },
+    },
+    "eventIndex": 0,
+    "indent": 0,
+    "kind": "item",
+    "label": "Wine Bottle",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "+3 → 7",
+    "detail": {
+      "affectedName": "Wine Bottle",
+      "affectedSlot": {
+        "col": 0,
+        "row": 0,
+      },
+      "delta": {
+        "flat": 3,
+      },
+      "deltaLabel": "+3",
+      "kind": "cause",
+      "ruleId": "wine-adjacent-cheese-flat",
+      "ruleLabel": "per neighbor",
+      "runningTotal": 7,
+      "sourceName": "Wine Bottle",
+      "sourceSlot": {
+        "col": 0,
+        "row": 0,
+      },
+      "targetSlot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 1,
+    "indent": 1,
+    "kind": "cause",
+    "label": "↳ Wine Bottle · per neighbor",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "= 7",
+    "detail": {
+      "itemName": "Wine Bottle",
+      "kind": "subtotal",
+      "slot": {
+        "col": 0,
+        "row": 0,
+      },
+      "total": 7,
+    },
+    "eventIndex": 2,
+    "indent": 0,
+    "kind": "subtotal",
+    "label": "Wine Bottle subtotal",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "3",
+    "detail": {
+      "base": 3,
+      "itemName": "Cheese Wheel",
+      "kind": "item",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 3,
+    "indent": 0,
+    "kind": "item",
+    "label": "Cheese Wheel",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "10",
+    "detail": {
+      "coins": 10,
+      "kind": "total",
+    },
+    "eventIndex": 5,
+    "indent": 0,
+    "kind": "total",
+    "label": "DAY TOTAL",
+    "slots": [],
+  },
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-basic-wine-cheese > paper 1`] = `
+[
+  "Wine Bottle .......................... 4",
+  "  ↳ Wine Bottle · per neighbor .. +3 → 7",
+  "Wine Bottle subtotal ............... = 7",
+  "Cheese Wheel ......................... 3",
+  "DAY TOTAL ........................... 10",
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-mirror-copy > lines 1`] = `
+[
+  {
+    "amount": "4",
+    "detail": {
+      "base": 4,
+      "itemName": "Cheese Wheel",
+      "kind": "item",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 0,
+    "indent": 0,
+    "kind": "item",
+    "label": "Cheese Wheel",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "0",
+    "detail": {
+      "base": 0,
+      "itemName": "Mirror",
+      "kind": "item",
+      "slot": {
+        "col": 2,
+        "row": 0,
+      },
+    },
+    "eventIndex": 2,
+    "indent": 0,
+    "kind": "item",
+    "label": "Mirror",
+    "slots": [
+      {
+        "col": 2,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "+4 → 4",
+    "detail": {
+      "affectedName": "Mirror",
+      "affectedSlot": {
+        "col": 2,
+        "row": 0,
+      },
+      "delta": {
+        "flat": 4,
+      },
+      "deltaLabel": "+4",
+      "kind": "cause",
+      "ruleId": "mirror-copy-left",
+      "ruleLabel": "copies neighbor",
+      "runningTotal": 4,
+      "sourceName": "Mirror",
+      "sourceSlot": {
+        "col": 2,
+        "row": 0,
+      },
+      "targetSlot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 3,
+    "indent": 1,
+    "kind": "cause",
+    "label": "↳ Mirror · copies neighbor",
+    "slots": [
+      {
+        "col": 2,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "= 4",
+    "detail": {
+      "itemName": "Mirror",
+      "kind": "subtotal",
+      "slot": {
+        "col": 2,
+        "row": 0,
+      },
+      "total": 4,
+    },
+    "eventIndex": 4,
+    "indent": 0,
+    "kind": "subtotal",
+    "label": "Mirror subtotal",
+    "slots": [
+      {
+        "col": 2,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "8",
+    "detail": {
+      "coins": 8,
+      "kind": "total",
+    },
+    "eventIndex": 5,
+    "indent": 0,
+    "kind": "total",
+    "label": "DAY TOTAL",
+    "slots": [],
+  },
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-mirror-copy > paper 1`] = `
+[
+  "Cheese Wheel ......................... 4",
+  "Mirror ............................... 0",
+  "  ↳ Mirror · copies neighbor .... +4 → 4",
+  "Mirror subtotal .................... = 4",
+  "DAY TOTAL ............................ 8",
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-scores-last-clock > lines 1`] = `
+[
+  {
+    "amount": "3",
+    "detail": {
+      "base": 3,
+      "itemName": "Fishbowl",
+      "kind": "item",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 0,
+    "indent": 0,
+    "kind": "item",
+    "label": "Fishbowl",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "6",
+    "detail": {
+      "base": 6,
+      "itemName": "Antique Clock",
+      "kind": "item",
+      "slot": {
+        "col": 0,
+        "row": 0,
+      },
+    },
+    "eventIndex": 2,
+    "indent": 0,
+    "kind": "item",
+    "label": "Antique Clock",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "9",
+    "detail": {
+      "coins": 9,
+      "kind": "total",
+    },
+    "eventIndex": 4,
+    "indent": 0,
+    "kind": "total",
+    "label": "DAY TOTAL",
+    "slots": [],
+  },
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-scores-last-clock > paper 1`] = `
+[
+  "Fishbowl ............................. 3",
+  "Antique Clock ........................ 6",
+  "DAY TOTAL ............................ 9",
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-shop-cat-row-aura > lines 1`] = `
+[
+  {
+    "amount": "0",
+    "detail": {
+      "base": 0,
+      "itemName": "Shop Cat",
+      "kind": "item",
+      "slot": {
+        "col": 0,
+        "row": 0,
+      },
+    },
+    "eventIndex": 0,
+    "indent": 0,
+    "kind": "item",
+    "label": "Shop Cat",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "×1.5",
+    "detail": {
+      "kind": "aura",
+      "mult": 1.5,
+      "row": 0,
+      "sourceName": "Shop Cat",
+      "sourceSlot": {
+        "col": 0,
+        "row": 0,
+      },
+    },
+    "eventIndex": 1,
+    "indent": 1,
+    "kind": "aura",
+    "label": "↳ Shop Cat · row 0 aura",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "= 0",
+    "detail": {
+      "appliedAura": {
+        "mult": 1.5,
+        "sourceSlot": {
+          "col": 0,
+          "row": 0,
+        },
+      },
+      "itemName": "Shop Cat",
+      "kind": "subtotal",
+      "slot": {
+        "col": 0,
+        "row": 0,
+      },
+      "total": 0,
+    },
+    "eventIndex": 2,
+    "indent": 0,
+    "kind": "subtotal",
+    "label": "Shop Cat subtotal (row ×1.5)",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "4",
+    "detail": {
+      "base": 4,
+      "itemName": "Wine Bottle",
+      "kind": "item",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 3,
+    "indent": 0,
+    "kind": "item",
+    "label": "Wine Bottle",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "+4 → 8",
+    "detail": {
+      "affectedName": "Wine Bottle",
+      "affectedSlot": {
+        "col": 1,
+        "row": 0,
+      },
+      "delta": {
+        "flat": 4,
+      },
+      "deltaLabel": "+4",
+      "kind": "cause",
+      "ruleId": "honey-adjacent-sticky-bonus",
+      "ruleLabel": "neighbor grant",
+      "runningTotal": 8,
+      "sourceName": "Honey Jar",
+      "sourceSlot": {
+        "col": 2,
+        "row": 0,
+      },
+      "targetSlot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 4,
+    "indent": 1,
+    "kind": "cause",
+    "label": "↳ Honey Jar · neighbor grant",
+    "slots": [
+      {
+        "col": 2,
+        "row": 0,
+      },
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "= 12",
+    "detail": {
+      "appliedAura": {
+        "mult": 1.5,
+        "sourceSlot": {
+          "col": 0,
+          "row": 0,
+        },
+      },
+      "itemName": "Wine Bottle",
+      "kind": "subtotal",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+      "total": 12,
+    },
+    "eventIndex": 5,
+    "indent": 0,
+    "kind": "subtotal",
+    "label": "Wine Bottle subtotal (row ×1.5)",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "2",
+    "detail": {
+      "base": 2,
+      "itemName": "Honey Jar",
+      "kind": "item",
+      "slot": {
+        "col": 2,
+        "row": 0,
+      },
+    },
+    "eventIndex": 6,
+    "indent": 0,
+    "kind": "item",
+    "label": "Honey Jar",
+    "slots": [
+      {
+        "col": 2,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "15",
+    "detail": {
+      "coins": 15,
+      "kind": "total",
+    },
+    "eventIndex": 8,
+    "indent": 0,
+    "kind": "total",
+    "label": "DAY TOTAL",
+    "slots": [],
+  },
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-shop-cat-row-aura > paper 1`] = `
+[
+  "Shop Cat ............................. 0",
+  "  ↳ Shop Cat · row 0 aura ......... ×1.5",
+  "Shop Cat subtotal (row ×1.5) ....... = 0",
+  "Wine Bottle .......................... 4",
+  "  ↳ Honey Jar · neighbor grant .. +4 → 8",
+  "Wine Bottle subtotal (row ×1.5) ... = 12",
+  "Honey Jar ............................ 2",
+  "DAY TOTAL ........................... 15",
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-wine-dine-combo > lines 1`] = `
+[
+  {
+    "amount": "3",
+    "detail": {
+      "base": 3,
+      "itemName": "Cheese Wheel",
+      "kind": "item",
+      "slot": {
+        "col": 0,
+        "row": 0,
+      },
+    },
+    "eventIndex": 0,
+    "indent": 0,
+    "kind": "item",
+    "label": "Cheese Wheel",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "4",
+    "detail": {
+      "base": 4,
+      "itemName": "Wine Bottle",
+      "kind": "item",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+    },
+    "eventIndex": 2,
+    "indent": 0,
+    "kind": "item",
+    "label": "Wine Bottle",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "+3 → 7",
+    "detail": {
+      "affectedName": "Wine Bottle",
+      "affectedSlot": {
+        "col": 1,
+        "row": 0,
+      },
+      "delta": {
+        "flat": 3,
+      },
+      "deltaLabel": "+3",
+      "kind": "cause",
+      "ruleId": "wine-adjacent-cheese-flat",
+      "ruleLabel": "per neighbor",
+      "runningTotal": 7,
+      "sourceName": "Wine Bottle",
+      "sourceSlot": {
+        "col": 1,
+        "row": 0,
+      },
+      "targetSlot": {
+        "col": 0,
+        "row": 0,
+      },
+    },
+    "eventIndex": 3,
+    "indent": 1,
+    "kind": "cause",
+    "label": "↳ Wine Bottle · per neighbor",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "+3 → 10",
+    "detail": {
+      "affectedName": "Wine Bottle",
+      "affectedSlot": {
+        "col": 1,
+        "row": 0,
+      },
+      "delta": {
+        "flat": 3,
+      },
+      "deltaLabel": "+3",
+      "kind": "cause",
+      "ruleId": "wine-adjacent-cheese-flat",
+      "ruleLabel": "per neighbor",
+      "runningTotal": 10,
+      "sourceName": "Wine Bottle",
+      "sourceSlot": {
+        "col": 1,
+        "row": 0,
+      },
+      "targetSlot": {
+        "col": 2,
+        "row": 0,
+      },
+    },
+    "eventIndex": 4,
+    "indent": 1,
+    "kind": "cause",
+    "label": "↳ Wine Bottle · per neighbor",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "+3 → 13",
+    "detail": {
+      "affectedName": "Wine Bottle",
+      "affectedSlot": {
+        "col": 1,
+        "row": 0,
+      },
+      "delta": {
+        "flat": 3,
+      },
+      "deltaLabel": "+3",
+      "kind": "cause",
+      "ruleId": "wine-adjacent-cheese-flat",
+      "ruleLabel": "per neighbor",
+      "runningTotal": 13,
+      "sourceName": "Wine Bottle",
+      "sourceSlot": {
+        "col": 1,
+        "row": 0,
+      },
+      "targetSlot": {
+        "col": 1,
+        "row": 1,
+      },
+    },
+    "eventIndex": 5,
+    "indent": 1,
+    "kind": "cause",
+    "label": "↳ Wine Bottle · per neighbor",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "= 13",
+    "detail": {
+      "itemName": "Wine Bottle",
+      "kind": "subtotal",
+      "slot": {
+        "col": 1,
+        "row": 0,
+      },
+      "total": 13,
+    },
+    "eventIndex": 6,
+    "indent": 0,
+    "kind": "subtotal",
+    "label": "Wine Bottle subtotal",
+    "slots": [
+      {
+        "col": 1,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "3",
+    "detail": {
+      "base": 3,
+      "itemName": "Cheese Wheel",
+      "kind": "item",
+      "slot": {
+        "col": 2,
+        "row": 0,
+      },
+    },
+    "eventIndex": 7,
+    "indent": 0,
+    "kind": "item",
+    "label": "Cheese Wheel",
+    "slots": [
+      {
+        "col": 2,
+        "row": 0,
+      },
+    ],
+  },
+  {
+    "amount": "3",
+    "detail": {
+      "base": 3,
+      "itemName": "Cheese Wheel",
+      "kind": "item",
+      "slot": {
+        "col": 1,
+        "row": 1,
+      },
+    },
+    "eventIndex": 9,
+    "indent": 0,
+    "kind": "item",
+    "label": "Cheese Wheel",
+    "slots": [
+      {
+        "col": 1,
+        "row": 1,
+      },
+    ],
+  },
+  {
+    "amount": "",
+    "detail": {
+      "comboId": "wine-and-dine",
+      "comboName": "Wine & Dine",
+      "kind": "combo",
+      "slots": [
+        {
+          "col": 0,
+          "row": 0,
+        },
+        {
+          "col": 1,
+          "row": 0,
+        },
+        {
+          "col": 2,
+          "row": 0,
+        },
+        {
+          "col": 1,
+          "row": 1,
+        },
+      ],
+    },
+    "eventIndex": 11,
+    "indent": 0,
+    "kind": "combo",
+    "label": "• Wine & Dine",
+    "slots": [
+      {
+        "col": 0,
+        "row": 0,
+      },
+      {
+        "col": 1,
+        "row": 0,
+      },
+      {
+        "col": 2,
+        "row": 0,
+      },
+      {
+        "col": 1,
+        "row": 1,
+      },
+    ],
+  },
+  {
+    "amount": "22",
+    "detail": {
+      "coins": 22,
+      "kind": "total",
+    },
+    "eventIndex": 12,
+    "indent": 0,
+    "kind": "total",
+    "label": "DAY TOTAL",
+    "slots": [],
+  },
+]
+`;
+
+exports[`receiptFromTrace — M0 golden snapshots (grammar regression fixtures) > renders a stable receipt for m0-wine-dine-combo > paper 1`] = `
+[
+  "Cheese Wheel ......................... 3",
+  "Wine Bottle .......................... 4",
+  "  ↳ Wine Bottle · per neighbor .. +3 → 7",
+  "  ↳ Wine Bottle · per neighbor . +3 → 10",
+  "  ↳ Wine Bottle · per neighbor . +3 → 13",
+  "Wine Bottle subtotal .............. = 13",
+  "Cheese Wheel ......................... 3",
+  "Cheese Wheel ......................... 3",
+  "• Wine & Dine",
+  "DAY TOTAL ........................... 22",
+]
+`;
