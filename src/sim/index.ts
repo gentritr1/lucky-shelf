@@ -18,6 +18,7 @@ export { hashState, stableStringify, fnv1a64 } from './hash';
 export { rngFor, hashString, type Rng } from './rng';
 export {
   UNLOCK_LADDER,
+  allUnlockableItemIds,
   alwaysUnlockedItemIds,
   nextUnlocks,
   unlockedItemIds,

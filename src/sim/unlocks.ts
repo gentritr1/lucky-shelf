@@ -86,6 +86,12 @@ export function unlockedItemIds(
   );
 }
 
+/** Every ladder item, unconditionally — the canonical pool for daily-seeded
+ *  runs ("same shelf worldwide"; see the A-M7 Fable review's graduation gate). */
+export function allUnlockableItemIds(table: UnlockTable = UNLOCK_LADDER): string[] {
+  return sortedItems(Object.keys(table));
+}
+
 export function alwaysUnlockedItemIds(table: UnlockTable = UNLOCK_LADDER): string[] {
   return sortedItems(
     Object.entries(table)

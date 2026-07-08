@@ -10,6 +10,7 @@ import {
 } from '../contracts';
 import { isSignatureItem, itemDefinition, loadCombos, loadItemTable } from '../items';
 import {
+  allUnlockableItemIds,
   alwaysUnlockedItemIds,
   DEMAND_MULT,
   EngineError,
@@ -28,6 +29,7 @@ import type { CreateRunOptions, EngineDeps } from '../sim';
 import { uiAffordances, type UiActionOfType } from '../sim/uiAffordances';
 import type { LoadActiveRunStatus, RunPersistence } from '../persistence';
 import { useCatalogStore, type CatalogStoreState } from './catalogStore';
+import { isDailySeed } from './dailyStore';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
@@ -344,9 +346,17 @@ function isEngineError(error: unknown): error is EngineError {
 }
 
 function createRunOptionsFromCatalog(
+  seed: string,
   snapshot: Pick<CatalogStoreState, 'catalog' | 'loadStatus'>,
 ): CreateRunOptions {
   if (!unlockLadderEnabled()) return {};
+  // Fable graduation gate (A-M7 review): DAILY seeds always use the canonical
+  // FULL ladder pool — never personal unlocks — so the whole world plays the
+  // identical shelf and {seed, actions} ghosts/leaderboards stay comparable.
+  // Passed explicitly (not omitted): the engine defaults an absent option to
+  // the starter set, and an explicit snapshot keeps old daily replays stable
+  // even if the ladder table changes later.
+  if (isDailySeed(seed)) return { unlockedItemIds: allUnlockableItemIds() };
   if (snapshot.loadStatus === 'idle' || snapshot.loadStatus === 'loading') {
     return { unlockedItemIds: alwaysUnlockedItemIds() };
   }
@@ -359,7 +369,7 @@ export function createRunStore(options: RunStoreOptions = {}) {
   const getPersistence = async () => options.persistence ?? defaultPersistence();
   const getCatalogSnapshot = options.catalogSnapshot ?? (() => useCatalogStore.getState());
   const createRunFromCatalog = (seed: string): GameState =>
-    createRun(seed, deps, createRunOptionsFromCatalog(getCatalogSnapshot()));
+    createRun(seed, deps, createRunOptionsFromCatalog(seed, getCatalogSnapshot()));
   const initialState = options.initialState ?? createRunFromCatalog(seedFactory());
 
   return create<RunStoreState>()((set, get) => {

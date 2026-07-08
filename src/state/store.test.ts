@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptyCatalog } from '../contracts';
+import { emptyCatalog, type Catalog } from '../contracts';
+import { dailySeedFor } from '../persistence/daily';
 import {
   UNLOCK_LADDER_ENV_VAR,
+  allUnlockableItemIds,
   alwaysUnlockedItemIds,
   createRun,
   unlockedItemIds,
@@ -178,6 +180,34 @@ describe('run store', () => {
       });
       const idleRun = idleStore.getState().startNewRun('store-unlocks-idle').gameState;
       expect(idleRun.unlockedItemIds).toEqual(alwaysUnlockedItemIds());
+    });
+  });
+
+  it('gives daily seeds the canonical full pool regardless of personal unlocks (A-M7 graduation gate)', () => {
+    withEnv({ [UNLOCK_LADDER_ENV_VAR]: '1' }, () => {
+      const dailySeed = dailySeedFor('2026-07-08');
+      const richCatalog = emptyCatalog();
+      richCatalog.stats.runsPlayed = 20;
+
+      const makeDailyRun = (snapshot: { catalog: Catalog; loadStatus: 'loaded' | 'idle' }) =>
+        createRunStore({
+          deps,
+          persistence: createRunPersistence(new MemoryStorage()),
+          initialState: makeState([], { phase: 'gameOver' }),
+          catalogSnapshot: () => snapshot,
+        })
+          .getState()
+          .startNewRun(dailySeed).gameState;
+
+      const fresh = makeDailyRun({ catalog: emptyCatalog(), loadStatus: 'idle' });
+      const veteran = makeDailyRun({ catalog: richCatalog, loadStatus: 'loaded' });
+
+      // Same shelf worldwide: both carry the CANONICAL full ladder pool (never
+      // personal unlocks — and never the engine's starter-set default), so the
+      // offers are identical for every player.
+      expect(fresh.unlockedItemIds).toEqual(allUnlockableItemIds());
+      expect(veteran.unlockedItemIds).toEqual(allUnlockableItemIds());
+      expect(veteran.currentOffers).toEqual(fresh.currentOffers);
     });
   });
 });
