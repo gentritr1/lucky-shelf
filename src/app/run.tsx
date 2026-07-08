@@ -11,6 +11,7 @@ import {
   RentChip,
   SectionLabel,
   WoodButton,
+  buildAccents,
   layout,
   palette,
   radii,
@@ -20,12 +21,12 @@ import {
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
 import {
+  buildIdentityView,
   orderHudView,
   runSelectors,
-  synergyHudView,
   useRunStore,
+  type BuildIdentityView,
   type OrderHudView,
-  type SynergyHudView,
 } from '../state/store';
 
 // Rent runs on a 3-day cycle (RENT_PERIOD_DAYS). The tension bed takes over on
@@ -113,8 +114,12 @@ export default function RunHudScreen() {
   const hudState = cascadeMount ? cascadeMount.gameState : gameState;
   // Build-identity signposts, computed off the render path (logic lives in the
   // store). Only shown when the cascade is down, where hudState === gameState.
-  const synergy = useMemo(() => synergyHudView(gameState), [gameState]);
+  const build = useMemo(() => buildIdentityView(gameState), [gameState]);
   const order = useMemo(() => orderHudView(gameState), [gameState]);
+  const target =
+    gameState.dailyTarget != null
+      ? { target: gameState.dailyTarget, rewardEarned: (gameState.freeRerollTokens ?? 0) > 0 }
+      : null;
   const sceneState =
     cascadeMount || !movementEnabled ? movementLockedSceneState(hudState) : gameState;
 
@@ -138,13 +143,9 @@ export default function RunHudScreen() {
         <MovesPips remaining={hudState.moves.freeRemaining} />
       </View>
 
-      {!cascadeMount && order ? <OrderBanner order={order} /> : null}
-
-      {!cascadeMount && gameState.dailyTarget != null ? (
-        <GoalBanner target={gameState.dailyTarget} freeRerolls={gameState.freeRerollTokens ?? 0} />
+      {!cascadeMount && (build || order || target) ? (
+        <BuildSignpost build={build} order={order} target={target} />
       ) : null}
-
-      {!cascadeMount && synergy ? <SynergyBadge active={synergy} /> : null}
 
       {/* The cascade overlay draws its OWN shelf; rendering the HUD shelf too
           produced a second, misaligned shelf peeking behind the scrim (extra
@@ -204,43 +205,95 @@ export default function RunHudScreen() {
   );
 }
 
+const TAG_EMOJI: Record<string, string> = {
+  drink: '🍷',
+  food: '🍎',
+  sweet: '🍬',
+  toy: '🧸',
+  tool: '🔧',
+  decor: '🖼️',
+  book: '📚',
+  plant: '🪴',
+  pet: '🐾',
+  luxury: '💎',
+};
+
 /**
- * PROTOTYPE (Today's Order): the day's collection demand with live progress.
- * Reads the shelf directly so the count updates as items are placed/sold; turns
- * green the moment the order is fillable.
+ * The build signpost — one panel that answers "what am I making, and is it
+ * paying off?" The dominant-tag build is the hero (title + live ×multiplier +
+ * the next ladder tier to chase); Today's Order and the daily target ride below
+ * as compact goal chips. Replaces the three interchangeable stacked pills so the
+ * build reads as an identity, not a status feed.
  */
-function OrderBanner({ order }: { order: OrderHudView }) {
-  const { tag, count, mult, have, met } = order;
+function BuildSignpost({
+  build,
+  order,
+  target,
+}: {
+  build: BuildIdentityView | null;
+  order: OrderHudView | null;
+  target: { target: number; rewardEarned: boolean } | null;
+}) {
+  const accent = build ? buildAccents[build.tag] ?? palette.goldDeep : null;
   return (
-    <View style={[styles.orderBanner, met ? styles.orderBannerMet : null]}>
-      <Text style={styles.orderText}>
-        {`📋 ORDER · ${count}× ${tag.toUpperCase()} → ×${mult} each`}
-      </Text>
-      <Text style={[styles.orderProgress, met ? styles.orderProgressMet : null]}>
-        {met ? `FILLED ✓ (${have}/${count})` : `${have}/${count}`}
-      </Text>
+    <View
+      style={[
+        styles.buildCard,
+        build?.active ? styles.buildCardActive : null,
+        accent ? { borderLeftColor: accent, borderLeftWidth: 5 } : null,
+      ]}
+    >
+      <View style={styles.buildHero}>
+        <Text style={styles.buildEmoji}>{build ? TAG_EMOJI[build.tag] ?? '🏷️' : '🛒'}</Text>
+        <View style={styles.buildHeroText}>
+          <Text style={styles.buildTitle}>{build ? `${build.tag.toUpperCase()} SHELF` : 'YOUR SHELF'}</Text>
+          <Text style={styles.buildSub}>
+            {build
+              ? build.next
+                ? `${build.count} on theme · ${build.next.count - build.count} more → ×${build.next.mult}`
+                : `${build.count} on theme · maxed out`
+              : 'Match a tag across items for a build bonus'}
+          </Text>
+        </View>
+        {build ? (
+          <View style={[styles.buildMult, build.active ? styles.buildMultActive : null]}>
+            <Text style={[styles.buildMultText, build.active ? styles.buildMultTextActive : null]}>
+              {`×${build.mult}`}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      {order || target ? (
+        <View style={styles.goalRow}>
+          {order ? (
+            <GoalChip
+              icon="📋"
+              label={`ORDER · ${order.count}× ${order.tag}`}
+              value={order.met ? `✓ ${order.have}/${order.count}` : `${order.have}/${order.count}`}
+              met={order.met}
+            />
+          ) : null}
+          {target ? (
+            <GoalChip
+              icon="🎯"
+              label={`TARGET · ${target.target}c`}
+              value={target.rewardEarned ? '🔁 free reroll' : 'beat it →'}
+              met={target.rewardEarned}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function GoalBanner({ target, freeRerolls }: { target: number; freeRerolls: number }) {
-  const earned = freeRerolls > 0;
+function GoalChip({ icon, label, value, met }: { icon: string; label: string; value: string; met: boolean }) {
   return (
-    <View style={[styles.orderBanner, earned ? styles.orderBannerMet : null]}>
-      <Text style={styles.orderText}>{`🎯 TODAY'S TARGET · ${target} coins`}</Text>
-      <Text style={[styles.orderProgress, earned ? styles.orderProgressMet : null]}>
-        {earned ? '🎟️ FREE REROLL' : 'BEAT IT →'}
-      </Text>
-    </View>
-  );
-}
-
-function SynergyBadge({ active }: { active: SynergyHudView }) {
-  return (
-    <View style={[styles.orderBanner, styles.synergyBanner]}>
-      <Text style={styles.orderText}>{`🏷️ ${active.tag.toUpperCase()} SHELF`}</Text>
-      <Text style={[styles.orderProgress, styles.synergyProgress]}>
-        {`×${active.mult} · ${active.count} items`}
+    <View style={[styles.goalChip, met ? styles.goalChipMet : null]}>
+      <Text numberOfLines={1} style={styles.goalChipLabel}>{`${icon} ${label}`}</Text>
+      <Text numberOfLines={1} style={[styles.goalChipValue, met ? styles.goalChipValueMet : null]}>
+        {value}
       </Text>
     </View>
   );
@@ -400,42 +453,103 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: 'auto',
   },
-  orderBanner: {
-    alignItems: 'center',
-    alignSelf: 'center',
+  buildCard: {
+    alignSelf: 'stretch',
     backgroundColor: palette.parchment,
     borderColor: palette.parchmentEdge,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     borderWidth: 1.5,
-    flexDirection: 'row',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
-  orderBannerMet: {
-    backgroundColor: palette.slotLegal,
-    borderColor: palette.tealDark,
-  },
-  orderText: {
-    ...typeScale.label,
-    color: palette.ink,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  orderProgress: {
-    ...typeScale.label,
-    color: palette.inkFaint,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  orderProgressMet: {
-    color: palette.ink,
-  },
-  synergyBanner: {
+  buildCardActive: {
     backgroundColor: palette.sunlight,
     borderColor: palette.goldDeep,
   },
-  synergyProgress: {
+  buildHero: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  buildEmoji: {
+    fontSize: 28,
+  },
+  buildHeroText: {
+    flex: 1,
+    gap: 1,
+  },
+  buildTitle: {
+    ...typeScale.label,
+    color: palette.ink,
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  buildSub: {
+    ...typeScale.label,
+    color: palette.inkFaint,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  buildMult: {
+    alignItems: 'center',
+    backgroundColor: palette.creamBright,
+    borderColor: palette.parchmentEdge,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    minWidth: 58,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  buildMultActive: {
+    backgroundColor: palette.creamBright,
+    borderColor: palette.goldDeep,
+  },
+  buildMultText: {
+    ...typeScale.display,
+    color: palette.inkSoft,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  buildMultTextActive: {
     color: palette.emberDark,
+  },
+  goalRow: {
+    flexDirection: 'column',
+    gap: spacing.xs,
+  },
+  goalChip: {
+    alignItems: 'center',
+    backgroundColor: palette.creamBright,
+    borderColor: palette.parchmentEdge,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  goalChipMet: {
+    backgroundColor: palette.slotLegal,
+    borderColor: palette.tealDark,
+  },
+  goalChipLabel: {
+    ...typeScale.label,
+    color: palette.ink,
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  goalChipValue: {
+    ...typeScale.label,
+    color: palette.inkFaint,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  goalChipValueMet: {
+    color: palette.tealDark,
   },
 });

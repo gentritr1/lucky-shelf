@@ -53,9 +53,10 @@ export interface RunStoreState {
  *  so pure `(state) => …` selectors can reach it without threading deps. */
 const selectorItemTable = loadItemTable();
 
-/** Dominant eligible tag on the shelf and its active ladder multiplier, or null.
- *  Moved out of the run screen so the "food shelf ×N" signpost is one source. */
-function dominantSynergy(shelf: GameState['shelf']): SynergyHudView | null {
+/** Dominant eligible tag on the shelf: which build the player is leaning into,
+ *  the count on theme, and where they sit on the synergy ladder. Null only when
+ *  no eligible-tag item is on the shelf yet. */
+function dominantBuild(shelf: GameState['shelf']): { tag: string; count: number } | null {
   const eligible = new Set(TAG_SYNERGY_ELIGIBLE_TAGS);
   const counts = new Map<string, number>();
   for (const slot of shelf.slots) {
@@ -64,10 +65,7 @@ function dominantSynergy(shelf: GameState['shelf']): SynergyHudView | null {
   }
   let best: { tag: string; count: number } | null = null;
   for (const [tag, count] of counts) if (!best || count > best.count) best = { tag, count };
-  if (!best) return null;
-  let mult = 1;
-  for (const step of TAG_SYNERGY_LADDER) if (best.count >= step.minCount) mult = step.mult;
-  return mult > 1 ? { tag: best.tag, count: best.count, mult } : null;
+  return best;
 }
 
 /** A sellable shelf slot with its computed sell-back price. */
@@ -77,12 +75,16 @@ export interface SellSlotView {
   price: number;
 }
 
-/** The dominant tag-synergy / today's-order signpost for the HUD, or null when off
- *  / not active. Keeps the "what am I building" logic in the store, not the screen. */
-export interface SynergyHudView {
+/** The run's build identity for the HUD hero signpost: the leaned-into tag, how
+ *  many items are on theme, the multiplier that count currently earns, and the
+ *  next ladder tier to chase (null when maxed). `active` = the mult is already
+ *  above ×1. Null when synergy is off or the shelf has no eligible items. */
+export interface BuildIdentityView {
   tag: string;
   count: number;
   mult: number;
+  active: boolean;
+  next: { count: number; mult: number } | null;
 }
 
 export interface OrderHudView {
@@ -144,10 +146,18 @@ export function sellShelfView(gameState: GameState): SellSlotView[] {
     }));
 }
 
-/** Active tag-synergy signpost (dominant eligible tag + ladder mult), or null. */
-export function synergyHudView(gameState: GameState): SynergyHudView | null {
+/** Build-identity signpost: which shelf the player is making + its live payoff. */
+export function buildIdentityView(gameState: GameState): BuildIdentityView | null {
   if (!tagSynergyEnabled()) return null;
-  return dominantSynergy(gameState.shelf);
+  const best = dominantBuild(gameState.shelf);
+  if (!best) return null;
+  let mult = 1;
+  let next: { count: number; mult: number } | null = null;
+  for (const step of TAG_SYNERGY_LADDER) {
+    if (best.count >= step.minCount) mult = step.mult;
+    else if (!next) next = { count: step.minCount, mult: step.mult };
+  }
+  return { tag: best.tag, count: best.count, mult, active: mult > 1, next };
 }
 
 /** Today's-Order signpost with live shelf progress, or null when no order. */

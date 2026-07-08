@@ -66,6 +66,24 @@ export const palette = {
  */
 export const arrowPalette = ['#3E8E7E', '#F5B942', '#8B6FB8', '#5B87B0'] as const;
 
+/**
+ * Build-identity accents (Lane B signposting) — one warm, storybook-harmonious
+ * hue per synergy-eligible tag, so a drink shelf reads distinct from a food or
+ * antique shelf at a glance. Keyed by tag; fall back to `palette.goldDeep`.
+ */
+export const buildAccents: Record<string, string> = {
+  fancy: '#D99A1B',
+  food: '#7FA653',
+  antique: '#9C6B3F',
+  lucky: '#D9603B',
+  fragile: '#5B87B0',
+  utility: '#7C7A70',
+  drink: '#8B5A7A',
+  perishable: '#E0863C',
+  sweet: '#D07AA0',
+  plant: '#5B9B6A',
+} as const;
+
 // ---------------------------------------------------------------------------
 // Layout scales.
 // ---------------------------------------------------------------------------
