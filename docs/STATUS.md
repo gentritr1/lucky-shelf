@@ -74,6 +74,16 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   brief threshold without a measurement script). **Two human gates open: the B-M6 apex/big
   recording (one-tap /cascade-harness demos) and the B-M5 streak screenshots (seed recipe in
   packet).**
+- **Product direction adopted (agent jury + `PRODUCT.md`, 2026-07-08):** depth-not-breadth —
+  trace readability as the signature UX, tactile placement, accessibility floor, anti-casino
+  identity, variety-not-power unlocks. Fable's reading: the verdict changes **gate order, not
+  the codebase** — the flagged v2 stack stays; readability/feel work graduates first. The quiet
+  ≥2 streak stays (no pressure mechanics ever — playtest arbitrates). A-M7's daily
+  canonical-pool graduation gate is now **CLOSED** (`ef1efae`). Round-4 briefs from the
+  Promote-Now list: [B-M7 accessibility floor](lane-b/accessibility-floor-brief.md) and
+  [B-M8 receipt cascade + cause-effect grammar](lane-b/receipt-cascade-brief.md) (both Opus 4.8,
+  headless cores now, device shots batched for later). Velvet Snap drag feel waits for the
+  human's device-iteration window.
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
