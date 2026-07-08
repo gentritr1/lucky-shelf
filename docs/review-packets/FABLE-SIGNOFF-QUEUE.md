@@ -34,6 +34,19 @@ Updated 2026-07-07 by the Opus orchestrator.
 - Verdict was positive ("way better than before"); the gap was intuitiveness, addressed by UI fixes.
 - **Sell-back is +0 for tier-1 items** (`sellPrice = floor(baseValue/3)`): cheap items return 0 coins, so selling them is worthless. The Sell UI now shows the real value honestly; whether selling *should* be worthwhile is a balance call (raise the sell ratio / add a floor). Fable's call in the item-table pass.
 
+## Balance finding — economy is too loose with all depth flags ON (2026-07-08, data-backed)
+Device play reached day 9 with **167 coins vs rent 51** on a full shelf (nothing to spend on). A fuzz
+(120 runs, greedy bot, LOOP_V2+SIGNATURE+TAG_SYNERGY+BUILD_STEERING+GOAL_LADDER all on) confirms it:
+- **Earnings run ~4–7× the rent burden.** e.g. day 9 median **~118 coins earned/day** vs rent ~17/day
+  (51 per 3-day cycle); day 12 ~120/day vs ~27/day. Bots **understate** real play, so it's worse live.
+- **Bots survive a median of 30 days (max 36), deepest rent cycle ~9–11.** Very long for a survival loop
+  where tension should mount; money piles up because the only sink is the 12-slot shelf, which saturates.
+- The rent curve (`RENT_GROWTH_LATE 1.6` from cycle 4: 51→82→131→210) never catches the stacked
+  multipliers. **Fable's call:** tighten the rent curve and/or the multiplier stack, and/or add a coin
+  sink. Note this is *linked* to the softlock (`06771cf`): loose economy → shelf overflows → the dead-end.
+  My session's work changed **zero economy numbers** (all presentation) — this is pre-existing provisional
+  tuning surfaced by the feel-gate.
+
 ## Cross-cutting notes for Fable
 - Every OFF path is byte-identical: determinism pin `8d48e1c5a6ad14c9`, 6 M0 goldens, and 6 M0 fixtures are unchanged with all flags off. That invariant is the graduation floor.
 - Balance numbers (ladder steps, `BUILD_STEER_BIAS`, goal targets, signature costs) are **provisional, fuzz-tuned starting values** isolated in `src/sim/economy.ts` for your pass.
