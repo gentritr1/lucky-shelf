@@ -161,6 +161,25 @@ export function buildIdentityView(gameState: GameState): BuildIdentityView | nul
   return { tag: best.tag, count: best.count, mult, active: mult > 1, next };
 }
 
+/** Daily-shop header context so the restock screen reads as a shop with a budget
+ *  and buying capacity, not a plain list. `isDailyShop` = the v2 daily loop. */
+export interface ShopHeaderView {
+  isDailyShop: boolean;
+  day: number;
+  coins: number;
+  spotsOpen: number;
+}
+
+export function shopHeaderView(gameState: GameState): ShopHeaderView {
+  const spotsOpen = gameState.shelf.slots.filter((slot) => slot.item === null).length;
+  return {
+    isDailyShop: gameState.loopV2 === true,
+    day: gameState.day,
+    coins: gameState.coins,
+    spotsOpen,
+  };
+}
+
 /** One-line plain-English effect for a signature item (Phase 2c run-defining
  *  stock), or null if the item isn't signature. Keeps scoring-rule vocabulary in
  *  the store so the shop screen can badge signatures without reading scoring. */

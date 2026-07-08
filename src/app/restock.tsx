@@ -19,7 +19,14 @@ import {
 } from '@/ui';
 import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
-import { rerollCost, runSelectors, sellShelfView, signatureBlurb, useRunStore } from '../state/store';
+import {
+  rerollCost,
+  runSelectors,
+  sellShelfView,
+  shopHeaderView,
+  signatureBlurb,
+  useRunStore,
+} from '../state/store';
 
 /**
  * Restock: real engine offers and economy. Buy/reroll/sell/end all go through
@@ -48,6 +55,7 @@ export default function RestockScreen() {
     [gameState.currentOffers],
   );
   const sellShelf = useMemo(() => sellShelfView(gameState), [gameState]);
+  const shopHeader = useMemo(() => shopHeaderView(gameState), [gameState]);
   const emptySlot = firstEmptySlot(gameState);
 
   const dispatchAndSave = (action: Parameters<typeof dispatchAction>[0]) => {
@@ -99,7 +107,7 @@ export default function RestockScreen() {
           <Text style={styles.back}>‹ Menu</Text>
         </Pressable>
         <View style={styles.titleWrap} pointerEvents="none">
-          <Text style={styles.title}>Restock</Text>
+          <Text style={styles.title}>{shopHeader.isDailyShop ? 'Daily Shop' : 'Restock'}</Text>
         </View>
         <CoinCounter coins={gameState.coins} animate />
       </View>
@@ -166,7 +174,14 @@ export default function RestockScreen() {
       ) : (
         <View style={styles.body}>
           <View style={styles.offersHeader}>
-            <SectionLabel>DAILY SHOP</SectionLabel>
+            <View style={styles.shopHeaderText}>
+              <SectionLabel>{shopHeader.isDailyShop ? "TODAY'S STOCK" : 'RESTOCK'}</SectionLabel>
+              <Text style={styles.shopContext}>
+                {`Day ${shopHeader.day} · ${shopHeader.coins}c to spend · ${shopHeader.spotsOpen} ${
+                  shopHeader.spotsOpen === 1 ? 'spot' : 'spots'
+                } open`}
+              </Text>
+            </View>
             <Pressable
               accessibilityRole="button"
               disabled={Boolean(gameState.heldItem)}
@@ -245,7 +260,13 @@ export default function RestockScreen() {
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
         <WoodButton
-          label={gameState.heldItem ? 'Place Purchase First' : 'End Restock'}
+          label={
+            gameState.heldItem
+              ? 'Place Purchase First'
+              : shopHeader.isDailyShop
+                ? 'Done Shopping'
+                : 'End Restock'
+          }
           disabled={Boolean(gameState.heldItem)}
           onPress={endRestock}
         />
@@ -333,6 +354,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  shopHeaderText: {
+    flexShrink: 1,
+    gap: 2,
+  },
+  shopContext: {
+    ...typeScale.label,
+    color: palette.inkFaint,
+    fontSize: 11,
+    fontWeight: '600',
   },
   offers: {
     flexDirection: 'row',
