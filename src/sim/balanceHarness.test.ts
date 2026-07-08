@@ -40,7 +40,9 @@ describe('balance harness', () => {
 
   it('activates the guardrail bands and defers the rest to Fable', () => {
     // Active guardrails (bracket current reality — see balanceHarness.ts).
-    expect(FABLE_BALANCE_TARGET_BANDS.ceilingMedianRunLengthDays).toEqual({ min: 24, max: 36 });
+    // Run-length min re-set 24→20 by the Fable economy pass (rulings 2026-07-08
+    // §8): v2 rent steepening pulls depth-config ceilings to ~24–27d.
+    expect(FABLE_BALANCE_TARGET_BANDS.ceilingMedianRunLengthDays).toEqual({ min: 20, max: 36 });
     expect(FABLE_BALANCE_TARGET_BANDS.buildSwingTotalCoinsRatio).toEqual({ min: 1.3, max: 2.0 });
     // Deferred to Fable (loose economy + tension are their tuning call).
     expect(FABLE_BALANCE_TARGET_BANDS.ceilingMaxMedianSurplusRatio).toBeNull();

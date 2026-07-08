@@ -224,7 +224,12 @@ export function sellShelfView(gameState: GameState): SellSlotView[] {
     .map((slot) => ({
       slot: slot.slot,
       item: slot.item,
-      price: sellPrice(slot.item.baseValue, itemDefinition(selectorItemTable, slot.item.itemId)),
+      // Mirror the engine's run-scoped loopV2 read so the shown price is the paid price.
+      price: sellPrice(
+        slot.item.baseValue,
+        itemDefinition(selectorItemTable, slot.item.itemId),
+        gameState.loopV2 === true,
+      ),
     }));
 }
 

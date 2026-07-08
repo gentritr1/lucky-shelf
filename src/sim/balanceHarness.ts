@@ -133,8 +133,11 @@ export interface BalanceTargetBands {
 // "balance", maxActions 600); build swing is only stable at that exact report, so
 // the authoritative gate is `scripts/balance.ts --assert-bands`, not the unit suite.
 export const FABLE_BALANCE_TARGET_BANDS: BalanceTargetBands = {
-  // Competent bot currently medians 27–30d; bracket it.
-  ceilingMedianRunLengthDays: { min: 24, max: 36 },
+  // Re-set by the Fable economy pass (rulings 2026-07-08 §8): the v2 rent
+  // steepening deliberately pulls the depth-config ceiling down to ~24–27d
+  // (baseline v1 stays 27–30d, untouched). Bracket BOTH realities: the band
+  // still catches drift in either direction without blessing further loosening.
+  ceilingMedianRunLengthDays: { min: 20, max: 36 },
   // Deferred to Fable: today's surplus sits at 5–7× rent — the KNOWN loose economy
   // (see FABLE-SIGNOFF-QUEUE). A guardrail here would bless that looseness, so leave
   // null until Fable tunes and sets the real cap.

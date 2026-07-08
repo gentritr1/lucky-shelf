@@ -282,7 +282,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       const slotState = slotStateAt(buildSlotMap(next.shelf), action.slot);
       if (!slotState?.item) throw new EngineError(`No item at ${toSlotKey(action.slot)}.`);
       const definition = itemDefinition(deps.table, slotState.item.itemId);
-      next.coins += sellPrice(slotState.item.baseValue, definition);
+      next.coins += sellPrice(slotState.item.baseValue, definition, runLoopV2(next));
       slotState.item = null;
       return next;
     }
@@ -337,7 +337,7 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         }
         next.coins -= next.rent.amount;
         next.runStats.deepestRentSurvived = next.rent.cycle;
-        next.rent.amount = nextRentAmount(next.rent.amount, next.rent.cycle);
+        next.rent.amount = nextRentAmount(next.rent.amount, next.rent.cycle, runLoopV2(next));
         next.rent.cycle += 1;
         next.rent.dueInDays = RENT_PERIOD_DAYS;
       }
@@ -450,7 +450,19 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         if (next.coins < REROLL_COST) throw new EngineError('Not enough coins to reroll.');
         next.coins -= REROLL_COST;
       }
-      const salt = next.currentOffers.map((offer) => offer.offerId).join('|');
+      // The salt must never collapse back to a value a previous generation used:
+      // buying out the whole shop left `currentOffers` empty, so an id-only salt
+      // degenerated to '' — the same salt as the day's opening generation — and
+      // the reroll reproduced identical offerIds, letting a re-buy mint a
+      // duplicate instanceId on the shelf (schema-invalid save). Folding coins
+      // plus every live instanceId in makes any salt that could re-issue a
+      // bought offer's id structurally different from the salt that created it.
+      const salt = [
+        `c${next.coins}`,
+        next.heldItem ? next.heldItem.instanceId : '',
+        ...next.shelf.slots.flatMap((entry) => (entry.item ? [entry.item.instanceId] : [])),
+        ...next.currentOffers.map((offer) => offer.offerId),
+      ].join('|');
       next.currentOffers = generateOffers(
         next.seed,
         next.day,

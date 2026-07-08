@@ -100,6 +100,53 @@ describe('loop v2 phase 1', () => {
       expect(state.coins).toBe(LOOP_V2_STARTING_COINS + state.runStats.totalCoinsEarned);
     }));
 
+  it('never re-issues a bought offer id when the shop is bought out and rerolled', () =>
+    withLoopV2(true, () => {
+      let state = createRun('loop-v2-buyout-reroll', deps);
+      state = dispatch(state, { type: 'draftItem', offerIndex: 0 }, deps);
+      state = dispatch(state, { type: 'placeItem', slot: { row: 0, col: 0 } }, deps);
+
+      // Rich-player scenario: afford the entire shop plus a reroll. Coins are
+      // sim-internal (not RNG-derived), so granting them keeps offers untouched.
+      state.coins = 500;
+
+      const seenOfferIds = new Set(state.currentOffers.map((offer) => offer.offerId));
+      const boughtInstanceIds = new Set<string>();
+      const slots = [
+        { row: 0, col: 1 },
+        { row: 0, col: 2 },
+        { row: 1, col: 0 },
+        { row: 1, col: 1 },
+        { row: 1, col: 2 },
+        { row: 2, col: 0 },
+        { row: 2, col: 1 },
+        { row: 2, col: 2 },
+      ];
+
+      // Two full buyout+reroll cycles: the reroll after an EMPTY shop is the
+      // degenerate case that used to reproduce the day's opening offer set
+      // (salt collapsed to ''), minting duplicate instanceIds on re-buy.
+      for (let cycle = 0; cycle < 2; cycle += 1) {
+        while (state.currentOffers.length > 0) {
+          state = dispatch(state, { type: 'buyOffer', offerIndex: 0 }, deps);
+          boughtInstanceIds.add(state.heldItem!.instanceId);
+          state = dispatch(state, { type: 'placeItem', slot: slots.shift()! }, deps);
+        }
+        state = dispatch(state, { type: 'reroll' }, deps);
+        for (const offer of state.currentOffers) {
+          expect(seenOfferIds.has(offer.offerId)).toBe(false);
+          expect(boughtInstanceIds.has(`${offer.offerId}-inst`)).toBe(false);
+          seenOfferIds.add(offer.offerId);
+        }
+      }
+
+      // No duplicate instanceIds anywhere on the shelf.
+      const placed = state.shelf.slots
+        .map((entry) => entry.item?.instanceId)
+        .filter((id): id is string => Boolean(id));
+      expect(new Set(placed).size).toBe(placed.length);
+    }));
+
   it('fills the shelf faster than v1 on the same scripted bot arc', () => {
     const seed = 'loop-v2-arc';
     const v1 = withLoopV2(false, () => playRun(seed, 'greedy', deps, 160));

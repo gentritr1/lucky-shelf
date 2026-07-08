@@ -35,6 +35,19 @@ export const LOOP_V2_ENV_VAR = 'LOOP_V2_ENABLED';
 export const LOOP_V2_STARTING_COINS = 8;
 export const LOOP_V2_DAILY_SHOP_OFFERS = 4;
 
+/**
+ * Loop v2 economy pass (Fable rulings 2026-07-08 §8). The stacked v2 multipliers
+ * outrun the v1 rent curve — measured ~4–7× earnings vs rent from day 9 — so v2
+ * runs steepen the landlord one cycle earlier and harder. The v1 curve is pinned
+ * by the M0 fixtures and stays byte-identical; both constants only apply to runs
+ * whose `loopV2` snapshot is true.
+ */
+export const LOOP_V2_RENT_GROWTH_LATE = 1.75;
+export const LOOP_V2_RENT_GROWTH_LATE_FROM_CYCLE = 4;
+/** Fable rulings §7: under v2 a sale always pays at least 1 coin — the softlock
+ * escape hatch ("sell to make room") must never pay literal zero. */
+export const LOOP_V2_SELL_FLOOR = 1;
+
 export function loopV2Enabled(): boolean {
   return LOOP_V2_ENABLED || process.env[LOOP_V2_ENV_VAR] === '1';
 }
@@ -50,7 +63,11 @@ export function startingCoins(): number {
  */
 export const GOAL_LADDER_ENABLED = false;
 export const GOAL_LADDER_ENV_VAR = 'GOAL_LADDER_ENABLED';
-export const GOAL_LADDER_TARGETS: readonly number[] = [16, 24, 34, 39, 49, 59, 62, 68, 72, 74];
+// Fable rulings 2026-07-08 §6: re-tuned against the FULL depth-flag stack (the
+// graduating set), not LOOP_V2 alone — the previous table [16..74] measured
+// 0.89–0.93 late hit under all flags, out of the 65–85% band. Scar rule: any
+// retune must re-verify with the exact flag set that ships together.
+export const GOAL_LADDER_TARGETS: readonly number[] = [18, 28, 40, 46, 56, 66, 74, 80, 86, 90];
 export const GOAL_LADDER_REWARD_KIND = 'freeReroll' as const;
 
 export function goalLadderEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
@@ -154,9 +171,10 @@ export function signatureItemsEnabled(): boolean {
   return SIGNATURE_ITEMS_ENABLED || process.env[SIGNATURE_ITEMS_ENV_VAR] === '1';
 }
 
-export function nextRentAmount(amount: number, completedCycle: number): number {
-  const growth =
-    completedCycle + 1 >= RENT_GROWTH_LATE_FROM_CYCLE ? RENT_GROWTH_LATE : RENT_GROWTH;
+export function nextRentAmount(amount: number, completedCycle: number, loopV2 = false): number {
+  const lateFromCycle = loopV2 ? LOOP_V2_RENT_GROWTH_LATE_FROM_CYCLE : RENT_GROWTH_LATE_FROM_CYCLE;
+  const lateGrowth = loopV2 ? LOOP_V2_RENT_GROWTH_LATE : RENT_GROWTH_LATE;
+  const growth = completedCycle + 1 >= lateFromCycle ? lateGrowth : RENT_GROWTH;
   return Math.floor(amount * growth);
 }
 
@@ -165,7 +183,7 @@ export function paidMoveCost(rentCycle: number): number {
   return rentCycle + 1;
 }
 
-export function sellPrice(baseValue: number, definition: ItemDefinition): number {
+export function sellPrice(baseValue: number, definition: ItemDefinition, loopV2 = false): number {
   // Table-v1 tuning (T-1): lean sell-back so shelf churn isn't a piggy bank.
   let price = Math.max(0, Math.floor(baseValue / 3));
   for (const rule of definition.rules) {
@@ -173,7 +191,7 @@ export function sellPrice(baseValue: number, definition: ItemDefinition): number
     if (rule.delta.flat !== undefined) price += rule.delta.flat;
     if (rule.delta.mult !== undefined) price = Math.floor(price * rule.delta.mult);
   }
-  return Math.max(0, price);
+  return Math.max(loopV2 ? LOOP_V2_SELL_FLOOR : 0, price);
 }
 
 export function restockCost(definition: ItemDefinition): number {
@@ -194,6 +212,10 @@ export function dailyShopCost(definition: ItemDefinition, day: number): number {
     );
   }
   // Loop v2 Phase 1: cheap early items so day-1 coins can buy multiple pieces.
+  // Economy pass note (Fable rulings §8.4): a day-2 discount was tried as the
+  // beginner-ease lever and REVERTED — it degraded build swing below the 1.3
+  // guardrail (ceiling bots fill up on cheap stock instead of building). The
+  // beginner floor needs a designed opening mechanic, not a cost constant.
   const dayPremium = Math.max(0, day - 1) * 5;
   return Math.max(3, definition.baseValue * 2 + definition.tier + dayPremium);
 }
