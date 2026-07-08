@@ -127,15 +127,36 @@ export interface BalanceTargetBands {
   buildSwingTotalCoinsRatio: RangeTarget | null;
 }
 
+// Human-set 2026-07-08 (guardrail philosophy: bracket current reality so `pnpm
+// balance:assert` stays green and catches future DRIFT — these do not themselves
+// tighten the economy). Calibrated against the default report (80 runs, seed
+// "balance", maxActions 600); build swing is only stable at that exact report, so
+// the authoritative gate is `scripts/balance.ts --assert-bands`, not the unit suite.
 export const FABLE_BALANCE_TARGET_BANDS: BalanceTargetBands = {
-  // TODO(fable): fill these once the "soft spot" is chosen. The assertion test
-  // is skipped until then so measurement can ship without inventing taste bands.
-  ceilingMedianRunLengthDays: null,
+  // Competent bot currently medians 27–30d; bracket it.
+  ceilingMedianRunLengthDays: { min: 24, max: 36 },
+  // Deferred to Fable: today's surplus sits at 5–7× rent — the KNOWN loose economy
+  // (see FABLE-SIGNOFF-QUEUE). A guardrail here would bless that looseness, so leave
+  // null until Fable tunes and sets the real cap.
   ceilingMaxMedianSurplusRatio: null,
   ceilingMaxConsecutiveDaysAboveSurplus: null,
+  // Deferred: the human target is a SOFTER beginner floor (see ASPIRATIONAL_TARGET_BANDS),
+  // which today's ~16–21% does not meet. That needs Fable to ease the opening economy,
+  // so it is reported (not asserted) to avoid enshrining the skill cliff as acceptable.
   floorFirstRentSurvivalRate: null,
+  // Deferred: nearDeath() was degenerate (100% for everyone); metric is fixed below,
+  // but the tension band itself is still Fable's taste call.
   nearDeathRunRate: null,
-  buildSwingTotalCoinsRatio: null,
+  // Builds currently swing 1.33–1.66×; bracket to "matter without dominating".
+  buildSwingTotalCoinsRatio: { min: 1.3, max: 2.0 },
+};
+
+// Aspirational, NON-BLOCKING (human, 2026-07-08): a beginner should usually clear the
+// first rent. Current floor is ~16–21%, so this is intentionally NOT in
+// FABLE_BALANCE_TARGET_BANDS — it needs Fable to ease the opening economy. The balance
+// report surfaces the gap; nothing asserts it, so `pnpm test` stays green.
+export const ASPIRATIONAL_TARGET_BANDS: Pick<BalanceTargetBands, 'floorFirstRentSurvivalRate'> = {
+  floorFirstRentSurvivalRate: { min: 0.4, max: 0.7 },
 };
 
 interface RunMeasurement {
@@ -342,8 +363,17 @@ function summarizeDays(samples: readonly BalanceDaySample[]): Record<string, Bal
 }
 
 function nearDeath(samples: readonly BalanceDaySample[]): boolean {
+  if (samples.length === 0) return false;
+  // Every run starts broke before its FIRST rent, so counting the opening tier made
+  // this read 100% for everyone (degenerate — measured nothing). A run is near-death
+  // only once it has climbed past the opening rent tier and still lands within one
+  // rent payment of death on a due day.
+  const openingRent = Math.min(...samples.map((sample) => sample.rentAmount));
   return samples.some(
-    (sample) => sample.rentDueInDays <= 1 && sample.coinsBeforeScoring <= sample.rentAmount,
+    (sample) =>
+      sample.rentAmount > openingRent &&
+      sample.rentDueInDays <= 1 &&
+      sample.coinsBeforeScoring <= sample.rentAmount,
   );
 }
 

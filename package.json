@@ -14,8 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "fuzz": "node --import tsx scripts/fuzz.ts",
+    "balance:assert": "node --import tsx scripts/balance.ts --assert-bands",
     "m0": "pnpm typecheck && pnpm fixtures:validate && pnpm test",
-    "m1": "pnpm typecheck && pnpm fixtures:validate && pnpm test && pnpm fuzz -- --runs 50"
+    "m1": "pnpm typecheck && pnpm fixtures:validate && pnpm test && pnpm fuzz -- --runs 50 && pnpm balance:assert"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "3.1.1",

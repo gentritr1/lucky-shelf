@@ -1,13 +1,16 @@
 /**
  * Balance report: floor and ceiling policies across the supported depth-flag
- * configs. Measurement only; target bands stay TODO(fable) until Fable/human
- * supplies the "soft spot" numbers.
+ * configs. Guardrail bands (run length, build swing) are live; --assert-bands is
+ * the authoritative gate (build swing is only stable at the default 80-run report).
+ * Surplus/tension/beginner-floor bands stay deferred to Fable (see balanceHarness.ts).
  *
  *   node --import tsx scripts/balance.ts
  *   node --import tsx scripts/balance.ts --runs 200 --policy all --config all
+ *   node --import tsx scripts/balance.ts --assert-bands   # fails if a guardrail drifts
  *   node --import tsx scripts/balance.ts --json
  */
 import {
+  ASPIRATIONAL_TARGET_BANDS,
   BALANCE_FLAG_CONFIGS,
   DEFAULT_BALANCE_POLICIES,
   FABLE_BALANCE_TARGET_BANDS,
@@ -162,9 +165,14 @@ function printReport(report: ReturnType<typeof runBalanceReport>): void {
   console.log(
     'Policies: FLOOR = screen-affordance naive player; CEILING = bot policies using engine legal actions.',
   );
-  if (Object.values(FABLE_BALANCE_TARGET_BANDS).every((value) => value === null)) {
-    console.log('Target bands: TODO(fable); pass --assert-bands after targets are filled.\n');
-  }
+  const runLenBand = FABLE_BALANCE_TARGET_BANDS.ceilingMedianRunLengthDays;
+  const swingBand = FABLE_BALANCE_TARGET_BANDS.buildSwingTotalCoinsRatio;
+  console.log(
+    'Guardrail bands (--assert-bands enforces): ' +
+      `ceiling run length ${runLenBand ? `[${runLenBand.min}, ${runLenBand.max}]d` : 'off'}; ` +
+      `build swing ${swingBand ? `[${swingBand.min}, ${swingBand.max}]x` : 'off'}. ` +
+      'Surplus/tension deferred to Fable.\n',
+  );
 
   for (const config of report.configs) {
     console.log(`Config: ${config.config}`);
@@ -181,6 +189,21 @@ function printReport(report: ReturnType<typeof runBalanceReport>): void {
     console.log('Build swing (allDepth median earned / baseline median earned):');
     for (const [policy, ratio] of swing) {
       console.log(`  ${policy}: ${ratio}x`);
+    }
+  }
+
+  const aspFloor = ASPIRATIONAL_TARGET_BANDS.floorFirstRentSurvivalRate;
+  if (aspFloor) {
+    console.log(
+      `\nAspirational beginner floor (NOT asserted — needs Fable to ease the opening): ` +
+        `first-rent survival target [${aspFloor.min * 100}, ${aspFloor.max * 100}]%. Actual:`,
+    );
+    for (const config of report.configs) {
+      const floor = config.policies.floor;
+      if (!floor) continue;
+      const pct = floor.firstRentSurvivalRate * 100;
+      const meets = pct >= aspFloor.min * 100 && pct <= aspFloor.max * 100;
+      console.log(`  ${config.config}: ${pct.toFixed(1)}%${meets ? '' : '  (below target — gap)'}`);
     }
   }
 }

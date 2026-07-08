@@ -42,11 +42,18 @@ Start at **`docs/review-packets/FABLE-SIGNOFF-QUEUE.md`**. Outstanding:
 - **The economy is measurably too loose with all flags on** (Fable's tuning call, but a human/design
   decision on the target feel). Linked to the softlock (loose economy → shelf overflow).
 
-### 3. The one thing that unblocks more automation — the "soft spot" target bands
-The balance harness enforces "not too easy / not too hard" but can't invent the numbers. Fill in
-**`docs/lane-a/balance-harness-brief.md` §6** (ideal run length, beginner survival %, near-death %, build
-swing ×). Then flip the single skipped test (`balanceHarness.test.ts` `it.skip('TODO(fable)…')`) to active.
-That's the concrete next code task once the numbers exist.
+### 3. The "soft spot" target bands — DONE (guardrail set 2026-07-08)
+The §6 bands are now set on a **guardrail** basis (bracket current reality; catch future drift; don't
+tighten the economy). See memory `balance-target-bands`.
+- **Active/asserted:** ceiling run length `[24,36]d`, build swing `[1.3,2.0]×`.
+- **Deferred to Fable (null):** surplus ratio + consecutive-days (a guardrail there would bless the loose
+  5–7× economy), near-death tension (taste).
+- **Aspirational, non-blocking:** beginner first-rent survival `[40,70]%` (reality ~16–21% → reported, not
+  asserted; needs Fable to ease the opening).
+- Enforcement: `pnpm balance:assert` (full 80-run, wired into `m1`) is authoritative — build swing is only
+  stable at that report, so it can't live in the unit suite. The unit test (now active, no more `it.skip`)
+  checks run-length + build-swing band logic cheaply. Also fixed a degenerate `nearDeath()` metric
+  (read 100% for everyone; now discriminates). Not committed yet.
 
 ## Ground rules (don't relearn the scars)
 - Depth features stay flag-gated; OFF path must stay byte-identical (pin + goldens).
