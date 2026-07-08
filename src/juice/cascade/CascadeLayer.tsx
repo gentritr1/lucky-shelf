@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -25,11 +25,19 @@ import {
   slotTopLeft,
   type ShelfLayout,
 } from '../layout';
+import { haptic } from '../haptics';
 import type { CascadeFrame } from './cascadeState';
 import { deltaLabel, isSelfFire } from './popModel';
+import { cascadeTier, type CascadeTier } from './cascadeTier';
 import { CascadeArrow } from './CascadeArrow';
+import { CascadeSpectacle } from './CascadeSpectacle';
 import { SpeedControl } from './SpeedControl';
 import { useCascadePlayer } from './useCascadePlayer';
+
+const overshoot = Easing.bezier(...motion.easings.overshoot);
+
+/** Warmer on-slot pop scale at the higher tiers (1 = shipped/normal, untouched). */
+const POP_SCALE_BOOST: Record<CascadeTier, number> = { normal: 1, big: 1.15, apex: 1.3 };
 
 /**
  * The cascade: consumes a ScoringTrace verbatim and animates every coin
@@ -75,6 +83,29 @@ export function CascadeLayer({
   const { rows, cols } = gameState.shelf.size;
   const player = useCascadePlayer({ events: trace.events, rentDue, autoPlay });
   const { frame, currentEvent, stepIndex } = player;
+
+  // B-M6 spectacle tier — pure function of the trace + the day's goal target.
+  // `'normal'` short-circuits every added effect below so ordinary cascades render
+  // exactly as shipped (see the byte-identical note in the review packet).
+  const tier = useMemo(() => cascadeTier(trace, gameState.dailyTarget), [trace, gameState.dailyTarget]);
+  const spectacle = tier !== 'normal';
+  const slam = frame.dayTotal !== null;
+  const progress =
+    stepIndex >= 0 && trace.events.length > 1 ? stepIndex / (trace.events.length - 1) : 0;
+
+  // Apex gets one extra celebratory haptic layered on the slam (in both motion
+  // modes — haptics are the reduced-motion channel). Fires once per cascade.
+  const apexHapticFired = useRef(false);
+  useEffect(() => {
+    if (!slam) {
+      apexHapticFired.current = false;
+      return;
+    }
+    if (tier === 'apex' && !apexHapticFired.current) {
+      apexHapticFired.current = true;
+      haptic('apexSlam');
+    }
+  }, [slam, tier]);
 
   const [frameWidth, setFrameWidth] = useState(0);
   const layout = useMemo(
@@ -152,6 +183,7 @@ export function CascadeLayer({
                     center={slotCenter(layout, currentEvent.sourceSlot.row, currentEvent.sourceSlot.col)}
                     label={deltaLabel(currentEvent.delta)}
                     color={popColor(currentEvent.ruleId, currentEvent.sourceSlot, cols)}
+                    scaleBoost={POP_SCALE_BOOST[tier]}
                     reduced={reduced}
                   />
                 )
@@ -184,7 +216,15 @@ export function CascadeLayer({
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>DAY TOTAL</Text>
           {frame.dayTotal !== null ? (
-            <CoinCounter coins={frame.dayTotal} from={0} animate slam variant="slam" />
+            // apex oversizes the slam with an overshoot spring; normal/big keep the
+            // shipped CoinCounter verbatim (byte-identical).
+            tier === 'apex' ? (
+              <ApexSlamText reduced={reduced}>
+                <CoinCounter coins={frame.dayTotal} from={0} animate slam variant="slam" />
+              </ApexSlamText>
+            ) : (
+              <CoinCounter coins={frame.dayTotal} from={0} animate slam variant="slam" />
+            )
           ) : (
             <View style={styles.totalPlaceholder}>
               <Text style={styles.totalPlaceholderText}>—</Text>
@@ -208,8 +248,31 @@ export function CascadeLayer({
           </>
         )}
       </View>
+
+      {/* B-M6: top-tier spectacle overlay — mounted ONLY for big/apex, so a normal
+          cascade renders the exact tree above (no overlay node, no layout shift).
+          Absolute-fill + pointerEvents:none, so it never intercepts the transport. */}
+      {spectacle ? (
+        <CascadeSpectacle tier={tier} progress={progress} slam={slam} reduced={reduced} />
+      ) : null}
     </View>
   );
+}
+
+/** Apex-only wrapper that oversizes the day-total slam with an overshoot spring.
+ *  Reduced motion: a static larger scale, no spring (R-28). */
+function ApexSlamText({ reduced, children }: { reduced: boolean; children: ReactNode }) {
+  const t = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    t.value = reduced
+      ? 1
+      : withSequence(
+          withTiming(1.35, { duration: 180, easing: overshoot }),
+          withTiming(1.18, { duration: 220, easing: overshoot }),
+        );
+  }, [t, reduced]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1.22 : t.value }] }));
+  return <Animated.View style={style}>{children}</Animated.View>;
 }
 
 function seedItems(gameState: GameState, rows: number, cols: number): (ItemInstance | null)[] {
@@ -236,6 +299,8 @@ interface SlotPopProps {
   center: { x: number; y: number };
   label: string;
   color: string;
+  /** Tier pop-scale multiplier; defaults to 1 so the normal-tier pop is unchanged. */
+  scaleBoost?: number;
   reduced: boolean;
 }
 
@@ -244,7 +309,7 @@ interface SlotPopProps {
  * zero-length nub, punch an on-slot ×N/+N badge that springs in and settles —
  * the payoff read for spotlight/order (and a fix for latent loner/clock nubs).
  */
-function SlotPop({ center, label, color, reduced }: SlotPopProps) {
+function SlotPop({ center, label, color, scaleBoost = 1, reduced }: SlotPopProps) {
   const t = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
     t.value = reduced ? 1 : withSpring(1, { damping: 9, stiffness: 170 });
@@ -252,7 +317,7 @@ function SlotPop({ center, label, color, reduced }: SlotPopProps) {
 
   const style = useAnimatedStyle(() => ({
     opacity: t.value,
-    transform: [{ scale: 0.6 + t.value * 0.4 }, { translateY: (1 - t.value) * 6 }],
+    transform: [{ scale: (0.6 + t.value * 0.4) * scaleBoost }, { translateY: (1 - t.value) * 6 }],
   }));
 
   return (

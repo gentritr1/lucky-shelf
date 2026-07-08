@@ -315,6 +315,10 @@ export const hapticMap = {
   comboBanner: 'notification-success',
   dayTotalSlam: 'impact-heavy',
   rentThud: 'impact-heavy',
+  // B-M6: the apex cascade's extra celebratory punch, layered on the slam. A
+  // distinct success pattern (not another heavy thud) so an apex day *feels*
+  // different in the hand. Fires in reduced-motion too (haptics are that channel).
+  apexSlam: 'notification-success',
 } as const;
 
 /** runningTotal thresholds that bump cascade haptic intensity one step. */

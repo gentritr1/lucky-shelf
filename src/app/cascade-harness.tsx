@@ -41,7 +41,48 @@ function makeCouponVanishDemo(): Fixture {
   };
 }
 
-const harnessFixtures: readonly Fixture[] = [...goldenFixtures, makeCouponVanishDemo()];
+/**
+ * B-M6 spectacle-tier recording vehicles. The spectacle tier is a pure function
+ * of the trace + the day's goal target (`cascadeTier`); the cleanest way to force
+ * a tier for the device recording is to take the richest golden cascade verbatim
+ * and attach a small `dailyTarget` so its (unchanged) day total lands at the
+ * desired ratio — `apex` at ≥ 4.2×, `big` at ≥ 2.8×. No trace is altered and no
+ * engine golden is touched; only the additive `dailyTarget` field is set.
+ */
+function richestGolden(): Fixture {
+  return goldenFixtures.reduce((best, f) =>
+    f.scoringTrace.events.length > best.scoringTrace.events.length ? f : best,
+  );
+}
+
+function makeTierDemo(kind: 'big' | 'apex'): Fixture {
+  const base = richestGolden();
+  const gameState = JSON.parse(JSON.stringify(base.gameState)) as GameState;
+  const scoringTrace = JSON.parse(JSON.stringify(base.scoringTrace)) as ScoringTrace;
+  const last = scoringTrace.events.at(-1);
+  const dayTotal = last?.kind === 'dayTotal' ? last.coins : 0;
+  const ratio = kind === 'apex' ? 5 : 3; // clears 4.2× / 2.8× with margin
+  gameState.dailyTarget = Math.max(1, Math.round(dayTotal / ratio));
+  scoringTrace.traceId = `demo-tier-${kind}`;
+  return {
+    fixtureId: `demo-tier-${kind}`,
+    title: kind === 'apex' ? 'APEX spectacle (demo)' : 'BIG cascade (demo)',
+    laneBUse:
+      kind === 'apex'
+        ? 'B-M6 apex: edge glow builds, gold wash + spark burst on the slam, oversized day total.'
+        : 'B-M6 big: warmer pops + a gold wash breath on the day-total slam.',
+    notes: [`Hand-authored B-M6 demo — golden trace verbatim, dailyTarget set to force ${kind}.`],
+    gameState,
+    scoringTrace,
+  };
+}
+
+const harnessFixtures: readonly Fixture[] = [
+  makeTierDemo('apex'),
+  makeTierDemo('big'),
+  ...goldenFixtures,
+  makeCouponVanishDemo(),
+];
 
 /**
  * Dev harness (M2 review vehicle): load any of the six golden traces and play
