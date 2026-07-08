@@ -7,6 +7,7 @@ import { makeInstance, makeState } from './testkit';
 import { uiAffordances, isDeadEnd } from './uiAffordances';
 import {
   BUILD_STEERING_ENV_VAR,
+  DAY2_STARTER_ENV_VAR,
   GOAL_LADDER_ENV_VAR,
   LOOP_V2_ENV_VAR,
   SHELF_EXPANSION_ENV_VAR,
@@ -90,6 +91,7 @@ const FLAG_CONFIGS: Record<string, Record<string, string | undefined>> = {
     [GOAL_LADDER_ENV_VAR]: '1',
     [SHELF_EXPANSION_ENV_VAR]: '1',
     [WARM_OPENING_ENV_VAR]: '1',
+    [DAY2_STARTER_ENV_VAR]: '1',
   },
 };
 

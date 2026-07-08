@@ -55,11 +55,14 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   - **A-M6b warm opening (Codex) — landed; floor acceptance NOT met.** Fable's flat-4 brief spec
     was unsatisfiable on day 2 (min price 8); ruled a day-aware ceiling (4/10) + cheapest-first
     replacement (protects premium stock). Even fixed, offer composition lifts the floor only
-    ~1.25× (loopV2 10→12.5%, allDepth 16.3→20%). **Beginner-floor decision MADE (human,
-    2026-07-08): free day-2 starter delivery.** Brief ready to delegate:
-    [A-M6c day-2 starter](lane-a/day2-starter-brief.md) — `DAY2_STARTER_ENABLED`, no contract
-    surface, acceptance combined floor ≥ 0.30 with an honest-stop clause (no compensating via
-    prices/rent if the mechanic tops out short).
+    ~1.25× (loopV2 10→12.5%, allDepth 16.3→20%). Human chose the free day-2 starter.
+  - **A-M6c day-2 starter (Codex) — APPROVED, and the beginner-floor chase is CLOSED**
+    ([A-M6c-fable-review](review-packets/A-M6c-fable-review.md)). Combined floor lands at
+    ~20–27.5% by seed (~2× baseline) — reliably below the 0.30 target, and the bottleneck is now
+    the floor-bot proxy (never rearranges/synergizes), not the economy. Ruling: the [40,70]%
+    aspiration re-anchors to the **P2 real-playtest milestone** (§3 below); welcome-week rent is
+    the one documented unpulled lever, only if real humans bounce off rent 1. No further
+    beginner-floor briefs until playtest data exists.
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
@@ -69,7 +72,20 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   direction (see rulings doc §8); the target *feel* remains your call and final acceptance is your
   device gate. Linked to the softlock (loose economy → shelf overflow).
 
-### 3. The "soft spot" target bands — DONE (guardrail set 2026-07-08)
+### 3. Strategic gaps promoted 2026-07-08 — see `docs/state-of-game-review-2026-07-08.md`
+Whole-game review found two gaps in no plan anywhere + two promotions. Priority order (none block
+the current critical path of day-2 starter + device feel-gate):
+- **P1 Unlock ladder** (between-run meta-progression; all 36 items currently available from run 1 —
+  the "what do I get next run?" hook is missing). Needs a lane-A brief; flag-gated, additive save
+  field, wipe-check first.
+- **P2 Real-playtest milestone** (TestFlight ~10 people × 3 days, after flags graduate) — all
+  balance evidence so far is bot-derived, and bots understate intent mechanics (recorded scar).
+- **P3 Daily seed + ghosts** (S-3 promoted from the moat ledger) — flagship post-graduation
+  feature on the trace moat.
+- **P4 "Spectacle without swing" principle** — economic bands stay gentle (Fable's), top cascade
+  tier gets the full juice budget. Applies to all future feel work.
+
+### 4. The "soft spot" target bands — DONE (guardrail set 2026-07-08)
 The §6 bands are now set on a **guardrail** basis (bracket current reality; catch future drift; don't
 tighten the economy). See memory `balance-target-bands`.
 - **Active/asserted:** ceiling run length `[24,36]d`, build swing `[1.3,2.0]×`.

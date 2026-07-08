@@ -48,6 +48,16 @@ function canExpandShelf(state: GameState): boolean {
   );
 }
 
+function canChooseSupplier(state: GameState): boolean {
+  return (
+    buildSteeringEnabled() &&
+    state.phase === 'delivery' &&
+    state.day === 1 &&
+    state.runStats.daysSurvived === 0 &&
+    state.supplierTag == null
+  );
+}
+
 export function uiAffordances(state: GameState): Action[] {
   const acts: Action[] = [];
   if (state.phase === 'gameOver') return acts;
@@ -59,7 +69,7 @@ export function uiAffordances(state: GameState): Action[] {
     case 'delivery': {
       // draft.tsx: the supplier picker replaces the offers on the one day it's
       // pending (build steering on, no lean chosen yet); otherwise draft any offer.
-      if (buildSteeringEnabled() && state.supplierTag === null) {
+      if (canChooseSupplier(state)) {
         for (const tag of BUILD_STEERING_ELIGIBLE_TAGS) acts.push({ type: 'chooseSupplier', tag });
       } else {
         state.currentOffers.forEach((_, offerIndex) => acts.push({ type: 'draftItem', offerIndex }));

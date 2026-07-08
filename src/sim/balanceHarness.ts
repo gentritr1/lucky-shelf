@@ -5,6 +5,7 @@ import { playRun, type StrategyName } from './bots';
 import { createRun, dispatch, type EngineDeps } from './engine';
 import {
   BUILD_STEERING_ENV_VAR,
+  DAY2_STARTER_ENV_VAR,
   GOAL_LADDER_ENV_VAR,
   LOOP_V2_ENV_VAR,
   SHELF_EXPANSION_ENV_VAR,
@@ -16,6 +17,7 @@ import { uiAffordances } from './uiAffordances';
 
 export const BALANCE_FLAG_ENV_KEYS = [
   BUILD_STEERING_ENV_VAR,
+  DAY2_STARTER_ENV_VAR,
   GOAL_LADDER_ENV_VAR,
   LOOP_V2_ENV_VAR,
   SHELF_EXPANSION_ENV_VAR,
@@ -39,11 +41,28 @@ export const BALANCE_FLAG_CONFIGS = [
   },
   { name: 'loopV2', env: { [LOOP_V2_ENV_VAR]: '1', [GOAL_LADDER_ENV_VAR]: '1' } },
   {
+    name: 'loopV2Day2Starter',
+    env: {
+      [LOOP_V2_ENV_VAR]: '1',
+      [GOAL_LADDER_ENV_VAR]: '1',
+      [DAY2_STARTER_ENV_VAR]: '1',
+    },
+  },
+  {
     name: 'loopV2WarmOpening',
     env: {
       [LOOP_V2_ENV_VAR]: '1',
       [GOAL_LADDER_ENV_VAR]: '1',
       [WARM_OPENING_ENV_VAR]: '1',
+    },
+  },
+  {
+    name: 'loopV2WarmOpeningDay2Starter',
+    env: {
+      [LOOP_V2_ENV_VAR]: '1',
+      [GOAL_LADDER_ENV_VAR]: '1',
+      [WARM_OPENING_ENV_VAR]: '1',
+      [DAY2_STARTER_ENV_VAR]: '1',
     },
   },
   {
@@ -57,6 +76,17 @@ export const BALANCE_FLAG_CONFIGS = [
     },
   },
   {
+    name: 'allDepthDay2Starter',
+    env: {
+      [LOOP_V2_ENV_VAR]: '1',
+      [SIGNATURE_ITEMS_ENV_VAR]: '1',
+      [TAG_SYNERGY_ENV_VAR]: '1',
+      [BUILD_STEERING_ENV_VAR]: '1',
+      [GOAL_LADDER_ENV_VAR]: '1',
+      [DAY2_STARTER_ENV_VAR]: '1',
+    },
+  },
+  {
     name: 'allDepthWarmOpening',
     env: {
       [LOOP_V2_ENV_VAR]: '1',
@@ -65,6 +95,18 @@ export const BALANCE_FLAG_CONFIGS = [
       [BUILD_STEERING_ENV_VAR]: '1',
       [GOAL_LADDER_ENV_VAR]: '1',
       [WARM_OPENING_ENV_VAR]: '1',
+    },
+  },
+  {
+    name: 'allDepthWarmOpeningDay2Starter',
+    env: {
+      [LOOP_V2_ENV_VAR]: '1',
+      [SIGNATURE_ITEMS_ENV_VAR]: '1',
+      [TAG_SYNERGY_ENV_VAR]: '1',
+      [BUILD_STEERING_ENV_VAR]: '1',
+      [GOAL_LADDER_ENV_VAR]: '1',
+      [WARM_OPENING_ENV_VAR]: '1',
+      [DAY2_STARTER_ENV_VAR]: '1',
     },
   },
 ] as const satisfies readonly BalanceFlagConfig[];

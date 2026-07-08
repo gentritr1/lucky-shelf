@@ -3,6 +3,7 @@ import { playRun, type StrategyName } from '../src/sim/bots';
 import {
   BUILD_STEER_BIAS,
   buildSteeringEnabled,
+  day2StarterEnabled,
   goalLadderEnabled,
   loopV2Enabled,
   shelfExpansionEnabled,
@@ -398,6 +399,7 @@ function main(): void {
     buildSteeringEnabled: buildSteeringEnabled(),
     shelfExpansionEnabled: shelfExpansionEnabled(),
     warmOpeningEnabled: warmOpeningEnabled(),
+    day2StarterEnabled: day2StarterEnabled(),
     buildSteerBias: BUILD_STEER_BIAS,
     maxActions: args.maxActions,
     results: strategies.map((strategy) => fuzzStrategy(strategy, args)),

@@ -22,6 +22,7 @@ import {
   SHELF_EXPANSION_COST,
   STARTING_RENT,
   buildSteeringEnabled,
+  day2StarterEnabled,
   dailyGoalTarget,
   generateOffers,
   goalLadderEnabled,
@@ -193,6 +194,17 @@ function isLoopV2StarterPlacement(state: GameState): boolean {
   );
 }
 
+function isDay2StarterPlacement(state: GameState): boolean {
+  return (
+    day2StarterEnabled(runLoopV2(state)) &&
+    state.phase === 'arrange' &&
+    state.day === 2 &&
+    state.runStats.daysSurvived === 1 &&
+    state.currentOffers.length === 0 &&
+    state.heldItem === null
+  );
+}
+
 function supplierTagForOffers(state: GameState): string | null {
   return buildSteeringEnabled() ? (state.supplierTag ?? null) : null;
 }
@@ -254,6 +266,17 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
       slotState.item = next.heldItem;
       next.heldItem = null;
       if (isLoopV2StarterPlacement(next)) {
+        next.phase = 'restock';
+        next.currentOffers = generateOffers(
+          next.seed,
+          next.day,
+          'restock',
+          deps.table,
+          '',
+          supplierTagForOffers(next),
+          runLoopV2(next),
+        );
+      } else if (isDay2StarterPlacement(next)) {
         next.phase = 'restock';
         next.currentOffers = generateOffers(
           next.seed,
@@ -411,7 +434,18 @@ export function dispatch(state: GameState, action: Action, deps: EngineDeps): Ga
         paidMoveCost: paidMoveCost(next.rent.cycle),
       };
 
-      if (runLoopV2(next)) {
+      if (day2StarterEnabled(runLoopV2(next)) && scoredDay === 1) {
+        next.phase = 'delivery';
+        next.currentOffers = generateOffers(
+          next.seed,
+          next.day,
+          'delivery',
+          deps.table,
+          '',
+          supplierTagForOffers(next),
+          runLoopV2(next),
+        );
+      } else if (runLoopV2(next)) {
         next.phase = 'restock';
         next.currentOffers = generateOffers(
           next.seed,

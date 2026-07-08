@@ -99,6 +99,18 @@ export function warmOpeningEnabled(runIsLoopV2: boolean = loopV2Enabled()): bool
   return runIsLoopV2 && (WARM_OPENING_ENABLED || process.env[WARM_OPENING_ENV_VAR] === '1');
 }
 
+/**
+ * A-M6c — free day-2 starter delivery. Default OFF pending Fable review.
+ * Effective only for loop-v2 runs, using the run's loop snapshot just like the
+ * goal ladder and shelf expansion flags.
+ */
+export const DAY2_STARTER_ENABLED = false;
+export const DAY2_STARTER_ENV_VAR = 'DAY2_STARTER_ENABLED';
+
+export function day2StarterEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
+  return runIsLoopV2 && (DAY2_STARTER_ENABLED || process.env[DAY2_STARTER_ENV_VAR] === '1');
+}
+
 export function dailyGoalTarget(day: number): number {
   if (!Number.isInteger(day) || day < 1) {
     throw new Error(`Daily goal day must be a positive integer, got ${day}.`);
