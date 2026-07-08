@@ -24,11 +24,26 @@ export const DailyResultSchema = z
 
 export type DailyResult = z.infer<typeof DailyResultSchema>;
 
+/**
+ * Consecutive-calendar-day play streak. Additive (B-M5): `streak` is optional on
+ * the record so pre-streak saves load loss-free (absent = no streak). `lastDate`
+ * is a `todayDateString()` value — all streak date math flows through that helper.
+ */
+export const DailyStreakSchema = z
+  .object({
+    count: z.number().int().min(0),
+    lastDate: z.string().min(1),
+  })
+  .strict();
+
+export type DailyStreak = z.infer<typeof DailyStreakSchema>;
+
 export const DailyRecordSchema = z
   .object({
     schemaVersion: z.literal(DailySaveSchemaVersion),
     date: z.string().min(1),
     result: DailyResultSchema,
+    streak: DailyStreakSchema.optional(),
   })
   .strict();
 
@@ -67,4 +82,43 @@ export function todayDateString(now: Date = new Date()): string {
 
 export function dailySeedFor(date: string): string {
   return `daily-${date}`;
+}
+
+/**
+ * The calendar day before `date` (YYYY-MM-DD). Uses the local `Date` constructor's
+ * normalisation (day 0 → previous month's last day) so month/year boundaries fall
+ * out correctly, then formats through `todayDateString` — no millisecond math, so
+ * no DST drift. This is the only "yesterday" anyone should compute.
+ */
+export function previousDateString(date: string): string {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  return todayDateString(new Date(y, m - 1, d - 1));
+}
+
+/**
+ * Advance the streak given today's date string:
+ * - no prior streak → count 1;
+ * - lastDate is today → unchanged (same-day replay is idempotent);
+ * - lastDate is yesterday → +1 (consecutive day);
+ * - otherwise (a gap) → reset to 1.
+ */
+export function advanceStreak(prev: DailyStreak | null, today: string): DailyStreak {
+  if (!prev) return { count: 1, lastDate: today };
+  if (prev.lastDate === today) return prev;
+  if (prev.lastDate === previousDateString(today)) {
+    return { count: prev.count + 1, lastDate: today };
+  }
+  return { count: 1, lastDate: today };
+}
+
+/**
+ * The streak count to *show* on `today`: the stored count while the streak is
+ * still live (last played today or yesterday), else 0 — a lapsed streak reads as
+ * broken until the next play restarts it. Pure; drives the title/summary surfaces.
+ */
+export function displayStreakCount(streak: DailyStreak | null, today: string): number {
+  if (!streak) return 0;
+  if (streak.lastDate === today) return streak.count;
+  if (streak.lastDate === previousDateString(today)) return streak.count;
+  return 0;
 }

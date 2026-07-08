@@ -4,11 +4,11 @@ import { captureRef } from 'react-native-view-shot';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { WoodButton, layout, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { AppText, WoodButton, layout, palette, radii, shadows, spacing, typeScale } from '@/ui';
 import { spriteFor } from '@/juice';
 import { runSelectors, useRunStore } from '../state/store';
 import { buildCatalogView, catalogSelectors, useCatalogStore } from '../state/catalogStore';
-import { isDailySeed } from '../state/dailyStore';
+import { dailySelectors, isDailySeed, useDailyStore } from '../state/dailyStore';
 
 /**
  * The share card (kickoff §9 — the social artifact). Built to be screenshot-
@@ -21,6 +21,7 @@ export default function ShareScreen() {
   const insets = useSafeAreaInsets();
   const gameState = useRunStore(runSelectors.gameState);
   const catalog = useCatalogStore(catalogSelectors.catalog);
+  const streakCount = useDailyStore(dailySelectors.streakCount);
 
   const view = useMemo(() => buildCatalogView(catalog), [catalog]);
   const stats = gameState.runStats;
@@ -81,6 +82,12 @@ export default function ShareScreen() {
             </View>
             <Text style={styles.completionText}>{view.completionPct}% catalog</Text>
           </View>
+
+          {isDaily && streakCount >= 2 ? (
+            <AppText variant="label" align="center" color={palette.goldDeep} style={styles.streak}>
+              🔥 {streakCount}-DAY STREAK
+            </AppText>
+          ) : null}
 
           <Text style={styles.tagline}>Arrange the shelf. Watch it pay.</Text>
         </View>
@@ -152,6 +159,7 @@ const styles = StyleSheet.create({
   progressFill: { backgroundColor: palette.accentTeal, borderRadius: radii.pill, height: 8 },
   completionText: { ...typeScale.body, color: palette.inkSoft, fontSize: 12 },
 
+  streak: { letterSpacing: 1, fontWeight: '700' },
   tagline: { ...typeScale.body, color: palette.inkFaint, fontStyle: 'italic', textAlign: 'center' },
   hintRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   hintDot: {

@@ -29,6 +29,7 @@ export default function TitleScreen() {
   const continueRun = useRunStore((state) => state.continueRun);
   const loadDaily = useDailyStore((state) => state.loadDaily);
   const playedToday = useDailyStore(dailySelectors.playedToday);
+  const streakCount = useDailyStore(dailySelectors.streakCount);
   const catSprite = spriteFor('shop-cat');
   const reduced = useReducedMotion();
 
@@ -124,7 +125,19 @@ export default function TitleScreen() {
       {/* primary actions live in the bottom reach zone */}
       <Entrance index={1} style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
         <WoodButton label="New Run" onPress={onNewRun} />
-        <WoodButton label={playedToday ? 'Daily ✓ — View Card' : 'Daily Shelf'} variant="secondary" onPress={onDaily} />
+        <WoodButton
+          label={
+            // A live streak (≥2) takes the compact form ("Daily ✓ · 🔥 4") so it
+            // stays one line on iPhone SE; without a streak, keep the fuller copy.
+            streakCount >= 2
+              ? `${playedToday ? 'Daily ✓' : 'Daily Shelf'} · 🔥 ${streakCount}`
+              : playedToday
+                ? 'Daily ✓ — View Card'
+                : 'Daily Shelf'
+          }
+          variant="secondary"
+          onPress={onDaily}
+        />
         <View style={styles.secondaryRow}>
           <View style={styles.grow}>
             <WoodButton label="Continue" variant="secondary" onPress={onContinue} />

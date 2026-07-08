@@ -27,7 +27,7 @@ import {
 import { routeForGameState } from '../state/phaseRouting';
 import { buildIdentityView, nearMissView, runSelectors, useRunStore } from '../state/store';
 import { personalBestsView, useCatalogStore, type PersonalBestRow } from '../state/catalogStore';
-import { isDailySeed, useDailyStore } from '../state/dailyStore';
+import { dailySelectors, isDailySeed, useDailyStore } from '../state/dailyStore';
 
 const overshoot = Easing.bezier(...motion.easings.overshoot);
 
@@ -42,6 +42,7 @@ export default function RunSummaryScreen() {
   const startNewRun = useRunStore((state) => state.startNewRun);
   const recordRunEnd = useCatalogStore((state) => state.recordRunEnd);
   const recordDaily = useDailyStore((state) => state.recordDaily);
+  const streakCount = useDailyStore(dailySelectors.streakCount);
   const isDaily = isDailySeed(gameState.seed);
 
   // Freeze the STANDING personal bests at mount — before `recordRunEnd` folds this
@@ -125,6 +126,12 @@ export default function RunSummaryScreen() {
         {nearMiss ? (
           <AppText variant="body" align="center" color={palette.emberDark} style={styles.nearMiss}>
             Paid rent with {plural(nearMiss.coinsToSpare, 'coin')} to spare
+          </AppText>
+        ) : null}
+
+        {isDaily && streakCount >= 2 ? (
+          <AppText variant="body" align="center" color={palette.goldDeep} style={styles.streak}>
+            🔥 {streakCount}-day daily streak
           </AppText>
         ) : null}
 
@@ -263,6 +270,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   nearMiss: {
+    fontWeight: '700',
+  },
+  streak: {
     fontWeight: '700',
   },
   stats: {
