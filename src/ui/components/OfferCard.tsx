@@ -1,7 +1,17 @@
+import { useEffect } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { baloo2IconNudge, borders, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { baloo2IconNudge, borders, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { useReducedMotion } from '../prefs';
 import { TagChip } from './TagChip';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface OfferCardData {
   name: string;
@@ -21,15 +31,31 @@ interface OfferCardProps {
 
 /** Delivery-draft card: sprite (placeholder glyph), name, tier pips, value. */
 export function OfferCard({ offer, selected = false, onPress }: OfferCardProps) {
+  const reduced = useReducedMotion();
+  const sel = useSharedValue(selected ? 1 : 0);
+  const press = useSharedValue(0);
+
+  // Spring the selection lift instead of snapping — the card rises into focus.
+  useEffect(() => {
+    const to = selected ? 1 : 0;
+    sel.value = reduced ? withTiming(to, { duration: 0 }) : withSpring(to, motion.springs.settle);
+  }, [selected, reduced, sel]);
+
+  const setPress = (to: number) => {
+    press.value = reduced ? withTiming(to, { duration: 0 }) : withSpring(to, motion.springs.grab);
+  };
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: (1 + sel.value * 0.03) * (1 - press.value * 0.04) }],
+  }));
+
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        selected && styles.selected,
-        pressed && styles.pressed,
-      ]}
+      onPressIn={() => setPress(1)}
+      onPressOut={() => setPress(0)}
+      style={[styles.card, selected && styles.selected, animStyle]}
     >
       {offer.sprite ? (
         <View style={styles.spriteMat}>
@@ -57,7 +83,7 @@ export function OfferCard({ offer, selected = false, onPress }: OfferCardProps) 
           <TagChip key={tag} label={tag} />
         ))}
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -75,15 +101,11 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   selected: {
-    // Stronger "selected" read against the busy room backdrop: a thick teal ring,
-    // a lift, and a slight scale-up so it clearly pops, not just a hairline tint.
+    // Stronger "selected" read against the busy room backdrop: a thick teal ring
+    // and a lift. The scale-up is animated (see animStyle) so it springs in.
     borderColor: palette.accentTeal,
     borderWidth: borders.strong + 1,
-    transform: [{ scale: 1.03 }],
     ...shadows.lifted,
-  },
-  pressed: {
-    transform: [{ scale: 0.97 }],
   },
   glyph: {
     fontSize: 40,

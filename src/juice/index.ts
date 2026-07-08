@@ -2,6 +2,7 @@
 
 export { ShelfScene } from './ShelfScene';
 export { ItemSprite } from './ItemSprite';
+export { Entrance } from './Entrance';
 export { DuskAmbience } from './DuskAmbience';
 export { DraggableItem, type SceneShared } from './DraggableItem';
 // SkiaShelfFrame is intentionally NOT re-exported: importing it pulls in

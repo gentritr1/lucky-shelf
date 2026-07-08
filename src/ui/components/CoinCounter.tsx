@@ -43,12 +43,17 @@ export function CoinCounter({
   const punch = useSharedValue(1);
   const prev = useRef(coins);
   useEffect(() => {
-    if (slam && coins !== prev.current) {
-      punch.value = reduced
-        ? 1
-        : withSequence(
+    if (coins !== prev.current && !reduced) {
+      // Slam is the big cascade payoff; the HUD pill gets a subtle tick so a coin
+      // change registers without shouting.
+      punch.value = slam
+        ? withSequence(
             withTiming(1.22, { duration: 110, easing: overshoot }),
             withTiming(1, { duration: 260, easing: overshoot }),
+          )
+        : withSequence(
+            withTiming(1.06, { duration: 90, easing: overshoot }),
+            withTiming(1, { duration: 180, easing: overshoot }),
           );
     }
     prev.current = coins;

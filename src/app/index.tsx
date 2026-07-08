@@ -1,11 +1,18 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCallback, useEffect } from 'react';
 
-import { GearIcon, WoodButton, layout, palette, radii, shadows, spacing, typeScale } from '@/ui';
-import { primeAudio, setMusicTrack, spriteFor } from '@/juice';
+import { GearIcon, WoodButton, layout, palette, radii, shadows, spacing, typeScale, useReducedMotion } from '@/ui';
+import { Entrance, primeAudio, setMusicTrack, spriteFor } from '@/juice';
 import { useRunStore } from '../state/store';
 import { routeForGameState } from '../state/phaseRouting';
 import { dailySeedFor, dailySelectors, todayDateString, useDailyStore } from '../state/dailyStore';
@@ -23,6 +30,25 @@ export default function TitleScreen() {
   const loadDaily = useDailyStore((state) => state.loadDaily);
   const playedToday = useDailyStore(dailySelectors.playedToday);
   const catSprite = spriteFor('shop-cat');
+  const reduced = useReducedMotion();
+
+  // The mascot breathes so the landing screen isn't a frozen poster — same
+  // subtle vocabulary as the shelf sprites (≤2% scale, slow sine loop).
+  const catBreathe = useSharedValue(0);
+  useEffect(() => {
+    if (reduced) {
+      catBreathe.value = 0;
+      return;
+    }
+    catBreathe.value = withRepeat(
+      withTiming(1, { duration: 3600, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+  }, [reduced, catBreathe]);
+  const catAnim = useAnimatedStyle(() => ({
+    transform: [{ translateY: -catBreathe.value * 3 }, { scale: 1 + catBreathe.value * 0.02 }],
+  }));
 
   useEffect(() => {
     void loadDaily().catch(() => undefined);
@@ -82,19 +108,21 @@ export default function TitleScreen() {
       </Pressable>
 
       {/* mascot over the room + the wordmark on a translucent shop-sign plate */}
-      <View style={styles.scene}>
+      <Entrance index={0} style={styles.scene}>
         {catSprite ? (
-          <Image source={catSprite} style={styles.catImg} resizeMode="contain" />
+          <Animated.View style={catAnim}>
+            <Image source={catSprite} style={styles.catImg} resizeMode="contain" />
+          </Animated.View>
         ) : null}
         <View style={styles.titlePlate}>
           <Text style={styles.eyebrow}>GOLDEN HOUR GENERAL STORE</Text>
           <Text style={styles.title}>Lucky Shelf</Text>
           <Text style={styles.tagline}>Arrange the shelf. Watch it pay.</Text>
         </View>
-      </View>
+      </Entrance>
 
       {/* primary actions live in the bottom reach zone */}
-      <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
+      <Entrance index={1} style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
         <WoodButton label="New Run" onPress={onNewRun} />
         <WoodButton label={playedToday ? 'Daily ✓ — View Card' : 'Daily Shelf'} variant="secondary" onPress={onDaily} />
         <View style={styles.secondaryRow}>
@@ -105,7 +133,7 @@ export default function TitleScreen() {
             <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
           </View>
         </View>
-      </View>
+      </Entrance>
     </View>
   );
 }

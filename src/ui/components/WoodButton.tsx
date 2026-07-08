@@ -1,7 +1,16 @@
 import { Pressable, StyleSheet } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { borders, palette, radii, spacing, touch } from '../tokens';
+import { borders, motion, palette, radii, spacing, touch } from '../tokens';
+import { useReducedMotion } from '../prefs';
 import { AppText } from './AppText';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface WoodButtonProps {
   label: string;
@@ -12,28 +21,42 @@ interface WoodButtonProps {
 
 /**
  * The workhorse button. Primary = warm wood with a sunlit top edge;
- * secondary = parchment. Press-in scales to 0.97 in `motion.durations.tick`
- * spirit (Pressable style function — the full spring lands with Reanimated
- * wiring in M1).
+ * secondary = parchment. Press-in springs to 0.96 on the `grab` token spring so
+ * every tap feels physical instead of an instant opacity flick; snaps flat in
+ * reduced-motion mode.
  */
 export function WoodButton({ label, onPress, variant = 'primary', disabled = false }: WoodButtonProps) {
   const primary = variant === 'primary';
+  const reduced = useReducedMotion();
+  const press = useSharedValue(0);
+
+  const setPress = (to: number) => {
+    press.value = reduced ? withTiming(to, { duration: 0 }) : withSpring(to, motion.springs.grab);
+  };
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - press.value * 0.04 }],
+    opacity: 1 - press.value * 0.08,
+  }));
+
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
+      onPressIn={() => setPress(1)}
+      onPressOut={() => setPress(0)}
+      style={[
         styles.base,
         primary ? styles.primary : styles.secondary,
-        pressed && styles.pressed,
+        animStyle,
         disabled && styles.disabled,
       ]}
     >
       <AppText variant="heading" align="center" style={primary ? styles.labelPrimary : styles.labelSecondary}>
         {label}
       </AppText>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -55,10 +78,6 @@ const styles = StyleSheet.create({
     backgroundColor: palette.parchment,
     borderColor: palette.parchmentEdge,
     borderWidth: borders.hairline,
-  },
-  pressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.97 }],
   },
   disabled: {
     opacity: 0.45,

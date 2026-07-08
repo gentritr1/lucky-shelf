@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
 import { OfferCard, SectionLabel, WoodButton, borders, buildAccents, layout, palette, radii, shadows, spacing, tagEmoji, touch, typeScale, type OfferCardData } from '@/ui';
-import { glyphFor, setMusicTrack, spriteFor } from '@/juice';
+import { Entrance, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { draftAffordanceView, runSelectors, useRunStore } from '../state/store';
 
@@ -112,10 +112,10 @@ export default function DraftScreen() {
         </View>
       ) : (
         <View style={styles.pickBody}>
-          <View style={styles.labelPlate}>
+          <Entrance index={0} style={styles.labelPlate}>
             <SectionLabel>{`DAY ${gameState.day} DELIVERY — DRAFT ONE`}</SectionLabel>
-          </View>
-          <View style={styles.offers}>
+          </Entrance>
+          <Entrance index={1} style={styles.offers}>
             {offers.length === 0 ? (
               <Text style={styles.caption}>No delivery offers are available.</Text>
             ) : (
@@ -128,19 +128,19 @@ export default function DraftScreen() {
                 />
               ))
             )}
-          </View>
-          <View style={styles.captionPlate}>
+          </Entrance>
+          <Entrance index={2} style={styles.captionPlate}>
             <Text style={styles.caption}>
               {lastRejectedAction?.message ?? 'The other offers leave when you draft.'}
             </Text>
-          </View>
-          <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
+          </Entrance>
+          <Entrance index={3} style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
             <WoodButton
               label={selectedOffer ? `Draft ${selectedOffer.item.name}` : 'No Offer'}
               disabled={!selectedDraftAction}
               onPress={draftSelected}
             />
-          </View>
+          </Entrance>
         </View>
       )}
     </View>
