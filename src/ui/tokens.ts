@@ -84,6 +84,23 @@ export const buildAccents: Record<string, string> = {
   plant: '#5B9B6A',
 } as const;
 
+/**
+ * One emoji per build/synergy tag, shared by the build-identity hero and the
+ * supplier picker so an archetype reads the same everywhere. Fall back to 🏷️.
+ */
+export const tagEmoji: Record<string, string> = {
+  fancy: '✨',
+  food: '🍎',
+  antique: '🏺',
+  lucky: '🍀',
+  fragile: '🥂',
+  utility: '🔧',
+  drink: '🍷',
+  perishable: '🍓',
+  sweet: '🍬',
+  plant: '🪴',
+} as const;
+
 // ---------------------------------------------------------------------------
 // Layout scales.
 // ---------------------------------------------------------------------------

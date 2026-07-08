@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
-import { OfferCard, SectionLabel, WoodButton, borders, layout, palette, radii, shadows, spacing, touch, typeScale, type OfferCardData } from '@/ui';
+import { OfferCard, SectionLabel, WoodButton, borders, buildAccents, layout, palette, radii, shadows, spacing, tagEmoji, touch, typeScale, type OfferCardData } from '@/ui';
 import { glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { runSelectors, useRunStore } from '../state/store';
@@ -91,9 +91,14 @@ export default function DraftScreen() {
                 <Pressable
                   key={tag}
                   accessibilityRole="button"
-                  style={styles.supplierChip}
+                  style={({ pressed }) => [
+                    styles.supplierChip,
+                    { borderColor: buildAccents[tag] ?? palette.goldDeep },
+                    pressed && styles.supplierChipPressed,
+                  ]}
                   onPress={() => chooseSupplier(tag)}
                 >
+                  <Text style={styles.supplierEmoji}>{tagEmoji[tag] ?? '🏷️'}</Text>
                   <Text style={styles.supplierChipText}>{capitalize(tag)}</Text>
                 </Pressable>
               ))}
@@ -243,19 +248,28 @@ const styles = StyleSheet.create({
   },
   supplierChip: {
     alignItems: 'center',
-    backgroundColor: palette.plate,
-    borderColor: palette.parchmentEdge,
+    backgroundColor: palette.creamBright,
     borderRadius: radii.md,
-    borderWidth: borders.regular,
+    borderWidth: 2,
+    gap: spacing.xxs,
     justifyContent: 'center',
     minHeight: touch.minTargetPt,
-    paddingHorizontal: spacing.lg,
+    minWidth: 88,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     ...shadows.card,
+  },
+  supplierChipPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.97 }],
+  },
+  supplierEmoji: {
+    fontSize: 26,
   },
   supplierChipText: {
     ...typeScale.heading,
     color: palette.ink,
+    fontSize: 15,
   },
   caption: {
     ...typeScale.body,

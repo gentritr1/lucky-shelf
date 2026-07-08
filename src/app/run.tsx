@@ -16,6 +16,7 @@ import {
   palette,
   radii,
   spacing,
+  tagEmoji,
   typeScale,
 } from '@/ui';
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
@@ -205,19 +206,6 @@ export default function RunHudScreen() {
   );
 }
 
-const TAG_EMOJI: Record<string, string> = {
-  drink: '🍷',
-  food: '🍎',
-  sweet: '🍬',
-  toy: '🧸',
-  tool: '🔧',
-  decor: '🖼️',
-  book: '📚',
-  plant: '🪴',
-  pet: '🐾',
-  luxury: '💎',
-};
-
 /**
  * The build signpost — one panel that answers "what am I making, and is it
  * paying off?" The dominant-tag build is the hero (title + live ×multiplier +
@@ -244,7 +232,7 @@ function BuildSignpost({
       ]}
     >
       <View style={styles.buildHero}>
-        <Text style={styles.buildEmoji}>{build ? TAG_EMOJI[build.tag] ?? '🏷️' : '🛒'}</Text>
+        <Text style={styles.buildEmoji}>{build ? tagEmoji[build.tag] ?? '🏷️' : '🛒'}</Text>
         <View style={styles.buildHeroText}>
           <Text style={styles.buildTitle}>{build ? `${build.tag.toUpperCase()} SHELF` : 'YOUR SHELF'}</Text>
           <Text style={styles.buildSub}>
