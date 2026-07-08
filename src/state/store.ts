@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import {
   type Action,
   type GameState,
+  type ItemDefinition,
   type ItemInstance,
   type Slot,
 } from '../contracts';
@@ -158,6 +159,30 @@ export function buildIdentityView(gameState: GameState): BuildIdentityView | nul
     else if (!next) next = { count: step.minCount, mult: step.mult };
   }
   return { tag: best.tag, count: best.count, mult, active: mult > 1, next };
+}
+
+/** One-line plain-English effect for a signature item (Phase 2c run-defining
+ *  stock), or null if the item isn't signature. Keeps scoring-rule vocabulary in
+ *  the store so the shop screen can badge signatures without reading scoring. */
+export function signatureBlurb(item: ItemDefinition): string | null {
+  if (!isSignatureItem(item)) return null;
+  for (const rule of item.rules) {
+    switch (rule.kind) {
+      case 'tagFilteredShelfMultiplier':
+        return `×${rule.mult} to every ${rule.tag} on your shelf`;
+      case 'flatPerTagCount':
+        return `+${rule.flatPerItem} for each ${rule.tag} on your shelf`;
+      case 'copyHighestScoringOther':
+        return 'Scores a copy of your best other item';
+      case 'shelfMultiplierIfAnyTagCount':
+        return `×${rule.mult} to the shelf with ${rule.minCount}+ of one tag`;
+      case 'highestBaseValueMultiplier':
+        return `×${rule.mult} to your most valuable item`;
+      default:
+        break;
+    }
+  }
+  return 'Run-defining signature stock';
 }
 
 /** Today's-Order signpost with live shelf progress, or null when no order. */

@@ -19,7 +19,7 @@ import {
 } from '@/ui';
 import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
-import { rerollCost, runSelectors, sellShelfView, useRunStore } from '../state/store';
+import { rerollCost, runSelectors, sellShelfView, signatureBlurb, useRunStore } from '../state/store';
 
 /**
  * Restock: real engine offers and economy. Buy/reroll/sell/end all go through
@@ -191,8 +191,11 @@ export default function RestockScreen() {
               offers.map((offer, index) => {
                 const canBuy = gameState.coins >= offer.cost && Boolean(emptySlot);
                 return (
-                  <View key={offer.offerId} style={styles.shopRow}>
-                    <View style={styles.shopThumb}>
+                  <View
+                    key={offer.offerId}
+                    style={[styles.shopRow, offer.blurb ? styles.shopRowSignature : null]}
+                  >
+                    <View style={[styles.shopThumb, offer.blurb ? styles.shopThumbSignature : null]}>
                       {offer.sprite ? (
                         <Image source={offer.sprite as number} style={styles.shopThumbImg} resizeMode="contain" />
                       ) : (
@@ -200,14 +203,25 @@ export default function RestockScreen() {
                       )}
                     </View>
                     <View style={styles.shopInfo}>
-                      <Text numberOfLines={1} style={styles.shopName}>{offer.name}</Text>
-                      <View style={styles.shopTags}>
-                        {offer.tags.slice(0, 2).map((tag) => (
-                          <View key={tag} style={styles.shopTag}>
-                            <Text style={styles.shopTagText}>{tag}</Text>
+                      <View style={styles.shopNameRow}>
+                        <Text numberOfLines={1} style={styles.shopName}>{offer.name}</Text>
+                        {offer.blurb ? (
+                          <View style={styles.signatureBadge}>
+                            <Text style={styles.signatureBadgeText}>✦ SIGNATURE</Text>
                           </View>
-                        ))}
+                        ) : null}
                       </View>
+                      {offer.blurb ? (
+                        <Text numberOfLines={2} style={styles.signatureEffect}>{offer.blurb}</Text>
+                      ) : (
+                        <View style={styles.shopTags}>
+                          {offer.tags.slice(0, 2).map((tag) => (
+                            <View key={tag} style={styles.shopTag}>
+                              <Text style={styles.shopTagText}>{tag}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
                     </View>
                     <Pressable
                       accessibilityRole="button"
@@ -243,6 +257,8 @@ export default function RestockScreen() {
 interface RestockOfferCard extends OfferCardData {
   offerId: string;
   cost: number;
+  /** Signature-stock effect line, or null for ordinary items. */
+  blurb: string | null;
 }
 
 function offerToCard(offer: DeliveryOffer): RestockOfferCard {
@@ -256,6 +272,7 @@ function offerToCard(offer: DeliveryOffer): RestockOfferCard {
     glyph: glyphFor(offer.item.id),
     ...(sprite !== null ? { sprite } : {}),
     tags: offer.item.tags,
+    blurb: signatureBlurb(offer.item),
   };
 }
 
@@ -375,6 +392,39 @@ const styles = StyleSheet.create({
     color: palette.inkFaint,
     fontSize: 9,
     fontWeight: '600',
+  },
+  shopRowSignature: {
+    backgroundColor: palette.sunlight,
+    borderColor: palette.goldDeep,
+    borderWidth: 1.5,
+  },
+  shopThumbSignature: {
+    backgroundColor: palette.creamBright,
+    borderColor: palette.goldDeep,
+    borderWidth: 1,
+  },
+  shopNameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  signatureBadge: {
+    backgroundColor: palette.goldDeep,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 1,
+  },
+  signatureBadgeText: {
+    color: palette.woodDark,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  signatureEffect: {
+    ...typeScale.body,
+    color: palette.emberDark,
+    fontSize: 11,
+    fontWeight: '700',
   },
   shopBuy: {
     alignItems: 'center',
