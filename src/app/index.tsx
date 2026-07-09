@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -11,8 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCallback, useEffect } from 'react';
 
-import { GearIcon, WoodButton, layout, palette, radii, shadows, spacing, typeScale, useReducedMotion } from '@/ui';
+import { AppText, GearIcon, WoodButton, layout, usePalette, useReducedMotion, useThemedStyles } from '@/ui';
 import { Entrance, primeAudio, setMusicTrack, spriteFor } from '@/juice';
+
+import { makeStyles } from './index.styles';
 import { useRunStore } from '../state/store';
 import { routeForGameState } from '../state/phaseRouting';
 import { dailySeedFor, dailySelectors, todayDateString, useDailyStore } from '../state/dailyStore';
@@ -25,6 +27,8 @@ import { dailySeedFor, dailySelectors, todayDateString, useDailyStore } from '..
 export default function TitleScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const startNewRun = useRunStore((state) => state.startNewRun);
   const continueRun = useRunStore((state) => state.continueRun);
   const loadDaily = useDailyStore((state) => state.loadDaily);
@@ -116,9 +120,9 @@ export default function TitleScreen() {
           </Animated.View>
         ) : null}
         <View style={styles.titlePlate}>
-          <Text style={styles.eyebrow}>GOLDEN HOUR GENERAL STORE</Text>
-          <Text style={styles.title}>Lucky Shelf</Text>
-          <Text style={styles.tagline}>Arrange the shelf. Watch it pay.</Text>
+          <AppText variant="label" color={palette.tealDark}>GOLDEN HOUR GENERAL STORE</AppText>
+          <AppText variant="display" color={palette.ink} style={styles.title}>Lucky Shelf</AppText>
+          <AppText variant="body" color={palette.inkSoft}>Arrange the shelf. Watch it pay.</AppText>
         </View>
       </Entrance>
 
@@ -150,82 +154,3 @@ export default function TitleScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: palette.wallCream,
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingHorizontal: layout.screenPadX,
-  },
-  gear: {
-    alignItems: 'center',
-    backgroundColor: palette.plate,
-    borderRadius: radii.pill,
-    height: 44,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: spacing.xl,
-    width: 44,
-    zIndex: 10,
-    ...shadows.card,
-  },
-  scrim: {
-    backgroundColor: palette.wallCream,
-    bottom: 0,
-    left: 0,
-    opacity: 0.18,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  scene: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    gap: spacing.lg,
-  },
-  catImg: {
-    height: 168,
-    width: 168,
-  },
-  titlePlate: {
-    alignItems: 'center',
-    backgroundColor: palette.plate,
-    borderRadius: radii.lg,
-    gap: spacing.xxs,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    // optical nudge right: the painted window sits left-of-centre, so true-centre
-    // reads as leaning left — this rebalances the wordmark against the backdrop
-    transform: [{ translateX: spacing.md }],
-    ...shadows.card,
-  },
-  eyebrow: {
-    ...typeScale.label,
-    color: palette.tealDark,
-  },
-  title: {
-    ...typeScale.display,
-    color: palette.ink,
-    fontSize: 44,
-    // Baloo 2 has very tall natural metrics (~1.58x em); a tight lineHeight clips
-    // the ascender hooks (the "f"/"l"/"h" tops read cut off). Give it ~1.35x room
-    // so the wordmark sits centred and uncropped.
-    lineHeight: 60,
-  },
-  tagline: {
-    ...typeScale.body,
-    color: palette.inkSoft,
-  },
-  actions: {
-    gap: spacing.md,
-  },
-  secondaryRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  grow: {
-    flex: 1,
-  },
-});
