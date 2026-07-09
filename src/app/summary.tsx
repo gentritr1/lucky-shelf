@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -18,14 +18,14 @@ import {
   buildAccents,
   layout,
   motion,
-  palette,
-  radii,
-  spacing,
   tagEmoji,
-  typeScale,
+  usePalette,
   useReducedMotion,
+  useThemedStyles,
 } from '@/ui';
 import { spriteFor } from '@/juice';
+
+import { makeStyles } from './summary.styles';
 import { routeForGameState } from '../state/phaseRouting';
 import { buildIdentityView, nearMissView, runSelectors, useRunStore } from '../state/store';
 import {
@@ -48,6 +48,8 @@ function plural(n: number, unit: string): string {
 export default function RunSummaryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const gameState = useRunStore(runSelectors.gameState);
   const startNewRun = useRunStore((state) => state.startNewRun);
   const recordRunEnd = useCatalogStore((state) => state.recordRunEnd);
@@ -198,6 +200,8 @@ export default function RunSummaryScreen() {
 /** The quiet "one more run" prompt (B-M5 Part 3): a silhouette thumb + unlock
  *  hint for the nearest locked item. Warm, not a popup — no CTA, no coins. */
 function NextUnlockTeaser({ row }: { row: NextUnlockRow }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const sprite = spriteFor(row.itemId);
   return (
     <View style={styles.teaser}>
@@ -221,6 +225,8 @@ function NextUnlockTeaser({ row }: { row: NextUnlockRow }) {
 /** One personal-best row: this run's value on the right with either a celebratory
  *  "New record!" accent or the standing best beneath it. */
 function BestRow({ row }: { row: PersonalBestRow }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const unit = row.kind === 'days' ? 'd' : '';
   return (
     <View style={styles.statRow}>
@@ -253,6 +259,8 @@ function BestRow({ row }: { row: PersonalBestRow }) {
  *  as a celebratory caption rather than a second stacked pill. Pops in with an
  *  overshoot spring; snaps flat under reduced motion (prefs). */
 function RecordAccent() {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const reduced = useReducedMotion();
   const progress = useSharedValue(reduced ? 1 : 0);
 
@@ -285,84 +293,3 @@ function RecordAccent() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: palette.wallCream,
-    flex: 1,
-    gap: spacing.lg,
-    paddingHorizontal: layout.screenPadX,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  back: {
-    width: 72,
-  },
-  spacer: {
-    width: 72,
-  },
-  bodyScroll: {
-    flex: 1,
-  },
-  body: {
-    flexGrow: 1,
-    gap: spacing.md,
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-  },
-  seed: {
-    letterSpacing: 1,
-  },
-  recap: {
-    fontWeight: '700',
-  },
-  nearMiss: {
-    fontWeight: '700',
-  },
-  streak: {
-    fontWeight: '700',
-  },
-  stats: {
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  statRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: spacing.giant,
-  },
-  bestRight: {
-    alignItems: 'flex-end',
-    gap: spacing.xxs,
-  },
-  bestCaption: {
-    color: palette.inkFaint,
-  },
-  recordText: {
-    color: palette.goldDeep,
-  },
-  teaser: {
-    alignItems: 'center',
-    backgroundColor: palette.parchment,
-    borderRadius: radii.md,
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-    padding: spacing.md,
-  },
-  teaserThumb: { height: 40, tintColor: palette.inkFaint, width: 40 },
-  teaserThumbBox: {
-    backgroundColor: palette.inkFaint,
-    borderRadius: radii.sm,
-    height: 40,
-    width: 40,
-  },
-  teaserText: { flex: 1, gap: spacing.xxs },
-  actions: {
-    gap: spacing.md,
-    marginTop: 'auto',
-  },
-});
