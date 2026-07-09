@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from 'react';
-import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Share, Text, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppText, WoodButton, layout, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { AppText, WoodButton, layout, usePalette, useThemedStyles } from '@/ui';
 import { spriteFor } from '@/juice';
+
+import { makeStyles } from './share.styles';
 import { receiptCardView, runSelectors, useRunStore } from '../state/store';
 import { buildCatalogView, catalogSelectors, useCatalogStore } from '../state/catalogStore';
 import { dailySelectors, isDailySeed, useDailyStore } from '../state/dailyStore';
@@ -22,6 +24,8 @@ type CardVariant = 'card' | 'receipt';
 export default function ShareScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const gameState = useRunStore(runSelectors.gameState);
   const catalog = useCatalogStore(catalogSelectors.catalog);
   const streakCount = useDailyStore(dailySelectors.streakCount);
@@ -58,9 +62,9 @@ export default function ShareScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
-          <Text style={styles.back}>‹ Menu</Text>
+          <AppText variant="heading" color={palette.tealDark} style={styles.back}>‹ Menu</AppText>
         </Pressable>
-        <Text style={styles.title}>Share</Text>
+        <AppText variant="title" color={palette.ink}>Share</AppText>
         <View style={styles.spacer} />
       </View>
 
@@ -81,37 +85,44 @@ export default function ShareScreen() {
         {activeVariant === 'receipt' && receipt ? (
           <View ref={cardRef} collapsable={false} style={styles.receiptCard}>
             <View style={styles.cardHeader}>
-              <Text style={styles.brand}>LUCKY SHELF</Text>
-              <Text style={styles.date}>{isDaily ? `DAILY · ${dateLabel}` : dateLabel}</Text>
-              {isDaily ? <Text style={styles.seed}>SEED · {label}</Text> : null}
+              <AppText variant="title" color={palette.ink} style={styles.brand}>LUCKY SHELF</AppText>
+              <AppText variant="label" color={palette.accentTeal}>{isDaily ? `DAILY · ${dateLabel}` : dateLabel}</AppText>
+              {isDaily ? <AppText variant="label" color={palette.inkFaint} style={styles.seed}>SEED · {label}</AppText> : null}
             </View>
 
             <View style={styles.receiptBody}>
-              {receipt.body.map((line, i) => (
-                <Text
-                  key={i}
-                  style={[styles.receiptLine, i === receipt.body.length - 1 && styles.receiptTotal]}
-                >
-                  {line}
-                </Text>
-              ))}
+              {receipt.body.map((line, i) => {
+                const isTotal = i === receipt.body.length - 1;
+                return (
+                  <AppText
+                    key={i}
+                    variant="receipt"
+                    color={isTotal ? palette.goldDeep : palette.ink}
+                    style={isTotal ? styles.receiptTotal : undefined}
+                  >
+                    {line}
+                  </AppText>
+                );
+              })}
             </View>
 
-            <Text style={styles.receiptCaption}>closing day · arrange the shelf, watch it pay</Text>
+            <AppText variant="body" color={palette.inkFaint} style={styles.receiptCaption}>closing day · arrange the shelf, watch it pay</AppText>
           </View>
         ) : (
           <View ref={cardRef} collapsable={false} style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.brand}>LUCKY SHELF</Text>
-              <Text style={styles.date}>{isDaily ? `DAILY · ${dateLabel}` : dateLabel}</Text>
-              {isDaily ? <Text style={styles.seed}>SEED · {label}</Text> : null}
+              <AppText variant="title" color={palette.ink} style={styles.brand}>LUCKY SHELF</AppText>
+              <AppText variant="label" color={palette.accentTeal}>{isDaily ? `DAILY · ${dateLabel}` : dateLabel}</AppText>
+              {isDaily ? <AppText variant="label" color={palette.inkFaint} style={styles.seed}>SEED · {label}</AppText> : null}
             </View>
 
             <View style={styles.hero}>
               {catSprite ? <Image source={catSprite} style={styles.heroCat} resizeMode="contain" /> : null}
               <View style={styles.heroText}>
+                {/* bespoke hero numeral (no type role / font family) — raw <Text>
+                    exception so routing it through AppText can't change its look */}
                 <Text style={styles.heroNumber}>{stats.daysSurvived}</Text>
-                <Text style={styles.heroLabel}>DAYS SURVIVED</Text>
+                <AppText variant="label" color={palette.inkFaint}>DAYS SURVIVED</AppText>
               </View>
             </View>
 
@@ -125,7 +136,7 @@ export default function ShareScreen() {
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${view.completionPct}%` }]} />
               </View>
-              <Text style={styles.completionText}>{view.completionPct}% catalog</Text>
+              <AppText variant="body" color={palette.inkSoft} style={styles.completionText}>{view.completionPct}% catalog</AppText>
             </View>
 
             {isDaily && streakCount >= 2 ? (
@@ -134,13 +145,13 @@ export default function ShareScreen() {
               </AppText>
             ) : null}
 
-            <Text style={styles.tagline}>Arrange the shelf. Watch it pay.</Text>
+            <AppText variant="body" color={palette.inkFaint} style={styles.tagline}>Arrange the shelf. Watch it pay.</AppText>
           </View>
         )}
 
         <View style={styles.hintRow}>
           <View style={styles.hintDot} />
-          <Text style={styles.hint}>Screenshot to share your shelf</Text>
+          <AppText variant="body" color={palette.inkFaint} style={styles.hint}>Screenshot to share your shelf</AppText>
         </View>
       </View>
 
@@ -153,15 +164,19 @@ export default function ShareScreen() {
 }
 
 function Stat({ value, label }: { value: string; label: string }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   return (
     <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <AppText variant="heading" color={palette.ink}>{value}</AppText>
+      <AppText variant="label" color={palette.inkFaint} style={styles.statLabel}>{label}</AppText>
     </View>
   );
 }
 
 function VariantTab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   return (
     <Pressable
       accessibilityRole="button"
@@ -170,108 +185,8 @@ function VariantTab({ label, active, onPress }: { label: string; active: boolean
       onPress={onPress}
       style={[styles.variantTab, active && styles.variantTabActive]}
     >
-      <Text style={[styles.variantTabText, active && styles.variantTabTextActive]}>{label}</Text>
+      <AppText variant="label" color={active ? palette.ink : palette.inkFaint}>{label}</AppText>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { backgroundColor: palette.wallCream, flex: 1, paddingHorizontal: layout.screenPadX },
-  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  back: { ...typeScale.heading, color: palette.tealDark, width: 72 },
-  title: { ...typeScale.title, color: palette.ink },
-  spacer: { width: 72 },
-
-  cardWrap: { alignItems: 'center', flex: 1, gap: spacing.md, justifyContent: 'center' },
-  card: {
-    backgroundColor: palette.creamBright,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.lg,
-    borderWidth: 2,
-    gap: spacing.lg,
-    padding: spacing.xl,
-    width: '100%',
-    ...shadows.lifted,
-  },
-  cardHeader: { alignItems: 'center', gap: spacing.xxs },
-  brand: { ...typeScale.title, color: palette.ink, letterSpacing: 1 },
-  date: { ...typeScale.label, color: palette.accentTeal },
-  seed: { ...typeScale.label, color: palette.inkFaint, letterSpacing: 1 },
-
-  variantToggle: {
-    backgroundColor: palette.parchment,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.xxs,
-    padding: spacing.xxs,
-  },
-  variantTab: {
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-  },
-  variantTabActive: { backgroundColor: palette.creamBright, ...shadows.lifted },
-  variantTabText: { ...typeScale.label, color: palette.inkFaint },
-  variantTabTextActive: { color: palette.ink },
-
-  receiptCard: {
-    backgroundColor: palette.creamBright,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.sm,
-    borderWidth: 2,
-    gap: spacing.md,
-    padding: spacing.xl,
-    width: '100%',
-    ...shadows.lifted,
-  },
-  receiptBody: {
-    borderColor: palette.parchment,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    paddingVertical: spacing.md,
-  },
-  receiptLine: { ...typeScale.receipt, color: palette.ink },
-  receiptTotal: { color: palette.goldDeep, fontWeight: '700' },
-  receiptCaption: {
-    ...typeScale.body,
-    color: palette.inkFaint,
-    fontSize: 12,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-
-  hero: { alignItems: 'center', flexDirection: 'row', gap: spacing.lg, justifyContent: 'center' },
-  heroCat: { height: 96, width: 96 },
-  heroText: { alignItems: 'flex-start' },
-  heroNumber: { color: palette.rentEmber, fontSize: 64, fontWeight: '800', lineHeight: 66 },
-  heroLabel: { ...typeScale.label, color: palette.inkFaint },
-
-  statGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-  stat: { alignItems: 'center', flex: 1 },
-  statValue: { ...typeScale.heading, color: palette.ink },
-  statLabel: { ...typeScale.label, color: palette.inkFaint, fontSize: 10 },
-
-  completionRow: { alignItems: 'center', gap: spacing.xs },
-  progressTrack: {
-    backgroundColor: palette.parchment,
-    borderRadius: radii.pill,
-    height: 8,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  progressFill: { backgroundColor: palette.accentTeal, borderRadius: radii.pill, height: 8 },
-  completionText: { ...typeScale.body, color: palette.inkSoft, fontSize: 12 },
-
-  streak: { letterSpacing: 1, fontWeight: '700' },
-  tagline: { ...typeScale.body, color: palette.inkFaint, fontStyle: 'italic', textAlign: 'center' },
-  hintRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  hintDot: {
-    backgroundColor: palette.accentTeal,
-    borderRadius: radii.pill,
-    height: 6,
-    width: 6,
-  },
-  hint: { ...typeScale.body, color: palette.inkFaint, fontSize: 13 },
-
-  actions: { gap: spacing.md, marginTop: 'auto' },
-});
