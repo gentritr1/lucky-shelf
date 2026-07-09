@@ -4,8 +4,10 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
-import { OfferCard, SectionLabel, WoodButton, borders, buildAccents, layout, palette, radii, shadows, spacing, tagEmoji, touch, typeScale, type OfferCardData } from '@/ui';
+import { AppText, OfferCard, SectionLabel, WoodButton, buildAccents, layout, tagEmoji, usePalette, useThemedStyles, type OfferCardData } from '@/ui';
 import { Entrance, glyphFor, setMusicTrack, spriteFor } from '@/juice';
+
+import { makeStyles } from './draft.styles';
 import { routeForGameState } from '../state/phaseRouting';
 import { draftAffordanceView, runSelectors, useRunStore } from '../state/store';
 
@@ -18,6 +20,8 @@ import { draftAffordanceView, runSelectors, useRunStore } from '../state/store';
 export default function DraftScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const gameState = useRunStore(runSelectors.gameState);
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
@@ -78,9 +82,9 @@ export default function DraftScreen() {
 
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
-          <Text style={styles.back}>‹ Menu</Text>
+          <AppText variant="heading" color={palette.tealDark} style={styles.back}>‹ Menu</AppText>
         </Pressable>
-        <Text style={styles.title}>Delivery</Text>
+        <AppText variant="title" color={palette.ink}>Delivery</AppText>
         <View style={styles.spacer} />
       </View>
 
@@ -88,9 +92,9 @@ export default function DraftScreen() {
         <View style={styles.pickBody}>
           <View style={styles.supplierPanel}>
             <SectionLabel>CHOOSE YOUR SUPPLIER</SectionLabel>
-            <Text style={styles.supplierHint}>
+            <AppText variant="body" color={palette.inkSoft} style={styles.supplierHint}>
               Lean into an archetype — the shop tilts toward it all run.
-            </Text>
+            </AppText>
             <View style={styles.supplierGrid}>
               {pendingSupplierTags.map((tag) => (
                 <Pressable
@@ -103,8 +107,9 @@ export default function DraftScreen() {
                   ]}
                   onPress={() => chooseSupplier(tag)}
                 >
+                  {/* decorative emoji glyph — raw <Text> exception (icon-like) */}
                   <Text style={styles.supplierEmoji}>{tagEmoji[tag] ?? '🏷️'}</Text>
-                  <Text style={styles.supplierChipText}>{capitalize(tag)}</Text>
+                  <AppText variant="heading" color={palette.ink} style={styles.supplierChipText}>{capitalize(tag)}</AppText>
                 </Pressable>
               ))}
             </View>
@@ -117,7 +122,7 @@ export default function DraftScreen() {
           </Entrance>
           <Entrance index={1} style={styles.offers}>
             {offers.length === 0 ? (
-              <Text style={styles.caption}>No delivery offers are available.</Text>
+              <AppText variant="body" color={palette.inkFaint} style={styles.caption}>No delivery offers are available.</AppText>
             ) : (
               offers.map((offer, index) => (
                 <OfferCard
@@ -130,9 +135,9 @@ export default function DraftScreen() {
             )}
           </Entrance>
           <Entrance index={2} style={styles.captionPlate}>
-            <Text style={styles.caption}>
+            <AppText variant="body" color={palette.inkFaint} style={styles.caption}>
               {lastRejectedAction?.message ?? 'The other offers leave when you draft.'}
-            </Text>
+            </AppText>
           </Entrance>
           <Entrance index={3} style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
             <WoodButton
@@ -168,121 +173,3 @@ function offerToCard(offer: DeliveryOffer): DraftOfferCard {
   };
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: palette.wallCream,
-    flex: 1,
-    gap: spacing.lg,
-    paddingHorizontal: layout.screenPadX,
-  },
-  scrim: {
-    backgroundColor: palette.wallCream,
-    bottom: 0,
-    left: 0,
-    opacity: 0.22,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  topBar: {
-    alignItems: 'center',
-    backgroundColor: palette.plate,
-    borderRadius: radii.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...shadows.card,
-  },
-  labelPlate: {
-    alignSelf: 'flex-start',
-    backgroundColor: palette.plate,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-  },
-  captionPlate: {
-    alignSelf: 'center',
-    backgroundColor: palette.plate,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  back: {
-    ...typeScale.heading,
-    color: palette.tealDark,
-    width: 72,
-  },
-  title: {
-    ...typeScale.title,
-    color: palette.ink,
-  },
-  spacer: {
-    width: 72,
-  },
-  pickBody: {
-    flex: 1,
-    gap: spacing.lg,
-  },
-  offers: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  // Solid card so the picker reads cleanly over the busy delivery-room photo
-  // (bare text was washing out) and the archetype choice feels like one panel.
-  supplierPanel: {
-    backgroundColor: palette.creamBright,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.lg,
-    borderWidth: borders.hairline,
-    gap: spacing.md,
-    padding: spacing.lg,
-    ...shadows.card,
-  },
-  supplierHint: {
-    ...typeScale.body,
-    color: palette.inkSoft,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  supplierGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    justifyContent: 'center',
-  },
-  supplierChip: {
-    alignItems: 'center',
-    backgroundColor: palette.creamBright,
-    borderRadius: radii.md,
-    borderWidth: 2,
-    gap: spacing.xxs,
-    justifyContent: 'center',
-    minHeight: touch.minTargetPt,
-    minWidth: 88,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...shadows.card,
-  },
-  supplierChipPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.97 }],
-  },
-  supplierEmoji: {
-    fontSize: 26,
-  },
-  supplierChipText: {
-    ...typeScale.heading,
-    color: palette.ink,
-    fontSize: 15,
-  },
-  caption: {
-    ...typeScale.body,
-    color: palette.inkFaint,
-    textAlign: 'center',
-  },
-  actions: {
-    gap: spacing.md,
-    marginTop: 'auto',
-  },
-});
