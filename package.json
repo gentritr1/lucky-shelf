@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "fuzz": "node --import tsx scripts/fuzz.ts",
+    "sig:probe": "node --import tsx scripts/signature-dominance.ts",
     "balance:assert": "node --import tsx scripts/balance.ts --assert-bands",
     "m0": "pnpm typecheck && pnpm fixtures:validate && pnpm test",
     "m1": "pnpm typecheck && pnpm fixtures:validate && pnpm test && pnpm fuzz -- --runs 50 && pnpm balance:assert"
