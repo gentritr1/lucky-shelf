@@ -229,13 +229,22 @@ interface SlotGlowProps {
   breath: SharedValue<number>;
 }
 
-/** Per-well drag feedback: legal target breathes teal-green, illegal glows red. */
+/**
+ * Per-well drag feedback: legal target breathes teal-green, illegal glows red.
+ * B-M7 accessibility floor: colour alone can't carry legal-vs-illegal (red/green
+ * is the classic colourblind trap, WCAG SC 1.4.1). A ✓/✕ SHAPE is layered on the
+ * hovered slot as a redundant cue — in its own full-opacity overlay so it stays
+ * legible over the low-opacity tint, and gesture-driven so it shows in
+ * reduced-motion too (like haptics, feedback is not "motion").
+ */
 function SlotGlow({ index, layout, hoverIndex, hoverLegal, breath }: SlotGlowProps) {
   const row = Math.floor(index / layout.cols);
   const col = index % layout.cols;
   const { x, y } = slotTopLeft(layout, row, col);
+  const rect = { left: x, top: y, width: layout.slotSize, height: layout.slotSize };
+  const markSize = Math.round(layout.slotSize * 0.42);
 
-  const style = useAnimatedStyle(() => {
+  const tintStyle = useAnimatedStyle(() => {
     const activeHere = hoverIndex.value === index ? 1 : 0;
     const pulse = 0.55 + 0.45 * breath.value;
     return {
@@ -243,15 +252,24 @@ function SlotGlow({ index, layout, hoverIndex, hoverLegal, breath }: SlotGlowPro
       backgroundColor: interpolateColor(hoverLegal.value, [0, 1], [palette.slotIllegal, palette.slotLegal]),
     };
   });
+  // The mark overlay is full-strength (only on the hovered slot); the two glyphs
+  // cross-fade on the same legal signal that drives the tint colour.
+  const markWrapStyle = useAnimatedStyle(() => ({ opacity: hoverIndex.value === index ? 1 : 0 }));
+  const legalMarkStyle = useAnimatedStyle(() => ({ opacity: hoverLegal.value }));
+  const illegalMarkStyle = useAnimatedStyle(() => ({ opacity: 1 - hoverLegal.value }));
 
   return (
-    <Animated.View
-      style={[
-        styles.glow,
-        { left: x, top: y, width: layout.slotSize, height: layout.slotSize, pointerEvents: 'none' },
-        style,
-      ]}
-    />
+    <>
+      <Animated.View style={[styles.glow, rect, tintStyle]} pointerEvents="none" />
+      <Animated.View style={[styles.dropMarkWrap, rect, markWrapStyle]} pointerEvents="none">
+        <Animated.Text style={[styles.dropMark, { fontSize: markSize, color: palette.tealDark }, legalMarkStyle]}>
+          ✓
+        </Animated.Text>
+        <Animated.Text style={[styles.dropMark, { fontSize: markSize, color: palette.emberDark }, illegalMarkStyle]}>
+          ✕
+        </Animated.Text>
+      </Animated.View>
+    </>
   );
 }
 
@@ -283,8 +301,10 @@ function SpotlightMarker({ slot, layout, breath, reduced }: SpotlightMarkerProps
         ringStyle,
       ]}
     >
-      <View style={styles.spotlightTag}>
-        <Text style={styles.spotlightTagText}>✨ WINDOW ×{SPOTLIGHT_MULT}</Text>
+      <View style={styles.spotlightTagWrap}>
+        <View style={styles.spotlightTag}>
+          <Text numberOfLines={1} style={styles.spotlightTagText}>✨ WINDOW ×{SPOTLIGHT_MULT}</Text>
+        </View>
       </View>
     </Animated.View>
   );
@@ -359,6 +379,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderRadius: radii.sm,
   },
+  // Redundant ✓/✕ shape cue for legal/illegal drops (B-M7). Own overlay, centred,
+  // both glyphs stacked so they cross-fade in place on the same legal signal.
+  dropMarkWrap: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropMark: {
+    position: 'absolute',
+    fontWeight: '900',
+    textAlign: 'center',
+  },
   spotlightRing: {
     position: 'absolute',
     alignItems: 'center',
@@ -368,9 +400,17 @@ const styles = StyleSheet.create({
     // warm inner wash so the window reads as lit, not just outlined
     backgroundColor: 'rgba(255, 217, 160, 0.14)',
   },
-  spotlightTag: {
+  // Full-width band above the slot so the pill centres over the window and can
+  // extend a little past the slot edges symmetrically — instead of being clamped
+  // to slot width (which wrapped "✨ WINDOW ×N" onto two lines and spilled right).
+  spotlightTagWrap: {
     position: 'absolute',
-    top: -14,
+    top: -13,
+    left: -24,
+    right: -24,
+    alignItems: 'center',
+  },
+  spotlightTag: {
     backgroundColor: palette.goldDeep,
     borderRadius: radii.xs,
     paddingHorizontal: spacing.xs,

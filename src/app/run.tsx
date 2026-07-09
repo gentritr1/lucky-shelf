@@ -283,7 +283,7 @@ function BuildSignpost({
       <View style={styles.buildHero}>
         <Text style={styles.buildEmoji}>{build ? tagEmoji[build.tag] ?? '🏷️' : '🛒'}</Text>
         <View style={styles.buildHeroText}>
-          <Text style={styles.buildTitle}>{build ? `${build.tag.toUpperCase()} SHELF` : 'YOUR SHELF'}</Text>
+          <Text style={styles.buildTitle}>{build ? `${build.tag.toUpperCase()} SHELF` : 'YOUR BUILD'}</Text>
           <Text style={styles.buildSub}>
             {build
               ? build.next
