@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -19,15 +19,25 @@ import {
   layout,
   motion,
   palette,
+  radii,
   spacing,
   tagEmoji,
   typeScale,
   useReducedMotion,
 } from '@/ui';
+import { spriteFor } from '@/juice';
 import { routeForGameState } from '../state/phaseRouting';
 import { buildIdentityView, nearMissView, runSelectors, useRunStore } from '../state/store';
-import { personalBestsView, useCatalogStore, type PersonalBestRow } from '../state/catalogStore';
+import {
+  catalogSelectors,
+  nextUnlockTeaserView,
+  personalBestsView,
+  useCatalogStore,
+  type NextUnlockRow,
+  type PersonalBestRow,
+} from '../state/catalogStore';
 import { dailySelectors, isDailySeed, useDailyStore } from '../state/dailyStore';
+import { seedLabel } from '../state/seedLabel';
 
 const overshoot = Easing.bezier(...motion.easings.overshoot);
 
@@ -78,6 +88,11 @@ export default function RunSummaryScreen() {
   const bests = personalBestsView(prevStats, gameState.runStats);
   const build = buildIdentityView(gameState); // null when synergy off or no build
   const nearMiss = nearMissView(gameState);
+  // Next-unlock teaser (B-M5 Part 3): reads the LIVE catalog so it reflects this
+  // run once recordRunEnd merges it in. Null (row omitted) when the flag is off
+  // or the ladder is exhausted.
+  const catalog = useCatalogStore(catalogSelectors.catalog);
+  const nextUnlock = useMemo(() => nextUnlockTeaserView(catalog), [catalog]);
 
   const newRun = () => {
     const result = startNewRun();
@@ -110,6 +125,12 @@ export default function RunSummaryScreen() {
         <AppText variant="display" color={palette.ink} align="center">
           Day {gameState.day}
         </AppText>
+
+        {isDaily ? (
+          <AppText variant="label" color={palette.inkFaint} align="center" style={styles.seed}>
+            Seed · {seedLabel(gameState.seed)}
+          </AppText>
+        ) : null}
 
         {build ? (
           <AppText
@@ -158,6 +179,8 @@ export default function RunSummaryScreen() {
             </View>
           )}
         </View>
+
+        {nextUnlock ? <NextUnlockTeaser row={nextUnlock} /> : null}
       </ScrollView>
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
@@ -167,6 +190,29 @@ export default function RunSummaryScreen() {
         {isDaily ? null : (
           <WoodButton label="Share Card" variant="secondary" onPress={() => router.push('/share')} />
         )}
+      </View>
+    </View>
+  );
+}
+
+/** The quiet "one more run" prompt (B-M5 Part 3): a silhouette thumb + unlock
+ *  hint for the nearest locked item. Warm, not a popup — no CTA, no coins. */
+function NextUnlockTeaser({ row }: { row: NextUnlockRow }) {
+  const sprite = spriteFor(row.itemId);
+  return (
+    <View style={styles.teaser}>
+      {sprite ? (
+        <Image source={sprite} style={styles.teaserThumb} resizeMode="contain" />
+      ) : (
+        <View style={styles.teaserThumbBox} />
+      )}
+      <View style={styles.teaserText}>
+        <AppText variant="label" color={palette.inkFaint}>
+          NEXT UNLOCK
+        </AppText>
+        <AppText variant="body" color={palette.inkSoft}>
+          {row.hint}
+        </AppText>
       </View>
     </View>
   );
@@ -266,6 +312,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.sm,
   },
+  seed: {
+    letterSpacing: 1,
+  },
   recap: {
     fontWeight: '700',
   },
@@ -295,6 +344,23 @@ const styles = StyleSheet.create({
   recordText: {
     color: palette.goldDeep,
   },
+  teaser: {
+    alignItems: 'center',
+    backgroundColor: palette.parchment,
+    borderRadius: radii.md,
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+  },
+  teaserThumb: { height: 40, tintColor: palette.inkFaint, width: 40 },
+  teaserThumbBox: {
+    backgroundColor: palette.inkFaint,
+    borderRadius: radii.sm,
+    height: 40,
+    width: 40,
+  },
+  teaserText: { flex: 1, gap: spacing.xxs },
   actions: {
     gap: spacing.md,
     marginTop: 'auto',

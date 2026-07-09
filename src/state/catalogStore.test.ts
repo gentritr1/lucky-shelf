@@ -4,7 +4,7 @@ import { emptyCatalog, type GameState } from '../contracts';
 import { loadCombos, loadItemTable } from '../items';
 import { createCatalogPersistence } from '../persistence/catalog';
 import { createRun } from '../sim';
-import { createCatalogStore } from './catalogStore';
+import { buildCatalogView, createCatalogStore, nextUnlockTeaserView } from './catalogStore';
 
 function memoryStorage(seed?: Record<string, string>) {
   const map = new Map<string, string>(Object.entries(seed ?? {}));
@@ -67,5 +67,99 @@ describe('catalogStore recordRunEnd', () => {
     // The stash is the STANDING best from disk, not the post-merge value and
     // not the pre-load empty catalog's zero.
     expect(stash?.stats.bestDayTotal).toBe(500);
+  });
+});
+
+// --- B-M5 Part 2: catalog silhouettes (locked ≠ undiscovered), flag-gated. ---
+
+const table = loadItemTable();
+const combos = loadCombos();
+
+/** A fresh player: no runs, no discoveries — everything past the "always" tier is
+ *  still locked. */
+function freshCatalog() {
+  return emptyCatalog();
+}
+
+/** Everything unlocked: enough runs to clear every runsPlayed gate, plus the
+ *  items/combos the conditional gates need. */
+function exhaustedCatalog() {
+  const catalog = emptyCatalog();
+  catalog.stats.runsPlayed = 100;
+  catalog.discoveredItemIds.push('price-gun', 'coupon-stack');
+  catalog.achievedComboIds.push('lucky-cluster', 'fire-sale', 'cheese-board');
+  return catalog;
+}
+
+function itemRow(catalog: ReturnType<typeof emptyCatalog>, id: string, unlockLadder: boolean) {
+  const view = buildCatalogView(catalog, table, combos, { unlockLadder });
+  const row = view.items.find((i) => i.id === id);
+  if (!row) throw new Error(`no catalog row for ${id}`);
+  return row;
+}
+
+describe('buildCatalogView — unlock silhouettes (flag on)', () => {
+  it('marks a runs-gated item locked with a "Reach N runs" hint', () => {
+    const chocolate = itemRow(freshCatalog(), 'chocolate-box', true); // runsPlayed: 6
+    expect(chocolate.locked).toBe(true);
+    expect(chocolate.discovered).toBe(false);
+    expect(chocolate.unlockHint).toBe('Reach 6 runs');
+
+    const apple = itemRow(freshCatalog(), 'apple-basket', true); // runsPlayed: 1
+    expect(apple.unlockHint).toBe('Reach 1 run'); // singular
+  });
+
+  it('resolves item- and combo-gated hints to display names', () => {
+    const brass = itemRow(freshCatalog(), 'brass-scale', true); // itemDiscovered: price-gun
+    expect(brass.locked).toBe(true);
+    expect(brass.unlockHint).toBe(`Discover the ${table.get('price-gun')?.name}`);
+
+    const luckyCat = itemRow(freshCatalog(), 'lucky-cat', true); // comboAchieved: lucky-cluster
+    const comboName = combos.find((c) => c.comboId === 'lucky-cluster')?.name;
+    expect(luckyCat.unlockHint).toBe(`Discover the ${comboName} combo`);
+  });
+
+  it('never shows an "always" item as locked (it is unlocked from the start)', () => {
+    const wine = itemRow(freshCatalog(), 'wine-bottle', true);
+    expect(wine.locked).toBe(false);
+    expect(wine.unlockHint).toBeNull();
+  });
+
+  it('lets a discovered item win over locked (locked ≠ merely undiscovered)', () => {
+    const catalog = freshCatalog();
+    catalog.discoveredItemIds.push('apple-basket'); // found via the daily full pool
+    const apple = itemRow(catalog, 'apple-basket', true); // still runsPlayed: 1, unmet
+    expect(apple.discovered).toBe(true);
+    expect(apple.locked).toBe(false);
+    expect(apple.unlockHint).toBeNull();
+  });
+});
+
+describe('buildCatalogView — flag OFF is byte-identical to today', () => {
+  it('never marks anything locked and carries no hints', () => {
+    const view = buildCatalogView(freshCatalog(), table, combos, { unlockLadder: false });
+    expect(view.items.every((i) => i.locked === false)).toBe(true);
+    expect(view.items.every((i) => i.unlockHint === null)).toBe(true);
+    // The discovered flags and completion math are untouched by the ladder.
+    expect(view.items.every((i) => i.discovered === false)).toBe(true);
+    expect(view.completionPct).toBe(0);
+  });
+});
+
+describe('nextUnlockTeaserView — the summary "one more run" prompt (Part 3)', () => {
+  it('prefers the nearest runs-gated unlock', () => {
+    const teaser = nextUnlockTeaserView(freshCatalog(), table, combos, { unlockLadder: true });
+    expect(teaser).not.toBeNull();
+    expect(teaser?.itemId).toBe('apple-basket'); // runsPlayed: 1 — the nearest
+    expect(teaser?.hint).toBe('Reach 1 run');
+    expect(teaser?.name).toBe(table.get('apple-basket')?.name);
+  });
+
+  it('returns null when the flag is off (row omitted entirely)', () => {
+    expect(nextUnlockTeaserView(freshCatalog(), table, combos, { unlockLadder: false })).toBeNull();
+  });
+
+  it('returns null when the ladder is exhausted (nothing left to chase)', () => {
+    expect(nextUnlockTeaserView(exhaustedCatalog(), table, combos, { unlockLadder: true })).toBeNull();
   });
 });

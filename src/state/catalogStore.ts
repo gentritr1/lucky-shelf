@@ -2,7 +2,14 @@ import { create } from 'zustand';
 
 import { emptyCatalog, type Catalog, type CatalogStats, type GameState, type RunStats } from '../contracts';
 import { loadCombos, loadItemTable } from '../items';
-import type { NamedCombo } from '../items';
+import type { ItemTable, NamedCombo } from '../items';
+import {
+  UNLOCK_LADDER,
+  nextUnlocks,
+  unlockLadderEnabled,
+  unlockedItemIds as ladderUnlockedItemIds,
+  type UnlockPredicate,
+} from '../sim';
 import { mergeRunIntoCatalog } from '../persistence/catalog';
 import type { CatalogPersistence, LoadCatalogStatus } from '../persistence/catalog';
 
@@ -139,6 +146,41 @@ export interface CatalogItemRow {
   name: string;
   tier: 1 | 2 | 3 | 4;
   discovered: boolean;
+  /**
+   * B-M5 Part 2: the item is on the unlock ladder but its predicate isn't met
+   * yet — render as a locked silhouette, a state DISTINCT from an unlocked-but-
+   * undiscovered "?". Only ever true when the ladder flag is on and the item is
+   * not discovered; always `false` when the flag is off, so flag-off catalog
+   * rendering is byte-identical to today.
+   */
+  locked: boolean;
+  /** Human unlock hint for a locked item ("Reach 6 runs"); null unless locked. */
+  unlockHint: string | null;
+}
+
+/**
+ * The one-line unlock hint for a locked ladder item. Pure display formatting over
+ * the sim's predicate — Lane B never evaluates unlock LOGIC (that stays in the
+ * module, non-goal), it only renders the already-classified predicate as prose,
+ * resolving item/combo ids to their display names.
+ */
+function formatUnlockHint(
+  predicate: UnlockPredicate,
+  table: ItemTable,
+  combos: readonly NamedCombo[],
+): string {
+  switch (predicate.kind) {
+    case 'runsPlayed':
+      return `Reach ${predicate.count} ${predicate.count === 1 ? 'run' : 'runs'}`;
+    case 'itemDiscovered':
+      return `Discover the ${table.get(predicate.itemId)?.name ?? predicate.itemId}`;
+    case 'comboAchieved': {
+      const combo = combos.find((c) => c.comboId === predicate.comboId);
+      return `Discover the ${combo?.name ?? predicate.comboId} combo`;
+    }
+    case 'always':
+      return '';
+  }
 }
 
 export interface CatalogComboRow {
@@ -162,18 +204,32 @@ export interface CatalogView {
  * catalog still lists them, but they slot after the base items. */
 export function buildCatalogView(
   catalog: Catalog,
-  table = loadItemTable(),
+  table: ItemTable = loadItemTable(),
   combos: readonly NamedCombo[] = loadCombos(),
+  options: { unlockLadder?: boolean } = {},
 ): CatalogView {
+  const ladderOn = options.unlockLadder ?? unlockLadderEnabled();
   const discoveredItems = new Set(catalog.discoveredItemIds);
   const achievedCombos = new Set(catalog.achievedComboIds);
+  // Only computed when the ladder is on — off keeps every item `locked: false`.
+  const unlocked = ladderOn ? new Set(ladderUnlockedItemIds(catalog)) : null;
 
-  const items: CatalogItemRow[] = [...table.values()].map((def) => ({
-    id: def.id,
-    name: def.name,
-    tier: def.tier,
-    discovered: discoveredItems.has(def.id),
-  }));
+  const items: CatalogItemRow[] = [...table.values()].map((def) => {
+    const discovered = discoveredItems.has(def.id);
+    // Transform-target items (upgrade variants) aren't on the ladder — they read
+    // as undiscovered "?", never as locked silhouettes.
+    const predicate = UNLOCK_LADDER[def.id];
+    const locked =
+      unlocked !== null && !discovered && predicate !== undefined && !unlocked.has(def.id);
+    return {
+      id: def.id,
+      name: def.name,
+      tier: def.tier,
+      discovered,
+      locked,
+      unlockHint: locked && predicate ? formatUnlockHint(predicate, table, combos) : null,
+    };
+  });
 
   const comboRows: CatalogComboRow[] = combos.map((combo) => ({
     comboId: combo.comboId,
@@ -195,5 +251,37 @@ export function buildCatalogView(
     combosAchieved,
     combosTotal: comboRows.length,
     completionPct: total === 0 ? 0 : Math.round((found / total) * 100),
+  };
+}
+
+// --- View model: the run-summary "next unlock" teaser (Part 3). ---
+
+export interface NextUnlockRow {
+  itemId: string;
+  name: string;
+  hint: string;
+}
+
+/**
+ * The single strongest "one more run" prompt: the nearest locked ladder item, to
+ * show under the summary's personal bests. Returns null — and the row is omitted
+ * entirely — when the flag is off OR the pool is exhausted (everything unlocked).
+ * Among the immediately-reachable unlocks we prefer a `runsPlayed` gate, since
+ * "reach N runs" is the literal one-more-run hook; otherwise the first by id.
+ */
+export function nextUnlockTeaserView(
+  catalog: Catalog,
+  table: ItemTable = loadItemTable(),
+  combos: readonly NamedCombo[] = loadCombos(),
+  options: { unlockLadder?: boolean } = {},
+): NextUnlockRow | null {
+  if (!(options.unlockLadder ?? unlockLadderEnabled())) return null;
+  const upcoming = nextUnlocks(catalog);
+  const pick = upcoming.find((u) => u.predicate.kind === 'runsPlayed') ?? upcoming[0];
+  if (!pick) return null;
+  return {
+    itemId: pick.itemId,
+    name: table.get(pick.itemId)?.name ?? pick.itemId,
+    hint: formatUnlockHint(pick.predicate, table, combos),
   };
 }

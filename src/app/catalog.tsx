@@ -82,6 +82,12 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function ItemStamp({ item }: { item: CatalogItemRow }) {
+  // Locked ≠ undiscovered (B-M5 Part 2): a locked ladder item shows its real
+  // silhouette + unlock hint, so it reads as "earn this", not "mystery". Only
+  // reachable when the flag is on; flag off leaves the two branches below byte-
+  // identical to today.
+  if (item.locked) return <LockedStamp item={item} />;
+
   const sprite = item.discovered ? spriteFor(item.id) : null;
   return (
     <View style={[styles.stamp, item.discovered ? styles.stampFound : styles.stampLocked]}>
@@ -96,6 +102,26 @@ function ItemStamp({ item }: { item: CatalogItemRow }) {
       )}
       <Text numberOfLines={1} style={styles.stampName}>
         {item.discovered ? item.name : '???'}
+      </Text>
+    </View>
+  );
+}
+
+/** A locked ladder item: the real sprite tinted to a dark silhouette (no new
+ *  art) over the standard card, with its unlock hint where the name would sit. */
+function LockedStamp({ item }: { item: CatalogItemRow }) {
+  const sprite = spriteFor(item.id);
+  return (
+    <View style={[styles.stamp, styles.stampLocked]}>
+      {sprite ? (
+        <View style={styles.stampArt}>
+          <Image source={sprite} style={[styles.stampSprite, styles.silhouette]} resizeMode="contain" />
+        </View>
+      ) : (
+        <View style={styles.stampSilhouetteBox} />
+      )}
+      <Text numberOfLines={2} style={styles.stampLockHint}>
+        {item.unlockHint}
       </Text>
     </View>
   );
@@ -175,6 +201,22 @@ const styles = StyleSheet.create({
   },
   stampMysteryMark: { ...typeScale.title, color: palette.parchment },
   stampName: { ...typeScale.label, color: palette.inkSoft, fontSize: 9, letterSpacing: 0, textAlign: 'center' },
+  // sprite tinted to a flat dark shape — the "shadowed collectible" look, no new art
+  silhouette: { tintColor: palette.inkFaint },
+  // fallback silhouette for ladder items that have no sprite yet
+  stampSilhouetteBox: {
+    aspectRatio: 1,
+    backgroundColor: palette.inkFaint,
+    borderRadius: radii.sm,
+    width: '100%',
+  },
+  stampLockHint: {
+    ...typeScale.label,
+    color: palette.inkSoft,
+    fontSize: 9,
+    letterSpacing: 0,
+    textAlign: 'center',
+  },
 
   comboList: { gap: spacing.sm },
   combo: {
