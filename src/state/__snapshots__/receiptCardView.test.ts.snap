@@ -1,0 +1,16 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`receiptCardView > renders the closing-day trace as fixed receipt paper text > body 1`] = `
+[
+  "Cheese Wheel ......................... 3",
+  "Wine Bottle .......................... 4",
+  "  ↳ Wine Bottle · per neighbor .. +3 → 7",
+  "  ↳ Wine Bottle · per neighbor . +3 → 10",
+  "  ↳ Wine Bottle · per neighbor . +3 → 13",
+  "Wine Bottle subtotal .............. = 13",
+  "Cheese Wheel ......................... 3",
+  "Cheese Wheel ......................... 3",
+  "• Wine & Dine",
+  "DAY TOTAL ........................... 22",
+]
+`;

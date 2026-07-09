@@ -27,6 +27,7 @@ import {
 } from '../sim';
 import type { CreateRunOptions, EngineDeps } from '../sim';
 import { uiAffordances, type UiActionOfType } from '../sim/uiAffordances';
+import { formatReceipt, receiptDepsFromGameState, receiptFromTrace } from '../juice/receipt';
 import type { LoadActiveRunStatus, RunPersistence } from '../persistence';
 import { useCatalogStore, type CatalogStoreState } from './catalogStore';
 import { isDailySeed } from './dailyStore';
@@ -59,6 +60,9 @@ export interface RunStoreState {
 /** Item table for selectors that resolve definitions (sell pricing). Module-level
  *  so pure `(state) => …` selectors can reach it without threading deps. */
 const selectorItemTable = loadItemTable();
+
+/** Combos for the receipt view-model's label lookups (combo names on the card). */
+const selectorCombos = loadCombos();
 
 /** Dominant eligible tag on the shelf: which build the player is leaning into,
  *  the count on theme, and where they sit on the synergy ladder. Null only when
@@ -316,6 +320,41 @@ export function orderHudView(gameState: GameState): OrderHudView | null {
   if (!order) return null;
   const have = gameState.shelf.slots.filter((slot) => slot.item?.tags.includes(order.tag)).length;
   return { tag: order.tag, count: order.count, mult: DEMAND_MULT, have, met: have >= order.count };
+}
+
+export interface ReceiptCardView {
+  /** Paper-receipt body lines, already dot-leader aligned by `formatReceipt`. */
+  body: string[];
+  /** Brass total coins to headline the card foot. */
+  total: number;
+}
+
+/**
+ * The share "receipt" variant body (B-M10): renders `gameState.lastScoringTrace`
+ * as paper receipt text via the B-M8 model. Crosses the sim/UI boundary here so
+ * the share screen never value-imports `@/items` (table/combos) — it consumes
+ * plain strings.
+ *
+ * HONESTY NOTE: `lastScoringTrace` is the FINAL (closing) day's scoring — the
+ * only trace persisted on GameState. Per-day historical traces are NOT stored,
+ * so the card labels this "closing day", not "best day". If a best-day receipt
+ * is wanted, that needs per-day trace persistence — a follow-up for Fable, out
+ * of scope here (brief §3 / non-goals). Null when no day has scored yet.
+ */
+export function receiptCardView(gameState: GameState): ReceiptCardView | null {
+  const trace = gameState.lastScoringTrace;
+  if (!trace) return null;
+  const deps = receiptDepsFromGameState(gameState, {
+    table: selectorItemTable,
+    combos: selectorCombos,
+  });
+  const lines = receiptFromTrace(trace, deps);
+  // The trace carries its total as the terminal `dayTotal` event, which the
+  // receipt model surfaces as its `total` line — read it from there rather than
+  // re-walking events, so the headline can never disagree with the printed foot.
+  const totalLine = lines.find((line) => line.detail.kind === 'total');
+  const total = totalLine?.detail.kind === 'total' ? totalLine.detail.coins : 0;
+  return { body: formatReceipt(lines), total };
 }
 
 interface RunStoreOptions {

@@ -219,6 +219,11 @@ export const touch = {
 export const fonts = {
   display: 'Baloo2',
   body: 'Nunito',
+  // Platform typewriter face for the paper-receipt share card (B-M10). The
+  // receipt body is dot-leader aligned by `formatReceipt`, which only lines up
+  // in a fixed-width font. No new asset — this uses the OS monospace so it costs
+  // nothing to load; the receipt is the only surface that reads as "printed".
+  mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }) ?? 'monospace',
 } as const;
 
 export const typeScale = {
@@ -228,6 +233,7 @@ export const typeScale = {
   body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, fontWeight: '400' },
   label: { fontFamily: fonts.body, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6 },
   coin: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  receipt: { fontFamily: fonts.mono, fontSize: 12, lineHeight: 18, fontWeight: '400' },
 } as const satisfies Record<string, TextStyle>;
 
 /**
