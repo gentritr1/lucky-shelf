@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { DEFAULT_PREFS, type PersistedPrefs, type TextScale } from '@/persistence/prefs';
+import { resolvePalette, type Palette } from './tokens';
 
 /**
  * Presentation-only preference store (Lane B). This is NOT the run/meta game
@@ -105,4 +106,15 @@ export function useTextScale(): TextScale {
 /** Selector hook — whether high-contrast theming is on. */
 export function useHighContrast(): boolean {
   return usePrefs((state) => state.highContrast);
+}
+
+/**
+ * Selector hook — the live palette for the high-contrast pref. Use for INLINE
+ * themed color props (e.g. an `AppText color={...}` or an icon tint) so they
+ * re-theme with high contrast; `StyleSheet`-borne colors go through
+ * `useThemedStyles` instead. At default prefs this returns the base `palette`
+ * object by identity, so inline reads stay byte-identical.
+ */
+export function usePalette(): Palette {
+  return resolvePalette(usePrefs((state) => state.highContrast));
 }

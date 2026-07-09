@@ -1,7 +1,8 @@
 /** Lane B surface: tokens + component kit. Never imports /src/sim internals. */
 
 export * from './tokens';
-export { usePrefs, useReducedMotion, useTextScale, useHighContrast, type TextScale } from './prefs';
+export { usePrefs, useReducedMotion, useTextScale, useHighContrast, usePalette, type TextScale } from './prefs';
+export { useThemedStyles } from './useThemedStyles';
 export { AppText, type TextVariant } from './components/AppText';
 export { Panel } from './components/Panel';
 export { WoodButton } from './components/WoodButton';

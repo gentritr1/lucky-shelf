@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -8,14 +8,14 @@ import {
   SectionLabel,
   TopBar,
   Toggle,
-  borders,
   layout,
-  palette,
-  radii,
-  spacing,
+  usePalette,
   usePrefs,
+  useThemedStyles,
   type TextScale,
 } from '@/ui';
+
+import { makeStyles } from './settings.styles';
 
 /**
  * Settings: comfort (large text, high contrast), motion, sound, and haptics.
@@ -32,6 +32,8 @@ const TEXT_SIZE_OPTIONS: { value: TextScale; label: string }[] = [
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const reducedMotion = usePrefs((s) => s.reducedMotion);
   const hapticsEnabled = usePrefs((s) => s.hapticsEnabled);
   const musicEnabled = usePrefs((s) => s.musicEnabled);
@@ -122,6 +124,8 @@ function SegmentedTextSize({
   value: TextScale;
   onChange: (v: TextScale) => void;
 }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   return (
     <View style={styles.segment} accessibilityRole="radiogroup">
       {TEXT_SIZE_OPTIONS.map((opt) => {
@@ -156,6 +160,8 @@ function Row({
   value: boolean;
   onChange: (v: boolean) => void;
 }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   return (
     <View style={styles.row}>
       <View style={styles.rowText}>
@@ -170,41 +176,3 @@ function Row({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: palette.wallCream,
-    flex: 1,
-    gap: spacing.lg,
-    paddingHorizontal: layout.screenPadX,
-  },
-  panels: {
-    gap: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  row: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-    justifyContent: 'space-between',
-  },
-  rowText: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  segment: {
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.md,
-    borderWidth: borders.hairline,
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  segmentCell: {
-    alignItems: 'center',
-    flex: 1,
-    paddingVertical: spacing.sm,
-  },
-  segmentCellOn: {
-    backgroundColor: palette.tealDark,
-  },
-});
