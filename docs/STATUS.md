@@ -102,6 +102,15 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   B-M5 Parts 2–3 (silhouettes + next-unlock teaser — collision with B-M7's sweep now cleared),
   then B-M9.** A-M8 placement hints is mid-flight in the tree (Codex — do not touch
   src/sim/placementHints*).
+- **Round 5 REVIEWED + landed (2026-07-09, `695049f`)** — consolidated verdicts in
+  [FABLE-REVIEWS-2026-07-09-round5](review-packets/FABLE-REVIEWS-2026-07-09-round5.md):
+  **A-M8 placement-hint model APPROVED** (1.0ms bench; UI surface blocked on run.tsx WIP +
+  device window); **A-M6a-G2 dominance GATE PASS** (equal-n 1.58–1.60 < 2, reviewer-reproduced;
+  lucky-cat×spotlight resolved at 0.98 — off the eyeball list; consignment-sign watch flag if
+  shelf ever >16 slots); **B-M10 share polish APPROVED** (stable seed codec, honest closing-day
+  receipt card); **B-M5 P2–3 APPROVED** (silhouettes locked≠undiscovered, live-catalog teaser).
+  **Lane B queue now: B-M9 (alone — it sweeps screens) → B-M11 (gate met).** Lane A idle until
+  the graduating-set retune (needs your feel-gate) or the placement-hint UI (needs run.tsx).
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
 
 ### 2. Human / device (yours)
