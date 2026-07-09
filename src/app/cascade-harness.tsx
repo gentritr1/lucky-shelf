@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Fixture, GameState, ScoringTrace } from '@/contracts';
-import { SectionLabel, Toggle, palette, radii, shadows, spacing, typeScale } from '@/ui';
+import { AppText, SectionLabel, Toggle, spacing, usePalette, useThemedStyles } from '@/ui';
 import { CascadeLayer, goldenFixtures } from '@/juice';
+
+import { makeStyles } from './cascade-harness.styles';
 
 /**
  * Lane B verification vehicle for the first real `vanish` (M3): the goldens never
@@ -93,6 +95,8 @@ const harnessFixtures: readonly Fixture[] = [
 export default function CascadeHarnessScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const [selected, setSelected] = useState(0);
   const [rentDue, setRentDue] = useState(false);
 
@@ -102,9 +106,9 @@ export default function CascadeHarnessScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
-          <Text style={styles.back}>‹ Menu</Text>
+          <AppText variant="heading" color={palette.tealDark} style={styles.back}>‹ Menu</AppText>
         </Pressable>
-        <Text style={styles.title}>Cascade Harness</Text>
+        <AppText variant="title" color={palette.ink}>Cascade Harness</AppText>
         <View style={styles.spacer} />
       </View>
 
@@ -121,15 +125,17 @@ export default function CascadeHarnessScreen() {
             onPress={() => setSelected(index)}
             style={[styles.chip, index === selected && styles.chipActive]}
           >
-            <Text style={[styles.chipDay, index === selected && styles.chipTextActive]}>
+            <AppText variant="label" color={index === selected ? palette.ink : palette.inkFaint}>
               DAY {f.scoringTrace.day}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
+              variant="body"
+              color={index === selected ? palette.ink : palette.inkSoft}
               numberOfLines={1}
-              style={[styles.chipTitle, index === selected && styles.chipTextActive]}
+              style={styles.chipTitle}
             >
               {f.title}
-            </Text>
+            </AppText>
           </Pressable>
         ))}
       </ScrollView>
@@ -140,13 +146,13 @@ export default function CascadeHarnessScreen() {
       >
         <View style={styles.notesCard}>
           <SectionLabel>{`TRACE · ${fixture.scoringTrace.events.length} EVENTS`}</SectionLabel>
-          <Text style={styles.note}>{fixture.laneBUse}</Text>
+          <AppText variant="body" color={palette.inkSoft}>{fixture.laneBUse}</AppText>
         </View>
 
         <View style={styles.rentRow}>
           <View style={styles.rentText}>
-            <Text style={styles.rentLabel}>Rent-due day (R-18)</Text>
-            <Text style={styles.rentHint}>Skip still lands the slam; a rent thud follows.</Text>
+            <AppText variant="heading" color={palette.ink}>Rent-due day (R-18)</AppText>
+            <AppText variant="body" color={palette.inkFaint} style={styles.rentHint}>Skip still lands the slam; a rent thud follows.</AppText>
           </View>
           <Toggle accessibilityLabel="Rent due" value={rentDue} onValueChange={setRentDue} />
         </View>
@@ -157,93 +163,3 @@ export default function CascadeHarnessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: palette.wallCream,
-    flex: 1,
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  back: {
-    ...typeScale.heading,
-    color: palette.tealDark,
-    width: 72,
-  },
-  title: {
-    ...typeScale.title,
-    color: palette.ink,
-  },
-  spacer: {
-    width: 72,
-  },
-  picker: {
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  chip: {
-    backgroundColor: palette.creamBright,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    maxWidth: 150,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...shadows.float,
-  },
-  chipActive: {
-    borderColor: palette.accentTeal,
-    borderWidth: 2,
-  },
-  chipDay: {
-    ...typeScale.label,
-    color: palette.inkFaint,
-  },
-  chipTitle: {
-    ...typeScale.body,
-    color: palette.inkSoft,
-    fontSize: 13,
-  },
-  chipTextActive: {
-    color: palette.ink,
-  },
-  body: {
-    gap: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  notesCard: {
-    backgroundColor: palette.creamBright,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  note: {
-    ...typeScale.body,
-    color: palette.inkSoft,
-  },
-  rentRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-    justifyContent: 'space-between',
-  },
-  rentText: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  rentLabel: {
-    ...typeScale.heading,
-    color: palette.ink,
-  },
-  rentHint: {
-    ...typeScale.body,
-    color: palette.inkFaint,
-    fontSize: 13,
-  },
-});
