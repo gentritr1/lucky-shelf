@@ -271,9 +271,12 @@ export function balanceFlagConfigByName(name: BalanceFlagConfigName): BalanceFla
 
 export function withBalanceFlagConfig<T>(config: BalanceFlagConfig, fn: () => T): T {
   const previous: Record<string, string | undefined> = {};
+  // Absent keys are pinned to '0' (force-OFF), not deleted: a deleted key falls
+  // back to the compiled default, which silently measures the wrong economy the
+  // moment a flag's default graduates ON (RELEASE-PLAN Gate 1.3).
   for (const key of BALANCE_FLAG_ENV_KEYS) {
     previous[key] = process.env[key];
-    delete process.env[key];
+    process.env[key] = '0';
   }
   for (const [key, value] of Object.entries(config.env)) {
     process.env[key] = value;

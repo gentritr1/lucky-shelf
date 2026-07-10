@@ -48,8 +48,22 @@ export const LOOP_V2_RENT_GROWTH_LATE_FROM_CYCLE = 4;
  * escape hatch ("sell to make room") must never pay literal zero. */
 export const LOOP_V2_SELL_FLOOR = 1;
 
+/**
+ * Two-way env override: '1' forces a flag ON, '0' forces it OFF, anything else
+ * falls back to the compiled default. The '0' arm exists for graduation
+ * (RELEASE-PLAN Gate 1.3): once defaults flip ON, the test/balance harness must
+ * still be able to measure the OFF economy — a delete-the-env-key convention
+ * can only ever force ON and silently measures the wrong config after a flip.
+ */
+function flagEnabled(compiledDefault: boolean, envVar: string): boolean {
+  const env = process.env[envVar];
+  if (env === '1') return true;
+  if (env === '0') return false;
+  return compiledDefault;
+}
+
 export function loopV2Enabled(): boolean {
-  return LOOP_V2_ENABLED || process.env[LOOP_V2_ENV_VAR] === '1';
+  return flagEnabled(LOOP_V2_ENABLED, LOOP_V2_ENV_VAR);
 }
 
 export function startingCoins(): number {
@@ -77,7 +91,7 @@ export const GOAL_LADDER_TARGETS: readonly number[] = [
 export const GOAL_LADDER_REWARD_KIND = 'freeReroll' as const;
 
 export function goalLadderEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
-  return runIsLoopV2 && (GOAL_LADDER_ENABLED || process.env[GOAL_LADDER_ENV_VAR] === '1');
+  return runIsLoopV2 && (flagEnabled(GOAL_LADDER_ENABLED, GOAL_LADDER_ENV_VAR));
 }
 
 /**
@@ -90,7 +104,7 @@ export const SHELF_EXPANSION_ENV_VAR = 'SHELF_EXPANSION_ENABLED';
 export const SHELF_EXPANSION_COST = 250;
 
 export function shelfExpansionEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
-  return runIsLoopV2 && (SHELF_EXPANSION_ENABLED || process.env[SHELF_EXPANSION_ENV_VAR] === '1');
+  return runIsLoopV2 && (flagEnabled(SHELF_EXPANSION_ENABLED, SHELF_EXPANSION_ENV_VAR));
 }
 
 /**
@@ -102,7 +116,7 @@ export const WARM_OPENING_ENABLED = false;
 export const WARM_OPENING_ENV_VAR = 'WARM_OPENING_ENABLED';
 
 export function warmOpeningEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
-  return runIsLoopV2 && (WARM_OPENING_ENABLED || process.env[WARM_OPENING_ENV_VAR] === '1');
+  return runIsLoopV2 && (flagEnabled(WARM_OPENING_ENABLED, WARM_OPENING_ENV_VAR));
 }
 
 /**
@@ -114,7 +128,7 @@ export const DAY2_STARTER_ENABLED = false;
 export const DAY2_STARTER_ENV_VAR = 'DAY2_STARTER_ENABLED';
 
 export function day2StarterEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
-  return runIsLoopV2 && (DAY2_STARTER_ENABLED || process.env[DAY2_STARTER_ENV_VAR] === '1');
+  return runIsLoopV2 && (flagEnabled(DAY2_STARTER_ENABLED, DAY2_STARTER_ENV_VAR));
 }
 
 export function dailyGoalTarget(day: number): number {
@@ -178,7 +192,7 @@ export const TAG_SYNERGY_LADDER: readonly { minCount: number; mult: number }[] =
 ];
 
 export function tagSynergyEnabled(): boolean {
-  return TAG_SYNERGY_ENABLED || process.env[TAG_SYNERGY_ENV_VAR] === '1';
+  return flagEnabled(TAG_SYNERGY_ENABLED, TAG_SYNERGY_ENV_VAR);
 }
 
 /**
@@ -192,7 +206,7 @@ export const BUILD_STEERING_ELIGIBLE_TAGS = TAG_SYNERGY_ELIGIBLE_TAGS;
 export const BUILD_STEER_BIAS = 2.5;
 
 export function buildSteeringEnabled(): boolean {
-  return BUILD_STEERING_ENABLED || process.env[BUILD_STEERING_ENV_VAR] === '1';
+  return flagEnabled(BUILD_STEERING_ENABLED, BUILD_STEERING_ENV_VAR);
 }
 
 export function isBuildSteeringTag(tag: string): boolean {
@@ -211,7 +225,7 @@ export const SIGNATURE_ITEM_DAY_PREMIUM = 3;
 export const SIGNATURE_ITEM_TIER_PREMIUM = 4;
 
 export function signatureItemsEnabled(): boolean {
-  return SIGNATURE_ITEMS_ENABLED || process.env[SIGNATURE_ITEMS_ENV_VAR] === '1';
+  return flagEnabled(SIGNATURE_ITEMS_ENABLED, SIGNATURE_ITEMS_ENV_VAR);
 }
 
 /**
@@ -223,7 +237,7 @@ export const UNLOCK_LADDER_ENABLED = false;
 export const UNLOCK_LADDER_ENV_VAR = 'UNLOCK_LADDER_ENABLED';
 
 export function unlockLadderEnabled(): boolean {
-  return UNLOCK_LADDER_ENABLED || process.env[UNLOCK_LADDER_ENV_VAR] === '1';
+  return flagEnabled(UNLOCK_LADDER_ENABLED, UNLOCK_LADDER_ENV_VAR);
 }
 
 export function nextRentAmount(amount: number, completedCycle: number, loopV2 = false): number {
