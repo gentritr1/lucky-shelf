@@ -27,7 +27,36 @@ here: `nvm use 23.3.0` + `NODE_OPTIONS=--experimental-sqlite` for pnpm; UTF-8 lo
   invariant harness (`b2f2cce`); balance report script `scripts/balance.ts`. A trace-contract bug the
   invariant test caught is fixed in `97deee1`.
 
-## What's next — ordered by owner (nothing below is blocked on code I can just write)
+## What's next — see **[RELEASE-PLAN.md](RELEASE-PLAN.md)** (adopted 2026-07-10)
+The five-gate release plan is now the operational roadmap: Gate 1 depth graduation
+(Claude, runs now) → Gate 2 device batch (human, deliberately deferred) → Gate 3
+external alpha → Gate 4 evidence-led tuning → Gate 5 RC. Feature freeze until Gate 3
+data exists. The sections below remain as historical/implementation reference.
+
+### Gate 1 progress (2026-07-10/11 session)
+- **1.1 Goal-table retune vs the TRUE graduating set — DONE.** The threshold scar fired a
+  5th time: the 07-08 table was tuned vs `allDepth`, which lacks expansion/unlocks/starter —
+  under the real set, hit rates were 0.95–0.99 (band 0.65–0.85). New `graduating` config in
+  `BALANCE_FLAG_CONFIGS`; new measurement script **`scripts/goal-tune.ts`** (pooled ceiling-bot
+  p25 → candidate table + predicted rates). New 12-entry `GOAL_LADDER_TARGETS`
+  [18,44,68,92,106,112,114,116,148,152,166,172] validated OUT-OF-SAMPLE (seed
+  `graduation-0710-v2`, 400 runs): every day both strategies 0.71–0.82, all in band;
+  survival median 30d unchanged.
+- **1.4 Summary copy conflict — DONE** (B-M12, Opus, brief in
+  `lane-b/summary-one-story-brief.md`): near-miss line now "Closest rent payment: N coins
+  to spare"; render order already matched the one-story spine. 291/291 + tsc re-run by Fable.
+- **1.5 Discovery jingle — BLOCKED EXTERNAL:** available audio tools are speech-only; asset
+  must be sourced (see RELEASE-PLAN Gate 1.5 for the sound spec + swap point).
+- **1.3 Flip + ON-path pin — NEXT, with a known design blocker:** flag helpers are
+  `CONST || env==='1'` (env can only force ON). Post-flip, `withBalanceFlagConfig`'s
+  `baseline` would silently measure the all-ON economy and every delete-env-to-disable test
+  breaks. The flip therefore starts with two-way env semantics ('0' forces OFF) across the 9
+  helpers + harness, THEN the const flip + determinism-pin update (M0 goldens/fixed states
+  survive: engine reads the per-run `loopV2` snapshot). Do it on a branch; merge = after the
+  Gate 2 device pass. Note: graduation splits daily-shelf comparability across app versions
+  (inherent to any balance change; acceptable).
+
+## Historical detail by owner (superseded as a roadmap by RELEASE-PLAN.md)
 
 ### 1. Fable — ✅ DONE (2026-07-08 pass, in-session)
 Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-08.md`**:
