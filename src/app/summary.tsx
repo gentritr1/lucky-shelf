@@ -148,7 +148,7 @@ export default function RunSummaryScreen() {
 
         {nearMiss ? (
           <AppText variant="body" align="center" color={palette.emberDark} style={styles.nearMiss}>
-            Paid rent with {plural(nearMiss.coinsToSpare, 'coin')} to spare
+            Closest rent payment: {plural(nearMiss.coinsToSpare, 'coin')} to spare
           </AppText>
         ) : null}
 
