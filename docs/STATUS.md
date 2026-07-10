@@ -124,8 +124,10 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   `1dba09e` B-M7 polish (✓/✕ drop cue + spotlight pill fix). **Open items:** bespoke
   discovery-jingle mp3 (placeholder = cascade sting, muddies recognition-vs-jackpot —
   required before feel-complete); 6-item batched device gate consolidated in the round-6 doc
-  (B-M9 1.3×/HC shots, B-M11 recordings, B-M7 polish eyeball). **Lane B queue: empty** —
-  next Lane B work is the device-gate batch (human) or run.tsx migration (after WIP clears).
+  (B-M9 1.3×/HC shots, B-M11 recordings, B-M7 polish eyeball). **run.tsx migration landed**
+  (`cdba62a`, Fable-implemented after the WIP window closed — src/app grep now fully clean, zero
+  static themed sheets; equality test + 291/291 green; ShelfScene Skia = the only remaining theme
+  gap). **Lane B queue: empty** — next Lane B work is the device-gate batch (human).
 
 ### 2. Human / device (yours)
 - **Device feel-gate to graduate the depth flags** — everything above is default-OFF; it needs your
