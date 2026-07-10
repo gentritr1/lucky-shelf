@@ -2,14 +2,15 @@ import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { palette, shadows } from '@/ui/tokens';
-import { usePrefs } from '@/ui';
+import { usePalette, usePrefs, useThemedStyles } from '@/ui';
 import { ITEM_SPRITES } from '@/juice';
 import { useCatalogStore } from '../state/catalogStore';
+
+import { makeStyles } from './_layout.styles';
 
 // Warm the item sprites + room backdrops into the image cache once at startup so
 // they don't decode-on-first-show (the per-screen pop-in). Uses RN's built-in
@@ -24,13 +25,8 @@ const PRELOAD_ASSETS: number[] = [
 // R-21 flag (Lane B): GestureHandlerRootView + SafeAreaProvider added at the root
 // so the M1 drag-and-drop gestures work app-wide and screens can read safe-area
 // insets. Both are required infra for Lane B's screens; no navigation behavior
-// changed. Flagged in the B-M1 packet.
-//
-// Responsive frame: portrait is the whole design, so on wider viewports we center
-// a phone-width column against a warm backdrop (like the shop sitting on a wooden
-// counter) instead of stretching the UI. On phones (< COLUMN_MAX) the column is
-// full-bleed, so mobile is untouched.
-const COLUMN_MAX = 460;
+// changed. Flagged in the B-M1 packet. (The responsive phone-width column lives in
+// _layout.styles.ts alongside the rest of the frame styling.)
 
 // Hold the native splash so the first painted frame already has the cozy fonts —
 // otherwise the display face (Baloo 2) pops in a beat late and the wordmark
@@ -47,6 +43,8 @@ export default function RootLayout() {
     Baloo2: require('../../assets/fonts/Baloo2.ttf'),
     Nunito: require('../../assets/fonts/Nunito.ttf'),
   });
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
 
   useEffect(() => {
     if (fontsLoaded || fontError) void SplashScreen.hideAsync().catch(() => undefined);
@@ -91,6 +89,8 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: palette.wallCream },
               }}
             />
+            {/* contentStyle threads usePalette() above so screen backgrounds
+                re-theme with high contrast in step with the screens themselves */}
           </View>
         </View>
         <StatusBar style="dark" />
@@ -99,21 +99,3 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  backdrop: {
-    alignItems: 'center',
-    backgroundColor: palette.woodDark,
-    flex: 1,
-  },
-  column: {
-    backgroundColor: palette.wallCream,
-    flex: 1,
-    maxWidth: COLUMN_MAX,
-    overflow: 'hidden',
-    width: '100%',
-    ...shadows.lifted,
-  },
-});
