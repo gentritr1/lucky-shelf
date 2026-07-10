@@ -1,6 +1,6 @@
 # STATUS — start here (new thread)
 
-_Last updated 2026-07-08 (Opus session). `main` = `b2f2cce`, pushed to origin, tree clean, all green._
+_Last updated 2026-07-10 (Fable session). `main` = round-6 head, pushed to origin, tree clean, all green (289 tests)._
 
 ## Where the project is
 Post-M3, with the **loop-redesign v2** depth features built and legible but **still behind default-OFF
@@ -112,6 +112,20 @@ Authoritative rulings recorded in **`docs/review-packets/FABLE-RULINGS-2026-07-0
   **Lane B queue now: B-M9 (alone — it sweeps screens) → B-M11 (gate met).** Lane A idle until
   the graduating-set retune (needs your feel-gate) or the placement-hint UI (needs run.tsx).
 - FYI items (`loopV2?` snapshot, `copiesNeighbor` fix) acknowledged, no ruling needed.
+- **Round 6 REVIEWED + landed (2026-07-10)** — verdicts in
+  [FABLE-REVIEWS-2026-07-10-round6](review-packets/FABLE-REVIEWS-2026-07-10-round6.md):
+  **B-M9 runtime-theme migration APPROVED** (9 screens → `useThemedStyles`/`usePalette`
+  factories, per-screen byte-identity equality tests, transcription independence
+  spot-verified against pre-migration source; `run.tsx` = the ONE remaining static screen,
+  migrate after the human WIP window; ShelfScene Skia = known limit) and **B-M11 combo
+  discovery moments APPROVED** (pure classifier + timing-only slow-beat, reduced-motion
+  cadence byte-identical by test; catalog "new" accent in-memory, no persistence;
+  "until-first-viewed" fade dropped per brief fallback — ruled correct). Also landed:
+  `1dba09e` B-M7 polish (✓/✕ drop cue + spotlight pill fix). **Open items:** bespoke
+  discovery-jingle mp3 (placeholder = cascade sting, muddies recognition-vs-jackpot —
+  required before feel-complete); 6-item batched device gate consolidated in the round-6 doc
+  (B-M9 1.3×/HC shots, B-M11 recordings, B-M7 polish eyeball). **Lane B queue: empty** —
+  next Lane B work is the device-gate batch (human) or run.tsx migration (after WIP clears).
 
 ### 2. Human / device (yours)
 - **Device feel-gate to graduate the depth flags** — everything above is default-OFF; it needs your
