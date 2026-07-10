@@ -111,6 +111,23 @@ export const BALANCE_FLAG_CONFIGS = [
       [DAY2_STARTER_ENV_VAR]: '1',
     },
   },
+  // The exact flag set intended to ship as the graduated default (RELEASE-PLAN.md
+  // Gate 1) — WARM_OPENING stays off (superseded by the day-2 starter, A-M6c).
+  // Every balance/goal number must be tuned against THIS config, not allDepth:
+  // allDepth lacks expansion/unlocks/starter and under-measures yields.
+  {
+    name: 'graduating',
+    env: {
+      [LOOP_V2_ENV_VAR]: '1',
+      [SIGNATURE_ITEMS_ENV_VAR]: '1',
+      [TAG_SYNERGY_ENV_VAR]: '1',
+      [BUILD_STEERING_ENV_VAR]: '1',
+      [GOAL_LADDER_ENV_VAR]: '1',
+      [SHELF_EXPANSION_ENV_VAR]: '1',
+      [UNLOCK_LADDER_ENV_VAR]: '1',
+      [DAY2_STARTER_ENV_VAR]: '1',
+    },
+  },
 ] as const satisfies readonly BalanceFlagConfig[];
 
 export type BalanceFlagConfigName = (typeof BALANCE_FLAG_CONFIGS)[number]['name'];

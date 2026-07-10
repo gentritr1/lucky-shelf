@@ -63,11 +63,17 @@ export function startingCoins(): number {
  */
 export const GOAL_LADDER_ENABLED = false;
 export const GOAL_LADDER_ENV_VAR = 'GOAL_LADDER_ENABLED';
-// Fable rulings 2026-07-08 §6: re-tuned against the FULL depth-flag stack (the
-// graduating set), not LOOP_V2 alone — the previous table [16..74] measured
-// 0.89–0.93 late hit under all flags, out of the 65–85% band. Scar rule: any
-// retune must re-verify with the exact flag set that ships together.
-export const GOAL_LADDER_TARGETS: readonly number[] = [18, 28, 40, 46, 56, 66, 74, 80, 86, 90];
+// Gate-1 retune (2026-07-10): the 2026-07-08 table was tuned against `allDepth`,
+// which lacks shelf expansion / unlock ladder / day-2 starter — under the real
+// `graduating` config it measured 0.95–0.99 hit on every day past 1 (band:
+// 0.65–0.85). Derived from pooled ceiling-bot p25 day totals by
+// `scripts/goal-tune.ts --config graduating --runs 400 --seed graduation-0710`
+// (smoothed monotone; extended to 12 entries — the day-9 expansion tier and
+// days 11–12 need their own steps). Scar rule: any retune must name its
+// measurement script and re-verify with the exact flag set that ships together.
+export const GOAL_LADDER_TARGETS: readonly number[] = [
+  18, 44, 68, 92, 106, 112, 114, 116, 148, 152, 166, 172,
+];
 export const GOAL_LADDER_REWARD_KIND = 'freeReroll' as const;
 
 export function goalLadderEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {

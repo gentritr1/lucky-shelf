@@ -90,7 +90,7 @@ describe('loop v2 phase 3 goal ladder', () => {
       const expected = GOAL_LADDER_TARGETS[Math.min(day, GOAL_LADDER_TARGETS.length) - 1];
       expect(dailyGoalTarget(day)).toBe(expected);
     }
-    expect(dailyGoalTarget(12)).toBe(dailyGoalTarget(10));
+    expect(dailyGoalTarget(14)).toBe(dailyGoalTarget(12));
     expect(() => dailyGoalTarget(0)).toThrow();
   });
 
