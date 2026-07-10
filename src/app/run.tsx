@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Action, GameState, Slot } from '@/contracts';
 import {
+  AppText,
   CoinCounter,
   MovesPips,
   OnboardingHint,
@@ -13,13 +14,14 @@ import {
   WoodButton,
   buildAccents,
   layout,
-  palette,
-  radii,
   spacing,
   tagEmoji,
-  typeScale,
+  usePalette,
+  useThemedStyles,
 } from '@/ui';
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
+
+import { makeStyles } from './run.styles';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
 import {
   arrangeAffordanceView,
@@ -47,6 +49,8 @@ const RENT_TENSION_DUE_IN_DAYS = 1;
 export default function RunHudScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const gameState = useRunStore(runSelectors.gameState);
   const rejectedActionCount = useRunStore(runSelectors.rejectedActionCount);
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
@@ -165,11 +169,11 @@ export default function RunHudScreen() {
       >
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
-          <Text style={styles.back}>‹ Menu</Text>
+          <AppText variant="heading" color={palette.tealDark}>‹ Menu</AppText>
         </Pressable>
         <View style={styles.dayWrap}>
-          <Text style={styles.eyebrow}>DAY {hudState.day}</Text>
-          <Text style={styles.phase}>{cascadeMount ? 'Open Shop' : labelPhase(gameState.phase)}</Text>
+          <AppText variant="label" color={palette.inkFaint}>DAY {hudState.day}</AppText>
+          <AppText variant="heading" color={palette.ink}>{cascadeMount ? 'Open Shop' : labelPhase(gameState.phase)}</AppText>
         </View>
         <CoinCounter coins={hudState.coins} />
       </View>
@@ -200,7 +204,7 @@ export default function RunHudScreen() {
               heldItem={gameState.heldItem}
               onPlace={onPlace}
             />
-            <Text style={styles.hint}>{lastRejectedAction?.message ?? hintFor(gameState)}</Text>
+            <AppText variant="body" color={palette.inkFaint} style={styles.hint}>{lastRejectedAction?.message ?? hintFor(gameState)}</AppText>
             {heldFull ? (
               <View style={styles.sellRow}>
                 {sellChoices.map(({ slot, item, price }) => (
@@ -210,8 +214,8 @@ export default function RunHudScreen() {
                     onPress={() => onSell(slot)}
                     style={({ pressed }) => [styles.sellChip, pressed && styles.sellChipPressed]}
                   >
-                    <Text numberOfLines={1} style={styles.sellChipName}>{item.name}</Text>
-                    <Text style={styles.sellChipPrice}>{`Sell +${price}`}</Text>
+                    <AppText variant="label" color={palette.ink} numberOfLines={1} style={styles.sellChipName}>{item.name}</AppText>
+                    <AppText variant="label" color={palette.rentEmber} style={styles.sellChipPrice}>{`Sell +${price}`}</AppText>
                   </Pressable>
                 ))}
               </View>
@@ -275,6 +279,8 @@ function BuildSignpost({
   order: OrderHudView | null;
   target: { target: number; rewardEarned: boolean } | null;
 }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const accent = build ? buildAccents[build.tag] ?? palette.goldDeep : null;
   return (
     <View
@@ -285,22 +291,29 @@ function BuildSignpost({
       ]}
     >
       <View style={styles.buildHero}>
+        {/* decorative emoji glyph — raw <Text> exception */}
         <Text style={styles.buildEmoji}>{build ? tagEmoji[build.tag] ?? '🏷️' : '🛒'}</Text>
         <View style={styles.buildHeroText}>
-          <Text style={styles.buildTitle}>{build ? `${build.tag.toUpperCase()} SHELF` : 'YOUR BUILD'}</Text>
-          <Text style={styles.buildSub}>
+          <AppText variant="label" color={palette.ink} style={styles.buildTitle}>
+            {build ? `${build.tag.toUpperCase()} SHELF` : 'YOUR BUILD'}
+          </AppText>
+          <AppText variant="label" color={palette.inkFaint} style={styles.buildSub}>
             {build
               ? build.next
                 ? `${build.count} on theme · ${build.next.count - build.count} more → ×${build.next.mult}`
                 : `${build.count} on theme · maxed out`
               : 'Match a tag across items for a build bonus'}
-          </Text>
+          </AppText>
         </View>
         {build ? (
           <View style={[styles.buildMult, build.active ? styles.buildMultActive : null]}>
-            <Text style={[styles.buildMultText, build.active ? styles.buildMultTextActive : null]}>
+            <AppText
+              variant="display"
+              color={build.active ? palette.emberDark : palette.inkSoft}
+              style={styles.buildMultText}
+            >
               {`×${build.mult}`}
-            </Text>
+            </AppText>
           </View>
         ) : null}
       </View>
@@ -330,12 +343,21 @@ function BuildSignpost({
 }
 
 function GoalChip({ icon, label, value, met }: { icon: string; label: string; value: string; met: boolean }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   return (
     <View style={[styles.goalChip, met ? styles.goalChipMet : null]}>
-      <Text numberOfLines={1} style={styles.goalChipLabel}>{`${icon} ${label}`}</Text>
-      <Text numberOfLines={1} style={[styles.goalChipValue, met ? styles.goalChipValueMet : null]}>
+      <AppText variant="label" color={palette.ink} numberOfLines={1} style={styles.goalChipLabel}>
+        {`${icon} ${label}`}
+      </AppText>
+      <AppText
+        variant="label"
+        color={met ? palette.tealDark : palette.inkFaint}
+        numberOfLines={1}
+        style={styles.goalChipValue}
+      >
         {value}
-      </Text>
+      </AppText>
     </View>
   );
 }
@@ -391,215 +413,3 @@ function movementLockedSceneState(gameState: GameState): GameState {
   };
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: palette.wallCream,
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    // flexGrow so the column fills the screen (shelf stays centered via shelfWrap
-    // flex) when it fits; when the softlock sell-list makes it overflow, it grows
-    // past the viewport and scrolls instead of spilling over the panels above.
-    flexGrow: 1,
-    gap: spacing.lg,
-    paddingHorizontal: layout.screenPadX,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  back: {
-    ...typeScale.heading,
-    color: palette.tealDark,
-  },
-  dayWrap: {
-    // Absolute-centered across the full bar so the title is truly centered on the
-    // device, independent of the unequal Menu (left) and coin (right) widths.
-    // pointerEvents none keeps the Menu tap target underneath live.
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 0,
-    pointerEvents: 'none',
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  eyebrow: {
-    ...typeScale.label,
-    color: palette.inkFaint,
-  },
-  phase: {
-    ...typeScale.heading,
-    color: palette.ink,
-  },
-  statusRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  shelfWrap: {
-    flex: 1,
-    gap: spacing.md,
-    justifyContent: 'center',
-  },
-  cascadeOverlay: {
-    backgroundColor: palette.scrim,
-    bottom: 0,
-    gap: spacing.md,
-    justifyContent: 'center',
-    left: 0,
-    paddingHorizontal: layout.screenPadX,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    zIndex: 10,
-  },
-  hint: {
-    ...typeScale.body,
-    color: palette.inkFaint,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  sellRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    justifyContent: 'center',
-    marginTop: spacing.xs,
-  },
-  sellChip: {
-    alignItems: 'center',
-    backgroundColor: palette.creamBright,
-    borderColor: palette.rentEmber,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
-  },
-  sellChipPressed: {
-    opacity: 0.7,
-  },
-  sellChipName: {
-    ...typeScale.label,
-    color: palette.ink,
-    fontSize: 11,
-    fontWeight: '700',
-    maxWidth: 100,
-  },
-  sellChipPrice: {
-    ...typeScale.label,
-    color: palette.rentEmber,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  actions: {
-    marginTop: 'auto',
-  },
-  buildCard: {
-    alignSelf: 'stretch',
-    backgroundColor: palette.parchment,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  buildCardActive: {
-    backgroundColor: palette.sunlight,
-    borderColor: palette.goldDeep,
-  },
-  buildHero: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  buildEmoji: {
-    fontSize: 28,
-  },
-  buildHeroText: {
-    flex: 1,
-    gap: 1,
-  },
-  buildTitle: {
-    ...typeScale.label,
-    color: palette.ink,
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  buildSub: {
-    ...typeScale.label,
-    color: palette.inkFaint,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  buildMult: {
-    alignItems: 'center',
-    backgroundColor: palette.creamBright,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    minWidth: 58,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  buildMultActive: {
-    backgroundColor: palette.creamBright,
-    borderColor: palette.goldDeep,
-  },
-  buildMultText: {
-    ...typeScale.display,
-    color: palette.inkSoft,
-    fontSize: 22,
-    fontWeight: '800',
-  },
-  buildMultTextActive: {
-    color: palette.emberDark,
-  },
-  goalRow: {
-    flexDirection: 'column',
-    gap: spacing.xs,
-  },
-  goalChip: {
-    alignItems: 'center',
-    backgroundColor: palette.creamBright,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  goalChipMet: {
-    backgroundColor: palette.slotLegal,
-    borderColor: palette.tealDark,
-  },
-  goalChipLabel: {
-    ...typeScale.label,
-    color: palette.ink,
-    flexShrink: 1,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  goalChipValue: {
-    ...typeScale.label,
-    color: palette.inkFaint,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  goalChipValueMet: {
-    color: palette.tealDark,
-  },
-});
