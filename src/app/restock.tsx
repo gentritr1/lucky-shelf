@@ -1,25 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer, Slot } from '@/contracts';
 import {
+  AppText,
   CoinCounter,
   SectionLabel,
   TagChip,
   Toggle,
   WoodButton,
-  baloo2IconNudge,
   layout,
-  palette,
-  radii,
-  shadows,
-  spacing,
-  typeScale,
+  usePalette,
+  useThemedStyles,
   type OfferCardData,
 } from '@/ui';
 import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
+
+import { makeStyles } from './restock.styles';
 import { routeForGameState } from '../state/phaseRouting';
 import {
   hasSlotAction,
@@ -41,6 +40,8 @@ import {
 export default function RestockScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
   const gameState = useRunStore(runSelectors.gameState);
   const rejectedActionCount = useRunStore(runSelectors.rejectedActionCount);
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
@@ -121,18 +122,18 @@ export default function RestockScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
-          <Text style={styles.back}>‹ Menu</Text>
+          <AppText variant="heading" color={palette.tealDark}>‹ Menu</AppText>
         </Pressable>
         <View style={styles.titleWrap} pointerEvents="none">
-          <Text style={styles.title}>{shopHeader.isDailyShop ? 'Daily Shop' : 'Restock'}</Text>
+          <AppText variant="title" color={palette.ink}>{shopHeader.isDailyShop ? 'Daily Shop' : 'Restock'}</AppText>
         </View>
         <CoinCounter coins={gameState.coins} animate />
       </View>
 
       <View style={styles.modeRow}>
-        <Text style={[styles.modeLabel, !sellMode && styles.modeActive]}>Buy</Text>
+        <AppText variant="heading" color={!sellMode ? palette.ink : palette.inkFaint}>Buy</AppText>
         <Toggle accessibilityLabel="Sell mode" value={sellMode} onValueChange={setSellMode} />
-        <Text style={[styles.modeLabel, sellMode && styles.modeActive]}>Sell</Text>
+        <AppText variant="heading" color={sellMode ? palette.ink : palette.inkFaint}>Sell</AppText>
       </View>
 
       {gameState.heldItem ? (
@@ -146,9 +147,9 @@ export default function RestockScreen() {
             heldItem={gameState.heldItem}
             onPlace={placeAt}
           />
-          <Text style={styles.caption}>
+          <AppText variant="body" color={palette.inkFaint} style={styles.caption}>
             {lastRejectedAction?.message ?? `Drag ${gameState.heldItem.name} to a slot — or tap below.`}
-          </Text>
+          </AppText>
           <WoodButton
             label={firstPlaceAction ? `Place ${gameState.heldItem.name}` : 'No Empty Slot'}
             disabled={!firstPlaceAction}
@@ -160,7 +161,7 @@ export default function RestockScreen() {
           <SectionLabel>SELL FROM YOUR SHELF</SectionLabel>
           <View style={styles.sellGrid}>
             {sellShelf.length === 0 ? (
-              <Text style={styles.caption}>Shelf cleared. Nothing left to sell.</Text>
+              <AppText variant="body" color={palette.inkFaint} style={styles.caption}>Shelf cleared. Nothing left to sell.</AppText>
             ) : (
               sellShelf.map(({ slot, item, price }) => (
                 <Pressable
@@ -176,28 +177,29 @@ export default function RestockScreen() {
                       resizeMode="cover"
                     />
                   ) : (
+                    /* decorative glyph icon — raw <Text> exception */
                     <Text style={styles.sellGlyph}>{glyphFor(item.itemId)}</Text>
                   )}
-                  <Text numberOfLines={1} style={styles.sellName}>{item.name}</Text>
+                  <AppText variant="label" color={palette.ink} numberOfLines={1} style={styles.sellName}>{item.name}</AppText>
                   <View style={styles.sellTag}>
-                    <Text style={styles.sellValue}>{`Sell +${price}`}</Text>
+                    <AppText variant="coin" color={palette.ink} style={styles.sellValue}>{`Sell +${price}`}</AppText>
                   </View>
                 </Pressable>
               ))
             )}
           </View>
-          <Text style={styles.caption}>{lastRejectedAction?.message ?? 'Sold items leave the shelf immediately.'}</Text>
+          <AppText variant="body" color={palette.inkFaint} style={styles.caption}>{lastRejectedAction?.message ?? 'Sold items leave the shelf immediately.'}</AppText>
         </View>
       ) : (
         <View style={styles.body}>
           <View style={styles.offersHeader}>
             <View style={styles.shopHeaderText}>
               <SectionLabel>{shopHeader.isDailyShop ? "TODAY'S STOCK" : 'RESTOCK'}</SectionLabel>
-              <Text style={styles.shopContext}>
+              <AppText variant="label" color={palette.inkFaint} style={styles.shopContext}>
                 {`Day ${shopHeader.day} · ${shopHeader.coins}c to spend · ${shopHeader.spotsOpen} ${
                   shopHeader.spotsOpen === 1 ? 'spot' : 'spots'
                 } open`}
-              </Text>
+              </AppText>
             </View>
             <Pressable
               accessibilityRole="button"
@@ -206,11 +208,12 @@ export default function RestockScreen() {
               style={({ pressed }) => [styles.reroll, pressed && styles.pressed]}
             >
               {(gameState.freeRerollTokens ?? 0) > 0 ? (
-                <Text style={styles.rerollText}>🎟️ Free reroll</Text>
+                <AppText variant="label" color={palette.tealDark} style={styles.rerollText}>🎟️ Free reroll</AppText>
               ) : (
                 <View style={styles.rerollInner}>
-                  <Text style={styles.rerollText}>Reroll</Text>
+                  <AppText variant="label" color={palette.tealDark} style={styles.rerollText}>Reroll</AppText>
                   <View style={styles.coinDot} />
+                  {/* coin-adjacent digit (baloo2IconNudge) — raw <Text> exception */}
                   <Text style={styles.rerollCost}>{rerollCost}</Text>
                 </View>
               )}
@@ -218,7 +221,7 @@ export default function RestockScreen() {
           </View>
           <View style={styles.shopList}>
             {offers.length === 0 ? (
-              <Text style={styles.caption}>No offers left — reroll or end the day.</Text>
+              <AppText variant="body" color={palette.inkFaint} style={styles.caption}>No offers left — reroll or end the day.</AppText>
             ) : (
               offers.map((offer, index) => {
                 const canBuy = affordances.buyActions.some((action) => action.offerIndex === index);
@@ -231,20 +234,22 @@ export default function RestockScreen() {
                       {offer.sprite ? (
                         <Image source={offer.sprite as number} style={styles.shopThumbImg} resizeMode="contain" />
                       ) : (
+                        /* decorative glyph icon — raw <Text> exception */
                         <Text style={styles.shopThumbGlyph}>{offer.glyph}</Text>
                       )}
                     </View>
                     <View style={styles.shopInfo}>
                       <View style={styles.shopNameRow}>
-                        <Text numberOfLines={1} style={styles.shopName}>{offer.name}</Text>
+                        <AppText variant="heading" color={palette.ink} numberOfLines={1} style={styles.shopName}>{offer.name}</AppText>
                         {offer.blurb ? (
                           <View style={styles.signatureBadge}>
+                            {/* bespoke badge (no type role / font family) — raw <Text> exception */}
                             <Text style={styles.signatureBadgeText}>✦ SIGNATURE</Text>
                           </View>
                         ) : null}
                       </View>
                       {offer.blurb ? (
-                        <Text numberOfLines={2} style={styles.signatureEffect}>{offer.blurb}</Text>
+                        <AppText variant="body" color={palette.emberDark} numberOfLines={2} style={styles.signatureEffect}>{offer.blurb}</AppText>
                       ) : (
                         <View style={styles.shopTags}>
                           {offer.tags.slice(0, 2).map((tag) => (
@@ -260,6 +265,7 @@ export default function RestockScreen() {
                       style={({ pressed }) => [styles.shopBuy, pressed && styles.pressed, !canBuy && styles.faded]}
                     >
                       <View style={styles.coinDot} />
+                      {/* coin-adjacent digit (baloo2IconNudge) — raw <Text> exception */}
                       <Text style={styles.shopBuyText}>{offer.cost}</Text>
                     </Pressable>
                   </View>
@@ -267,9 +273,9 @@ export default function RestockScreen() {
               })
             )}
           </View>
-          <Text style={styles.caption}>
+          <AppText variant="body" color={palette.inkFaint} style={styles.caption}>
             {lastRejectedAction?.message ?? "Buy what you can afford and place it. Rent is due at week's end."}
-          </Text>
+          </AppText>
         </View>
       )}
 
@@ -311,303 +317,3 @@ function offerToCard(offer: DeliveryOffer): RestockOfferCard {
     blurb: signatureBlurb(offer.item),
   };
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: palette.wallCream,
-    flex: 1,
-    gap: spacing.lg,
-    paddingHorizontal: layout.screenPadX,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  back: {
-    ...typeScale.heading,
-    color: palette.tealDark,
-  },
-  // Absolute-centered so the title is truly centered regardless of the unequal
-  // Menu (left) / coin (right) widths. pointer-transparent so Menu stays tappable.
-  titleWrap: {
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  title: {
-    ...typeScale.title,
-    color: palette.ink,
-  },
-  modeRow: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  modeLabel: {
-    ...typeScale.heading,
-    color: palette.inkFaint,
-  },
-  modeActive: {
-    color: palette.ink,
-  },
-  body: {
-    flex: 1,
-    gap: spacing.md,
-  },
-  offersHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  shopHeaderText: {
-    flexShrink: 1,
-    gap: 2,
-  },
-  shopContext: {
-    ...typeScale.label,
-    color: palette.inkFaint,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  offers: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  // Daily shop: a robust vertical list of offer rows (thumb | info | buy).
-  shopList: {
-    gap: spacing.sm,
-  },
-  shopRow: {
-    alignItems: 'center',
-    backgroundColor: palette.creamBright,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...shadows.card,
-  },
-  shopThumb: {
-    alignItems: 'center',
-    backgroundColor: palette.wallCream,
-    borderRadius: radii.md,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  shopThumbImg: {
-    height: 44,
-    width: 44,
-  },
-  shopThumbGlyph: {
-    fontSize: 28,
-  },
-  shopInfo: {
-    flex: 1,
-    gap: spacing.xxs,
-  },
-  shopName: {
-    ...typeScale.heading,
-    color: palette.ink,
-    fontSize: 15,
-  },
-  shopTags: {
-    flexDirection: 'row',
-    gap: spacing.xxs,
-  },
-  shopRowSignature: {
-    backgroundColor: palette.sunlight,
-    borderColor: palette.goldDeep,
-    borderWidth: 1.5,
-  },
-  shopThumbSignature: {
-    backgroundColor: palette.creamBright,
-    borderColor: palette.goldDeep,
-    borderWidth: 1,
-  },
-  shopNameRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  signatureBadge: {
-    backgroundColor: palette.goldDeep,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 1,
-  },
-  signatureBadgeText: {
-    color: palette.woodDark,
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-  signatureEffect: {
-    ...typeScale.body,
-    color: palette.emberDark,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  shopBuy: {
-    alignItems: 'center',
-    backgroundColor: palette.accentTeal,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    justifyContent: 'center',
-    minWidth: 64,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  shopBuyText: {
-    ...typeScale.coin,
-    color: palette.creamBright,
-    fontSize: 15,
-    lineHeight: 18,
-    // Optically center the Baloo2 digit against the coin dot (shared helper).
-    ...baloo2IconNudge(15),
-  },
-  offerCol: {
-    flex: 1,
-    gap: spacing.sm,
-  },
-  costRibbon: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: palette.rentEmber,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 2,
-    ...shadows.float,
-  },
-  costText: {
-    ...typeScale.coin,
-    color: palette.creamBright,
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  coinDot: {
-    backgroundColor: palette.coinGold,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.pill,
-    borderWidth: 1.5,
-    height: 12,
-    width: 12,
-  },
-  buy: {
-    alignItems: 'center',
-    backgroundColor: palette.accentTeal,
-    borderRadius: radii.md,
-    minHeight: 40,
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-  },
-  buyText: {
-    ...typeScale.heading,
-    color: palette.creamBright,
-    fontSize: 15,
-  },
-  reroll: {
-    backgroundColor: palette.creamBright,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.pill,
-    borderWidth: 1.5,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    ...shadows.float,
-  },
-  rerollInner: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  rerollText: {
-    ...typeScale.label,
-    color: palette.tealDark,
-    letterSpacing: 0,
-  },
-  rerollCost: {
-    ...typeScale.coin,
-    color: palette.tealDark,
-    fontSize: 14,
-    lineHeight: 16,
-    ...baloo2IconNudge(14),
-  },
-  sellGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  sellCard: {
-    alignItems: 'center',
-    backgroundColor: palette.creamBright,
-    borderColor: palette.parchmentEdge,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.xxs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    width: 96,
-    ...shadows.card,
-  },
-  sellGlyph: {
-    fontSize: 34,
-  },
-  sellSprite: {
-    borderRadius: radii.sm,
-    height: 44,
-    width: 44,
-  },
-  sellName: {
-    ...typeScale.label,
-    color: palette.ink,
-    letterSpacing: 0,
-    textTransform: 'none',
-  },
-  sellTag: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: palette.coinGold,
-    borderRadius: radii.pill,
-    justifyContent: 'center',
-    minWidth: 64,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  sellValue: {
-    ...typeScale.coin,
-    color: palette.ink,
-    fontSize: 13,
-    lineHeight: 16,
-    // Block-centered label inside a pill (NOT beside a coin dot), so the shared
-    // icon nudge does not apply. A small manual lift keeps the Baloo2 phrase
-    // optically centered in the tight pill; verified on the sim.
-    includeFontPadding: false,
-    transform: [{ translateY: 1 }],
-  },
-  caption: {
-    ...typeScale.body,
-    color: palette.inkFaint,
-    textAlign: 'center',
-  },
-  pressed: {
-    transform: [{ scale: 0.97 }],
-  },
-  faded: {
-    opacity: 0.45,
-  },
-  actions: {
-    marginTop: 'auto',
-  },
-});
