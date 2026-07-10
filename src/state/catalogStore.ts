@@ -29,6 +29,13 @@ export interface CatalogStoreState {
    *  what "New record!" must compare against. Keyed by runId so a consumer can
    *  tell whose pre-merge snapshot this is. */
   prevRunStats: { runId: string; stats: CatalogStats } | null;
+  /** B-M11: the combos the named run achieved for the FIRST TIME EVER (computed
+   *  against the pre-merge catalog at record time). Drives the catalog album's
+   *  "new" stamp accent. In-memory only (mirrors `prevRunStats`, no new persisted
+   *  field); it survives until the next run records or the app restarts — the
+   *  "until first viewed" fade would need view-tracking persistence, so it is
+   *  dropped (see the B-M11 packet). */
+  lastRunDiscovery: { runId: string; comboIds: readonly string[] } | null;
   loadCatalog(): Promise<Catalog>;
   recordRunEnd(gameState: GameState): Promise<Catalog>;
 }
@@ -60,6 +67,7 @@ export function createCatalogStore(options: CatalogStoreOptions = {}) {
     loadStatus: 'idle',
     lastRecordedRunId: null,
     prevRunStats: null,
+    lastRunDiscovery: null,
 
     async loadCatalog() {
       set({ loadStatus: 'loading' });
@@ -81,10 +89,18 @@ export function createCatalogStore(options: CatalogStoreOptions = {}) {
       }
       const previous = get().catalog;
       const merged = mergeRunIntoCatalog(previous, gameState);
+      // Combos this run achieved for the FIRST TIME EVER — those absent from the
+      // pre-merge catalog. This is the only place the pre-merge achieved set is
+      // still in hand, so the "new" accent is derived here (no run-start snapshot).
+      const priorAchieved = new Set(previous.achievedComboIds);
+      const newCombos = gameState.catalogDelta.discoveredComboIds.filter(
+        (comboId) => !priorAchieved.has(comboId),
+      );
       set({
         catalog: merged,
         lastRecordedRunId: gameState.runId,
         prevRunStats: { runId: gameState.runId, stats: previous.stats },
+        lastRunDiscovery: { runId: gameState.runId, comboIds: newCombos },
       });
       await (await getPersistence()).saveCatalog(merged);
       return merged;
@@ -202,6 +218,10 @@ export interface CatalogComboRow {
   name: string;
   count: number;
   achieved: boolean;
+  /** B-M11: achieved for the first time by the latest run — gets a subtle "new"
+   *  stamp accent in the album. Always `false` unless `newlyAchievedComboIds` is
+   *  supplied, so the default album render is unchanged. */
+  isNew: boolean;
 }
 
 export interface CatalogView {
@@ -214,15 +234,18 @@ export interface CatalogView {
   completionPct: number;
 }
 
+const EMPTY_COMBO_SET: ReadonlySet<string> = new Set();
+
 /** Transform-target items (upgrade variants) are earned, not stocked — the
  * catalog still lists them, but they slot after the base items. */
 export function buildCatalogView(
   catalog: Catalog,
   table: ItemTable = loadItemTable(),
   combos: readonly NamedCombo[] = loadCombos(),
-  options: { unlockLadder?: boolean } = {},
+  options: { unlockLadder?: boolean; newlyAchievedComboIds?: ReadonlySet<string> } = {},
 ): CatalogView {
   const ladderOn = options.unlockLadder ?? unlockLadderEnabled();
+  const newlyAchieved = options.newlyAchievedComboIds ?? EMPTY_COMBO_SET;
   const discoveredItems = new Set(catalog.discoveredItemIds);
   const achievedCombos = new Set(catalog.achievedComboIds);
   // Only computed when the ladder is on — off keeps every item `locked: false`.
@@ -250,6 +273,7 @@ export function buildCatalogView(
     name: combo.name,
     count: catalog.comboCounts[combo.comboId] ?? 0,
     achieved: achievedCombos.has(combo.comboId),
+    isNew: newlyAchieved.has(combo.comboId),
   }));
 
   const itemsDiscovered = items.filter((i) => i.discovered).length;

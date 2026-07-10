@@ -146,6 +146,23 @@ describe('buildCatalogView — flag OFF is byte-identical to today', () => {
   });
 });
 
+describe('buildCatalogView — B-M11 "new" combo accent', () => {
+  it('marks only the newly-achieved combos as isNew, and none by default', () => {
+    const achieved = exhaustedCatalog(); // has lucky-cluster / fire-sale / cheese-board
+
+    const plain = buildCatalogView(achieved, table, combos);
+    expect(plain.combos.every((c) => c.isNew === false)).toBe(true); // default: no accent
+
+    const flagged = buildCatalogView(achieved, table, combos, {
+      newlyAchievedComboIds: new Set(['fire-sale']),
+    });
+    const fireSale = flagged.combos.find((c) => c.comboId === 'fire-sale');
+    expect(fireSale?.isNew).toBe(true);
+    // Every OTHER combo stays unaccented — the badge is not a blanket "achieved".
+    expect(flagged.combos.filter((c) => c.comboId !== 'fire-sale').every((c) => c.isNew === false)).toBe(true);
+  });
+});
+
 describe('nextUnlockTeaserView — the summary "one more run" prompt (Part 3)', () => {
   it('prefers the nearest runs-gated unlock', () => {
     const teaser = nextUnlockTeaserView(freshCatalog(), table, combos, { unlockLadder: true });

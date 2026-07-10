@@ -27,12 +27,21 @@ export default function CatalogScreen() {
   const palette = usePalette();
   const catalog = useCatalogStore(catalogSelectors.catalog);
   const loadCatalog = useCatalogStore((state) => state.loadCatalog);
+  // B-M11: combos the latest run achieved for the first time → the "new" accent.
+  const lastRunDiscovery = useCatalogStore((state) => state.lastRunDiscovery);
 
   useEffect(() => {
     void loadCatalog().catch(() => undefined);
   }, [loadCatalog]);
 
-  const view = useMemo(() => buildCatalogView(catalog), [catalog]);
+  const newlyAchievedComboIds = useMemo(
+    () => new Set(lastRunDiscovery?.comboIds ?? []),
+    [lastRunDiscovery],
+  );
+  const view = useMemo(
+    () => buildCatalogView(catalog, undefined, undefined, { newlyAchievedComboIds }),
+    [catalog, newlyAchievedComboIds],
+  );
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
@@ -141,7 +150,7 @@ function ComboStamp({ combo }: { combo: CatalogComboRow }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   return (
-    <View style={[styles.combo, combo.achieved ? styles.comboFound : styles.comboLocked]}>
+    <View style={[styles.combo, combo.achieved ? styles.comboFound : styles.comboLocked, combo.isNew && styles.comboNew]}>
       <Medallion size={34} earned={combo.achieved} />
       <View style={styles.comboText}>
         <AppText variant="heading" color={palette.ink} numberOfLines={1} style={styles.comboName}>
@@ -153,6 +162,12 @@ function ComboStamp({ combo }: { combo: CatalogComboRow }) {
           <AppText variant="body" color={palette.inkFaint} style={styles.comboHint}>Arrange to discover</AppText>
         )}
       </View>
+      {/* B-M11: subtle "new" stamp accent for a combo the latest run first achieved */}
+      {combo.isNew ? (
+        <View style={styles.newBadge}>
+          <AppText variant="label" color={palette.creamBright} style={styles.newBadgeText}>NEW</AppText>
+        </View>
+      ) : null}
     </View>
   );
 }

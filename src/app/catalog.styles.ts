@@ -89,6 +89,15 @@ export function makeStyles(palette: Palette) {
     },
     comboFound: { backgroundColor: palette.creamBright, borderColor: palette.goldDeep },
     comboLocked: { backgroundColor: palette.parchment, borderColor: palette.parchmentEdge, opacity: 0.7 },
+    // B-M11 "new" accent: a stronger gold stamp edge + a small badge.
+    comboNew: { borderColor: palette.goldDeep, borderWidth: 2 },
+    newBadge: {
+      backgroundColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 1,
+    },
+    newBadgeText: { fontSize: 9, letterSpacing: 0.4 },
     comboText: { flex: 1 },
     comboName: { fontSize: 15 },
     comboCount: { fontSize: 13, fontWeight: '700' },
