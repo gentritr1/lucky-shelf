@@ -353,6 +353,11 @@ export const motion = {
     settle: { damping: 14, stiffness: 260, mass: 1 },
     neighborPart: { damping: 20, stiffness: 300, mass: 0.8 },
   },
+  // B-M11: a first-EVER combo discovery lingers on its cascade step by this
+  // factor (a brief slow-beat of warm recognition). Applied only to that step's
+  // dwell in the cascade player; reduced motion drops it entirely (cadence
+  // unchanged, R-28). A multiplier, not a duration — it scales `cascadeStep`.
+  discoverySlowBeat: 1.2,
 } as const;
 
 // ---------------------------------------------------------------------------

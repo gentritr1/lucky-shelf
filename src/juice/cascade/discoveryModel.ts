@@ -1,4 +1,5 @@
 import type { TraceEvent } from '@/contracts';
+import { motion } from '@/ui/tokens';
 
 /**
  * B-M11 combo-discovery model (pure). Classifies each `comboNamed` event in a
@@ -79,6 +80,18 @@ export function classifyDiscoveries(
   });
 
   return moments;
+}
+
+/**
+ * Dwell duration (ms) for the currently-shown cascade step. Pure so the timing
+ * is unit-testable and the slow-beat diff stays confined to timing. `slow === false`
+ * reproduces the SHIPPED formula exactly (`Math.round(cascadeStep / speed)`), so
+ * the reduced-motion / no-discovery path is byte-identical in cadence; `slow === true`
+ * extends that one step by `motion.discoverySlowBeat`.
+ */
+export function stepDurationMs(baseStep: number, speed: number, slow: boolean): number {
+  const beat = slow ? motion.discoverySlowBeat : 1;
+  return Math.round((baseStep / speed) * beat);
 }
 
 const NO_INDICES: ReadonlySet<number> = new Set();

@@ -33,6 +33,7 @@ import {
   type BuildIdentityView,
   type OrderHudView,
 } from '../state/store';
+import { useRunStartAchievedCombos } from '../state/catalogStore';
 
 // Rent runs on a 3-day cycle (RENT_PERIOD_DAYS). The tension bed takes over on
 // the final morning before rent (dueInDays ≤ 1) — the same beat the DuskAmbience
@@ -50,6 +51,8 @@ export default function RunHudScreen() {
   const rejectedActionCount = useRunStore(runSelectors.rejectedActionCount);
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
+  // B-M11: run-start catalog snapshot → the cascade classifies first-ever combos.
+  const achievedBeforeRun = useRunStartAchievedCombos();
   const [cascadeMount, setCascadeMount] = useState<CascadeMount | null>(null);
   const affordances = useMemo(() => arrangeAffordanceView(gameState), [gameState]);
 
@@ -242,6 +245,7 @@ export default function RunHudScreen() {
             trace={cascadeMount.trace}
             rentDue={cascadeMount.rentDue}
             targetResult={cascadeMount.targetResult}
+            achievedBeforeRun={achievedBeforeRun}
             autoPlay
             onComplete={continueAfterCascade}
             completeLabel={cascadeMount.nextRoute === '/summary' ? 'See Results ▸' : 'Collect ▸'}

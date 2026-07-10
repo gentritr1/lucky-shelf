@@ -26,7 +26,9 @@ import {
   type ShelfLayout,
 } from '../layout';
 import { haptic } from '../haptics';
+import { playDiscoveryJingle } from '../audio';
 import type { CascadeFrame } from './cascadeState';
+import { classifyDiscoveries, slowBeatStepIndices, type DiscoveryMoment } from './discoveryModel';
 import { deltaLabel, isSelfFire } from './popModel';
 import { cascadeTier, type CascadeTier } from './cascadeTier';
 import { CascadeArrow } from './CascadeArrow';
@@ -68,7 +70,20 @@ interface CascadeLayerProps {
   onComplete?: () => void;
   /** Label for that single advance affordance (defaults to a collect-flavored verb). */
   completeLabel?: string;
+  /**
+   * B-M11: the combos achieved all-time BEFORE this run started
+   * (`catalog.achievedComboIds` snapshot at run start). Enables combo-discovery
+   * moments — a first-ever combo earns a toast + stamp + jingle + slow-beat; a
+   * first-this-run combo a small toast; a repeat nothing. Combos already
+   * discovered on earlier days this run are read from `gameState.catalogDelta`
+   * (which, at cascade time, holds the pre-scoring run-so-far). **Omit** the prop
+   * to disable discovery moments entirely (the safe default — an empty set would
+   * instead treat every combo as brand-new).
+   */
+  achievedBeforeRun?: ReadonlySet<string>;
 }
+
+const NO_MOMENTS: readonly DiscoveryMoment[] = [];
 
 export function CascadeLayer({
   gameState,
@@ -78,11 +93,45 @@ export function CascadeLayer({
   targetResult,
   onComplete,
   completeLabel = 'Collect ▸',
+  achievedBeforeRun,
 }: CascadeLayerProps) {
   const reduced = useReducedMotion();
   const { rows, cols } = gameState.shelf.size;
-  const player = useCascadePlayer({ events: trace.events, rentDue, autoPlay });
+
+  // B-M11 combo discovery — pure classification over the trace. `achievedBeforeRun`
+  // is the run-start catalog; combos already discovered on earlier days this run
+  // ride in on `gameState.catalogDelta` (pre-scoring at cascade time). Omitting
+  // `achievedBeforeRun` leaves discovery off. A first-ever step earns a slow-beat
+  // (dropped under reduced motion, so the player's cadence is unchanged there).
+  const discoveries = useMemo(
+    () =>
+      achievedBeforeRun
+        ? classifyDiscoveries(trace.events, {
+            achievedBeforeRun,
+            seenPriorThisRun: new Set(gameState.catalogDelta.discoveredComboIds),
+          })
+        : NO_MOMENTS,
+    [achievedBeforeRun, trace.events, gameState.catalogDelta.discoveredComboIds],
+  );
+  const slowBeatIndices = useMemo(
+    () => slowBeatStepIndices(discoveries, !reduced),
+    [discoveries, reduced],
+  );
+
+  const player = useCascadePlayer({ events: trace.events, rentDue, autoPlay, slowBeatIndices });
   const { frame, currentEvent, stepIndex } = player;
+
+  // The discovery moment for the currently-resolved step (if any).
+  const activeMoment = useMemo(
+    () => discoveries.find((moment) => moment.eventIndex === stepIndex) ?? null,
+    [discoveries, stepIndex],
+  );
+
+  // First-ever combos get the short jingle (SFX gateway + prefs gate). Fires once
+  // as the step resolves; a replay replays it, like the rest of the cascade.
+  useEffect(() => {
+    if (activeMoment?.kind === 'first-ever') playDiscoveryJingle();
+  }, [activeMoment]);
 
   // B-M6 spectacle tier — pure function of the trace + the day's goal target.
   // `'normal'` short-circuits every added effect below so ordinary cascades render
@@ -208,6 +257,15 @@ export function CascadeLayer({
               sceneWidth={frameWidth}
               reduced={reduced}
             />
+          </View>
+        ) : null}
+
+        {/* B-M11 discovery toast — warm recognition below the combo banner. A
+            first-this-run combo gets the plain ink-on-paper chip; a first-ever
+            combo adds the "DISCOVERED" stamp motif. Repeats show nothing. */}
+        {activeMoment && activeMoment.kind !== 'repeat' ? (
+          <View style={styles.discoveryLayer} pointerEvents="none">
+            <DiscoveryToast key={activeMoment.eventIndex} moment={activeMoment} reduced={reduced} />
           </View>
         ) : null}
       </View>
@@ -619,6 +677,32 @@ function prettifyCombo(comboId: string): string {
     .join(' ');
 }
 
+/**
+ * B-M11 discovery toast — the "warm recognition" chip. A first-this-run combo
+ * shows an ink-on-paper chip naming it; a first-ever combo adds the gold
+ * "DISCOVERED" stamp motif (the catalog stamp echo). Springs in; snaps under
+ * reduced motion (R-28). No coins language, no confetti — that stays apex's.
+ */
+function DiscoveryToast({ moment, reduced }: { moment: DiscoveryMoment; reduced: boolean }) {
+  const firstEver = moment.kind === 'first-ever';
+  const t = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    t.value = reduced ? 1 : withSpring(1, motion.springs.settle);
+  }, [t, reduced]);
+  const style = useAnimatedStyle(() => ({
+    opacity: t.value,
+    transform: [{ translateY: (1 - t.value) * 8 }, { scale: 0.92 + t.value * 0.08 }],
+  }));
+  return (
+    <Animated.View style={[styles.toast, firstEver && styles.toastStamp, style]}>
+      <Text style={[styles.toastEyebrow, firstEver && styles.toastEyebrowStamp]}>
+        {firstEver ? '✦ DISCOVERED' : 'COMBO'}
+      </Text>
+      <Text style={styles.toastName}>{prettifyCombo(moment.comboId)}</Text>
+    </Animated.View>
+  );
+}
+
 const TAG_HALF = 18;
 const POP_W = 44;
 const POP_H = 26;
@@ -745,6 +829,44 @@ const styles = StyleSheet.create({
     right: 0,
     top: spacing.sm,
     zIndex: 6,
+  },
+  discoveryLayer: {
+    alignItems: 'center',
+    bottom: spacing.sm,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 6,
+  },
+  toast: {
+    alignItems: 'center',
+    backgroundColor: palette.creamBright,
+    borderColor: palette.parchmentEdge,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    gap: 2,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    ...shadows.card,
+  },
+  // First-ever: the catalog stamp echo — a warmer bed and a gold stamp edge.
+  toastStamp: {
+    backgroundColor: palette.sunlight,
+    borderColor: palette.goldDeep,
+    borderWidth: 2,
+  },
+  toastEyebrow: {
+    ...typeScale.label,
+    color: palette.inkFaint,
+    fontSize: 11,
+  },
+  toastEyebrowStamp: {
+    color: palette.goldDeep,
+  },
+  toastName: {
+    ...typeScale.heading,
+    color: palette.ink,
+    fontSize: 15,
   },
   banner: {
     alignItems: 'center',

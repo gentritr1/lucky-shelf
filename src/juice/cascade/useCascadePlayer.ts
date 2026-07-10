@@ -4,6 +4,7 @@ import type { TraceEvent } from '@/contracts';
 import { motion } from '@/ui/tokens';
 import { cascadeStepHaptic, haptic } from '../haptics';
 import { buildKeyframes, emptyFrame, type CascadeFrame } from './cascadeState';
+import { stepDurationMs } from './discoveryModel';
 
 /**
  * The cascade sequencer: walks the trace one event per `cascadeStep` (260 ms at
@@ -21,7 +22,16 @@ interface UseCascadePlayerOptions {
   events: readonly TraceEvent[];
   rentDue?: boolean;
   autoPlay?: boolean;
+  /**
+   * B-M11: event indices that earn a brief slow-beat (the first-ever combo
+   * discovery step). The dwell on such a step is extended by
+   * `motion.discoverySlowBeat`. Pass an EMPTY set (the default, and what the
+   * caller passes under reduced motion) to keep the exact shipped cadence.
+   */
+  slowBeatIndices?: ReadonlySet<number>;
 }
+
+const NO_SLOW_BEAT: ReadonlySet<number> = new Set();
 
 export interface CascadePlayer {
   /** -1 before the first event resolves; otherwise the resolved event index. */
@@ -42,6 +52,7 @@ export function useCascadePlayer({
   events,
   rentDue = false,
   autoPlay = false,
+  slowBeatIndices = NO_SLOW_BEAT,
 }: UseCascadePlayerOptions): CascadePlayer {
   const frames = useMemo(() => buildKeyframes(events), [events]);
   const lastIndex = events.length - 1;
@@ -87,10 +98,12 @@ export function useCascadePlayer({
       if (stepIndex >= lastIndex && playing) setPlaying(false);
       return;
     }
-    const stepMs = Math.round(motion.durations.cascadeStep / speed);
+    // The dwell is on the CURRENTLY-shown step (`stepIndex`); a first-ever combo
+    // discovery step lingers by `motion.discoverySlowBeat` (empty set ⇒ no change).
+    const stepMs = stepDurationMs(motion.durations.cascadeStep, speed, slowBeatIndices.has(stepIndex));
     const timer = setTimeout(() => setStepIndex((i) => i + 1), stepMs);
     return () => clearTimeout(timer);
-  }, [playing, stepIndex, lastIndex, speed]);
+  }, [playing, stepIndex, lastIndex, speed, slowBeatIndices]);
 
   const play = useCallback(() => {
     setStepIndex((i) => (i >= lastIndex ? -1 : i));

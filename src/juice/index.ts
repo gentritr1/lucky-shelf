@@ -9,7 +9,7 @@ export { DraggableItem, type SceneShared } from './DraggableItem';
 // @shopify/react-native-skia, which auto-inits CanvasKit (wasm) on web. It is
 // loaded native-only via a guarded require inside ShelfScene.
 export { haptic, cascadeStepHaptic } from './haptics';
-export { setMusicTrack, primeAudio, playCascadeSting, type MusicTrack } from './audio';
+export { setMusicTrack, primeAudio, playCascadeSting, playDiscoveryJingle, type MusicTrack } from './audio';
 export { easings, spring, timing } from './motion';
 export { ITEM_GLYPHS, glyphFor } from './glyphs';
 export { ITEM_SPRITES, spriteFor, hasSprite } from './sprites';

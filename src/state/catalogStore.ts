@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { create } from 'zustand';
 
 import { emptyCatalog, type Catalog, type CatalogStats, type GameState, type RunStats } from '../contracts';
@@ -92,6 +93,19 @@ export function createCatalogStore(options: CatalogStoreOptions = {}) {
 }
 
 export const useCatalogStore = createCatalogStore();
+
+/**
+ * B-M11: the set of combos achieved all-time as of RUN START, snapshotted once at
+ * mount (the B-M4 pattern). Feeds the cascade's combo-discovery classifier so a
+ * `first-ever` combo is one absent from the catalog when the run began. Reading
+ * the live catalog would work too — a run only merges in at run end
+ * (`recordRunEnd`) — but the snapshot is robust to that ordering and never
+ * re-subscribes the caller to catalog writes.
+ */
+export function useRunStartAchievedCombos(): ReadonlySet<string> {
+  const [snapshot] = useState(() => new Set(useCatalogStore.getState().catalog.achievedComboIds));
+  return snapshot;
+}
 
 // --- View model: this run's headline stats against the persisted personal best. ---
 

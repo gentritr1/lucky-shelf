@@ -86,6 +86,11 @@ const harnessFixtures: readonly Fixture[] = [
   makeCouponVanishDemo(),
 ];
 
+// B-M11: an empty run-start catalog so every golden combo classifies as
+// first-ever — the harness is the device-recording vehicle for a discovery moment
+// (toast + stamp + jingle + slow-beat, and its reduced-motion snap).
+const HARNESS_ACHIEVED_COMBOS: ReadonlySet<string> = new Set();
+
 /**
  * Dev harness (M2 review vehicle): load any of the six golden traces and play
  * them, verbatim. This is how Fable reviews the cascade — "can I follow every
@@ -157,7 +162,14 @@ export default function CascadeHarnessScreen() {
           <Toggle accessibilityLabel="Rent due" value={rentDue} onValueChange={setRentDue} />
         </View>
 
-        <CascadeLayer key={fixture.fixtureId} gameState={fixture.gameState} trace={fixture.scoringTrace} rentDue={rentDue} autoPlay />
+        <CascadeLayer
+          key={fixture.fixtureId}
+          gameState={fixture.gameState}
+          trace={fixture.scoringTrace}
+          rentDue={rentDue}
+          achievedBeforeRun={HARNESS_ACHIEVED_COMBOS}
+          autoPlay
+        />
       </ScrollView>
     </View>
   );

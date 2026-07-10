@@ -31,6 +31,13 @@ const MUSIC_SOURCES: Record<MusicTrack, number> = {
 
 const CASCADE_STING_SOURCE = require('../../assets/audio/cascade.mp3');
 
+// B-M11 combo-discovery jingle. PLACEHOLDER SOURCE: a dedicated "warm
+// recognition" jingle asset is a deferred audio dependency — until it lands this
+// points at the cascade sting so the gateway/prefs wiring is real and the bundle
+// stays intact. Swap this one constant for `discovery.mp3` when the asset ships
+// (see the B-M11 review packet's deferred gates).
+const DISCOVERY_JINGLE_SOURCE = require('../../assets/audio/cascade.mp3');
+
 // Beds sit under the UI; the sting is a reward and rides a touch louder.
 const MUSIC_VOLUME = 0.55;
 const STING_VOLUME = 0.85;
@@ -40,6 +47,11 @@ const FADE_STEP_MS = 40;
 const musicPlayers: Partial<Record<MusicTrack, AudioPlayer>> = {};
 const fadeTimers = new Map<AudioPlayer, ReturnType<typeof setInterval>>();
 let stingPlayer: AudioPlayer | null = null;
+let discoveryPlayer: AudioPlayer | null = null;
+
+// The discovery jingle sits a touch under the payout sting — recognition, not a
+// jackpot (B-M6 anti-casino identity).
+const DISCOVERY_VOLUME = 0.7;
 
 let currentTrack: MusicTrack | null = null;
 let audioModeConfigured = false;
@@ -218,6 +230,36 @@ export function playCascadeSting(): void {
   const player = ensureStingPlayer();
   player.volume = STING_VOLUME;
   // Rewind then play so back-to-back cascades always hear the full flourish.
+  void player
+    .seekTo(0)
+    .catch(noop)
+    .finally(() => {
+      try {
+        player.play();
+      } catch {
+        /* gated / removed */
+      }
+    });
+}
+
+function ensureDiscoveryPlayer(): AudioPlayer {
+  if (!discoveryPlayer) {
+    discoveryPlayer = createAudioPlayer(DISCOVERY_JINGLE_SOURCE);
+    discoveryPlayer.volume = DISCOVERY_VOLUME;
+  }
+  return discoveryPlayer;
+}
+
+/**
+ * B-M11: the one-shot combo-discovery jingle — the short warm sting on a
+ * FIRST-EVER combo. Same SFX channel + `sfxEnabled` gate as the payout sting
+ * (no-op when muted); its own player so a discovery and a payout can overlap.
+ */
+export function playDiscoveryJingle(): void {
+  ensureAudioMode();
+  if (!usePrefs.getState().sfxEnabled) return;
+  const player = ensureDiscoveryPlayer();
+  player.volume = DISCOVERY_VOLUME;
   void player
     .seekTo(0)
     .catch(noop)
