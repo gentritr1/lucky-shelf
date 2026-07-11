@@ -15,18 +15,99 @@ export function makeStyles(palette: Palette) {
     screen: { backgroundColor: palette.wallCream, flex: 1, paddingHorizontal: layout.screenPadX },
     content: { gap: spacing.md, paddingTop: spacing.md },
 
-    summary: { gap: spacing.md },
+    // PROG-1 "Shelf Growth" card: tighter section gap so the richer card (mini
+    // shelf + headline + next-on-shelf hook + iconed stats) still clears the tabs
+    // above the fold on an iPhone SE. Measured header height ~226pt (budget ≤240).
+    summary: { gap: spacing.sm },
     completionRow: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm },
-    progressTrack: {
+    statsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+    stat: { alignItems: 'center', flex: 1, gap: spacing.xxs },
+    statLabel: { fontSize: 10 },
+    // Stat value + its MCI icon on one line, the label beneath — keeps the 4-up
+    // row short (icon-over-value stacked would add ~18pt per cell to the header).
+    statValueRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
+
+    // --- PROG-1 Shelf-Growth top row: the mini collection shelf beside the
+    // completion headline (big %, discovered count, combos chip). ---
+    growthTop: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
+    growthHeadline: { flex: 1, gap: spacing.xxs },
+    // Combos as a small secondary chip (the card is about the collection whole).
+    combosChip: {
+      alignItems: 'center',
+      alignSelf: 'flex-start',
       backgroundColor: palette.parchment,
       borderRadius: radii.pill,
-      height: 10,
-      overflow: 'hidden',
+      flexDirection: 'row',
+      gap: spacing.xxs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xxs,
     },
-    progressFill: { backgroundColor: palette.accentTeal, borderRadius: radii.pill, height: 10 },
-    statsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-    stat: { alignItems: 'center', flex: 1 },
-    statLabel: { fontSize: 10 },
+
+    // The mini collection shelf: 41 wells in a wood frame — the game's own shelf
+    // language as the progress meter ("your shelf, filling up"). Grid arithmetic:
+    // 7 cols × 6 rows of 10pt cells + 2pt gaps → inner 82×70; width 82 + pad 8 +
+    // border 3 = 93 (fixed so exactly 7 cells wrap per row); height derives to ~81.
+    // Discovered cells fill with their band accent (the legend ladder); the rest
+    // stay recessed woodInset wells.
+    miniShelf: {
+      backgroundColor: palette.shelfWood,
+      borderColor: palette.woodDark,
+      borderRadius: radii.sm,
+      borderWidth: borders.regular,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xxs,
+      padding: spacing.xs,
+      width: 93,
+    },
+    miniCell: { borderRadius: radii.xs, height: 10, width: 10 },
+    miniCellEmpty: { backgroundColor: palette.woodInset },
+    // Band accents match the legend chips exactly (coinGold → goldDeep → sunlight
+    // → parchmentEdge), rarest-first, so the shelf fill reads by the same ladder.
+    miniCellHeirloom: { backgroundColor: palette.coinGold },
+    miniCellRare: { backgroundColor: palette.goldDeep },
+    miniCellFine: { backgroundColor: palette.sunlight },
+    miniCellCommon: { backgroundColor: palette.parchmentEdge },
+
+    // NEXT ON THE SHELF hook — an inset parchment strip: a silhouette thumb + the
+    // real unlock hint (nextUnlockTeaserView) + a runs progress tick, or the
+    // nearest incomplete band as a fallback. The retention loop, honestly sourced.
+    nextStrip: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: borders.hairline,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    nextThumbCircle: {
+      alignItems: 'center',
+      backgroundColor: palette.wallCream,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      borderWidth: borders.hairline,
+      height: 36,
+      justifyContent: 'center',
+      width: 36,
+    },
+    // The locked item's real sprite, tinted to a silhouette via `silhouette`.
+    nextThumb: { height: 26, width: 26 },
+    nextThumbDot: { backgroundColor: palette.inkFaint, borderRadius: radii.pill, height: 20, width: 20 },
+    nextText: { flex: 1, gap: spacing.xxs },
+    // Runs-gated tick ("8 / 9" over a short fill) pinned to the strip's right.
+    nextTick: { alignItems: 'flex-end', gap: spacing.xxs, width: 52 },
+    nextTickTrack: {
+      backgroundColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      height: 4,
+      overflow: 'hidden',
+      width: '100%',
+    },
+    nextTickFill: { backgroundColor: palette.accentTeal, borderRadius: radii.pill, height: 4 },
+    nextTickText: { fontSize: 12, letterSpacing: 0 },
 
     // CAT-2 segmented tabs — a parchment track with a cream selected pill that
     // slides (translateX only — no scaleX/scaleY) between ITEMS and COMBOS.

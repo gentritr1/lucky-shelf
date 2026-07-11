@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ComponentProps } from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -11,6 +11,7 @@ import Animated, {
   withDelay,
   withSpring,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 
 import {
@@ -37,12 +38,18 @@ import {
   buildCatalogView,
   catalogBands,
   catalogSelectors,
+  nearestIncompleteBand,
+  nextUnlockTeaserView,
   useCatalogStore,
   type CatalogBand,
   type CatalogComboRow,
   type CatalogItemRow,
   type CatalogView,
+  type NextUnlockRow,
 } from '../state/catalogStore';
+
+/** MaterialCommunityIcons glyph name — lets the Stat cell take a validated icon. */
+type MciName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 /** RuleTarget descriptor shared by combo center/adjacent — a tag or a concrete item. */
 type ComboSlot = CatalogComboRow['center'];
@@ -187,6 +194,11 @@ export default function CatalogScreen() {
     [catalog, newlyAchievedComboIds, newlyDiscoveredItemIds],
   );
 
+  // PROG-1: the real "one more run" hook for the header — the nearest locked
+  // ladder unlock (null when the ladder is off/exhausted, then the header falls
+  // back to the nearest incomplete band). Reads the live catalog.
+  const nextUnlock = useMemo(() => nextUnlockTeaserView(catalog), [catalog]);
+
   // The showcase only ever opens for a DISCOVERED row — an undiscovered or
   // unknown id resolves to null and the modal stays closed (mystery stays
   // mystery, and a stale deep link is inert).
@@ -213,7 +225,7 @@ export default function CatalogScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + layout.screenBottomGap }]}
         showsVerticalScrollIndicator={false}
       >
-        <CompletionHeader view={view} stats={catalog.stats} />
+        <CompletionHeader view={view} stats={catalog.stats} nextUnlock={nextUnlock} />
 
         <SegmentedTabs
           tab={tab}
@@ -237,33 +249,232 @@ export default function CatalogScreen() {
   );
 }
 
-/** The persistent completion header — count-up %, fill bar, four best-run stats.
- *  Stays visible above both tabs. */
+/**
+ * PROG-1 "Shelf Growth" header — the collection as a filling wooden shelf, not a
+ * plain stat block. A mini 41-well shelf (the game's own shelf language) fills
+ * band-by-band as items are discovered; beside it the completion %, the real
+ * discovered count, and a combos chip. Below: the honest retention hook (NEXT ON
+ * THE SHELF — the real unlock ladder, never an invented %-milestone reward) and
+ * the four best-run stats with icons. Stays visible above both tabs.
+ */
 function CompletionHeader({
   view,
   stats,
+  nextUnlock,
 }: {
   view: CatalogView;
   stats: { runsPlayed: number; bestDayTotal: number; deepestRentSurvived: number; totalCoinsAllTime: number };
+  nextUnlock: NextUnlockRow | null;
 }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
+  const bands = useMemo(() => catalogBands(view.items), [view.items]);
   return (
     <Panel style={styles.summary}>
-      <View style={styles.completionRow}>
-        <CompletionNumber pct={view.completionPct} />
-        <AppText variant="label" color={palette.inkFaint}>COLLECTED</AppText>
+      <View style={styles.growthTop}>
+        <MiniShelf bands={bands} discovered={view.itemsDiscovered} total={view.itemsTotal} />
+        <View style={styles.growthHeadline}>
+          <View style={styles.completionRow}>
+            <CompletionNumber pct={view.completionPct} />
+            <AppText variant="label" color={palette.inkFaint}>COLLECTED</AppText>
+          </View>
+          <AppText variant="body" color={palette.inkSoft}>
+            {`${view.itemsDiscovered} / ${view.itemsTotal} items discovered`}
+          </AppText>
+          <View style={styles.combosChip}>
+            <MaterialCommunityIcons name="star-four-points" size={12} color={palette.goldDeep} />
+            <AppText variant="label" color={palette.inkSoft}>
+              {`${view.combosAchieved}/${view.combosTotal} combos`}
+            </AppText>
+          </View>
+        </View>
       </View>
-      <View style={styles.progressTrack}>
-        <ProgressFill pct={view.completionPct} />
-      </View>
+
+      <NextOnShelf nextUnlock={nextUnlock} bands={bands} />
+
       <View style={styles.statsGrid}>
-        <Stat label="Runs" value={String(stats.runsPlayed)} />
-        <Stat label="Best day" value={`${stats.bestDayTotal}c`} />
-        <Stat label="Deepest rent" value={String(stats.deepestRentSurvived)} />
-        <Stat label="All-time" value={`${stats.totalCoinsAllTime}c`} />
+        <Stat icon="storefront-outline" label="Runs" value={String(stats.runsPlayed)} />
+        <Stat icon="trophy-outline" label="Best day" value={`${stats.bestDayTotal}c`} />
+        <Stat icon="stairs-down" label="Deepest rent" value={String(stats.deepestRentSurvived)} />
+        <Stat icon="cash-multiple" label="All-time" value={`${stats.totalCoinsAllTime}c`} />
       </View>
     </Panel>
+  );
+}
+
+/** At most this many filled cells "pop" onto the mini shelf on mount — the
+ *  most-recently-earned end of the collection. One shared value drives them all
+ *  (never 41 concurrent animators); the rest snap in already-placed. */
+const MINI_POP_MAX = 8;
+
+/** Map an item tier to its mini-shelf fill (the legend band accents). */
+function miniFill(tier: CatalogItemRow['tier'], styles: ReturnType<typeof makeStyles>) {
+  switch (tier) {
+    case 4:
+      return styles.miniCellHeirloom;
+    case 3:
+      return styles.miniCellRare;
+    case 2:
+      return styles.miniCellFine;
+    default:
+      return styles.miniCellCommon;
+  }
+}
+
+/**
+ * The mini collection shelf: one well per item (41), band-ordered rarest-first to
+ * match the grid + legend below. Discovered wells fill with their band accent;
+ * the rest stay recessed. On mount the last ≤8 filled wells pop in with a tiny
+ * stagger driven by ONE shared value (uniform scale only — Fabric collapses
+ * separate scaleX/scaleY); reduced motion snaps everything placed.
+ */
+function MiniShelf({
+  bands,
+  discovered,
+  total,
+}: {
+  bands: CatalogBand[];
+  discovered: number;
+  total: number;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const reduced = useReducedMotion();
+  // Flatten to 41 cells in band order (rarest-first, table order within a band).
+  const cells = useMemo(
+    () => bands.flatMap((band) => band.items.map((item) => ({ id: item.id, tier: item.tier, discovered: item.discovered }))),
+    [bands],
+  );
+  // The pop set: the LAST ≤MINI_POP_MAX filled cells in shelf order, each given a
+  // stagger slot. Computed on every render (cheap; no animators created here).
+  const { popSlots, popCount } = useMemo(() => {
+    const filled = cells.map((cell, index) => (cell.discovered ? index : -1)).filter((index) => index >= 0);
+    const start = Math.max(0, filled.length - MINI_POP_MAX);
+    const slots = new Map<number, number>();
+    filled.slice(start).forEach((cellIndex, slot) => slots.set(cellIndex, slot));
+    return { popSlots: slots, popCount: slots.size };
+  }, [cells]);
+
+  // One shared driver for the whole stagger (0→1 once on mount).
+  const sweep = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    if (reduced) {
+      sweep.value = 1;
+      return;
+    }
+    sweep.value = 0;
+    sweep.value = withTiming(1, { duration: motion.durations.drift, easing: easings.out });
+  }, [reduced, sweep]);
+
+  return (
+    <View
+      style={styles.miniShelf}
+      accessibilityLabel={`Collection shelf: ${discovered} of ${total} items filled`}
+    >
+      {cells.map((cell, index) => {
+        const slot = popSlots.get(index);
+        if (cell.discovered && slot != null) {
+          return (
+            <MiniShelfPopCell key={cell.id} tier={cell.tier} sweep={sweep} slot={slot} count={popCount} />
+          );
+        }
+        return (
+          <View
+            key={cell.id}
+            style={[styles.miniCell, cell.discovered ? miniFill(cell.tier, styles) : styles.miniCellEmpty]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+/** A filled mini-shelf well that pops in on mount. Reads the shared `sweep`
+ *  value (a plain number — arithmetic is legal) and maps it, offset by its
+ *  stagger slot, to opacity + a uniform scale. */
+function MiniShelfPopCell({
+  tier,
+  sweep,
+  slot,
+  count,
+}: {
+  tier: CatalogItemRow['tier'];
+  sweep: SharedValue<number>;
+  slot: number;
+  count: number;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const anim = useAnimatedStyle(() => {
+    // Spread the pop across the first ~60% of the sweep, then each cell eases in
+    // over the remaining window.
+    const start = count <= 1 ? 0 : (slot / count) * 0.6;
+    const local = interpolate(sweep.value, [start, start + 0.4], [0, 1], Extrapolation.CLAMP);
+    return { opacity: local, transform: [{ scale: interpolate(local, [0, 1], [0.4, 1]) }] };
+  });
+  return <Animated.View style={[styles.miniCell, miniFill(tier, styles), anim]} />;
+}
+
+/**
+ * The NEXT ON THE SHELF hook — the honest retention loop. Primary: the nearest
+ * locked ladder unlock (nextUnlockTeaserView) — its real silhouette + real hint
+ * ("Reach 9 runs") + a runs progress tick. Fallback (ladder off/exhausted): the
+ * nearest incomplete rarity band ("2 more FINE finds complete the row"). NO
+ * invented %-milestone reward — every prompt maps to a real unlock or a real set.
+ */
+function NextOnShelf({ nextUnlock, bands }: { nextUnlock: NextUnlockRow | null; bands: CatalogBand[] }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+
+  if (nextUnlock) {
+    const sprite = spriteFor(nextUnlock.itemId);
+    const progress = nextUnlock.progress;
+    const pct =
+      progress && progress.target > 0
+        ? Math.min(100, Math.round((progress.current / progress.target) * 100))
+        : 0;
+    return (
+      <View style={styles.nextStrip}>
+        <View style={styles.nextThumbCircle}>
+          {sprite ? (
+            <Image source={sprite} style={[styles.nextThumb, styles.silhouette]} resizeMode="contain" />
+          ) : (
+            <View style={styles.nextThumbDot} />
+          )}
+        </View>
+        <View style={styles.nextText}>
+          <AppText variant="label" color={palette.inkFaint}>NEXT ON THE SHELF</AppText>
+          <AppText variant="body" color={palette.inkSoft} numberOfLines={1}>
+            {nextUnlock.hint}
+          </AppText>
+        </View>
+        {progress ? (
+          <View style={styles.nextTick}>
+            <AppText variant="stat" color={palette.ink} style={styles.nextTickText}>
+              {`${progress.current}/${progress.target}`}
+            </AppText>
+            <View style={styles.nextTickTrack}>
+              <View style={[styles.nextTickFill, { width: `${pct}%` }]} />
+            </View>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
+  const band = nearestIncompleteBand(bands);
+  if (!band) return null; // Everything collected — no hook to show.
+  const remaining = band.total - band.discovered;
+  return (
+    <View style={styles.nextStrip}>
+      <View style={styles.nextThumbCircle}>
+        <MaterialCommunityIcons name="shape-outline" size={20} color={palette.inkFaint} />
+      </View>
+      <View style={styles.nextText}>
+        <AppText variant="label" color={palette.inkFaint}>COMPLETE THE SET</AppText>
+        <AppText variant="body" color={palette.inkSoft} numberOfLines={1}>
+          {`${remaining} more ${band.name} ${remaining === 1 ? 'find completes' : 'finds complete'} the row`}
+        </AppText>
+      </View>
+    </View>
   );
 }
 
@@ -493,28 +704,16 @@ function CompletionNumber({ pct }: { pct: number }) {
   );
 }
 
-/** The header progress bar fills 0 → pct% on mount over the same ~600ms beat. */
-function ProgressFill({ pct }: { pct: number }) {
-  const styles = useThemedStyles(makeStyles);
-  const reduced = useReducedMotion();
-  const w = useSharedValue(reduced ? pct : 0);
-  useEffect(() => {
-    if (reduced) {
-      w.value = pct;
-      return;
-    }
-    w.value = withTiming(pct, { duration: motion.durations.banner, easing: easings.out });
-  }, [pct, reduced, w]);
-  const style = useAnimatedStyle(() => ({ width: `${w.value}%` }));
-  return <Animated.View style={[styles.progressFill, style]} />;
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
+/** One best-run stat: an MCI icon beside the value, the label beneath. */
+function Stat({ icon, label, value }: { icon: MciName; label: string; value: string }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   return (
     <View style={styles.stat}>
-      <AppText variant="stat" color={palette.ink}>{value}</AppText>
+      <View style={styles.statValueRow}>
+        <MaterialCommunityIcons name={icon} size={14} color={palette.inkFaint} />
+        <AppText variant="stat" color={palette.ink}>{value}</AppText>
+      </View>
       <AppText variant="label" color={palette.inkFaint} style={styles.statLabel}>{label}</AppText>
     </View>
   );

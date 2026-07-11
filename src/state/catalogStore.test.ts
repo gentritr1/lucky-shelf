@@ -8,8 +8,10 @@ import {
   buildCatalogView,
   catalogBands,
   createCatalogStore,
+  nearestIncompleteBand,
   nextUnlockTeaserView,
   RARITY_BANDS,
+  type CatalogBand,
 } from './catalogStore';
 
 function memoryStorage(seed?: Record<string, string>) {
@@ -325,5 +327,66 @@ describe('nextUnlockTeaserView — the summary "one more run" prompt (Part 3)', 
 
   it('returns null when the ladder is exhausted (nothing left to chase)', () => {
     expect(nextUnlockTeaserView(exhaustedCatalog(), table, combos, { unlockLadder: true })).toBeNull();
+  });
+
+  it('PROG-1: carries runsPlayed progress for a runs-gated next unlock', () => {
+    // Fresh player: 0 runs, nearest gate is apple-basket (runsPlayed 1).
+    const teaser = nextUnlockTeaserView(freshCatalog(), table, combos, { unlockLadder: true });
+    expect(teaser?.progress).toEqual({ current: 0, target: 1 });
+  });
+
+  it('PROG-1: carries NO progress for an item/combo-gated next unlock', () => {
+    // Clear every runsPlayed gate (max is 20) so the nearest unlock is a
+    // non-runs gate — brass-scale wants price-gun discovered (still unmet).
+    const catalog = freshCatalog();
+    catalog.stats.runsPlayed = 20;
+    const teaser = nextUnlockTeaserView(catalog, table, combos, { unlockLadder: true });
+    expect(teaser?.itemId).toBe('brass-scale');
+    expect(teaser?.progress).toBeNull();
+  });
+});
+
+describe('nearestIncompleteBand — PROG-1 shelf-growth fallback hook', () => {
+  const band = (name: string, tier: 1 | 2 | 3 | 4, discovered: number, total: number): CatalogBand => ({
+    tier,
+    name,
+    items: [],
+    discovered,
+    total,
+  });
+
+  it('returns the incomplete band closest to completion (fewest remaining)', () => {
+    const bands = [
+      band('HEIRLOOM', 4, 1, 4), // 3 remaining
+      band('RARE', 3, 9, 11), // 2 remaining
+      band('FINE', 2, 11, 12), // 1 remaining — the nearest
+      band('COMMON', 1, 10, 14), // 4 remaining
+    ];
+    const near = nearestIncompleteBand(bands);
+    expect(near?.name).toBe('FINE');
+    expect((near as CatalogBand).total - (near as CatalogBand).discovered).toBe(1);
+  });
+
+  it('ties resolve to the rarest band (rarest-first order preserved)', () => {
+    const bands = [
+      band('HEIRLOOM', 4, 3, 4), // 1 remaining
+      band('COMMON', 1, 13, 14), // 1 remaining — tie
+    ];
+    expect(nearestIncompleteBand(bands)?.name).toBe('HEIRLOOM');
+  });
+
+  it('returns null when every band is complete (nothing left to chase)', () => {
+    const bands = [band('RARE', 3, 11, 11), band('COMMON', 1, 14, 14)];
+    expect(nearestIncompleteBand(bands)).toBeNull();
+  });
+
+  it('reads live discovery through catalogBands (fewest-remaining wins)', () => {
+    const catalog = freshCatalog();
+    // maneki-neko is a tier-4 HEIRLOOM; discovering it leaves 3 of 4 HEIRLOOM
+    // remaining — but every other band (11/12/14) has more remaining, so with a
+    // single discovery HEIRLOOM is the closest to done.
+    catalog.discoveredItemIds.push('maneki-neko');
+    const bands = catalogBands(buildCatalogView(catalog, table, combos).items);
+    expect(nearestIncompleteBand(bands)?.name).toBe('HEIRLOOM');
   });
 });

@@ -487,6 +487,15 @@ export interface NextUnlockRow {
   itemId: string;
   name: string;
   hint: string;
+  /**
+   * PROG-1: numeric progress toward a `runsPlayed`-gated next unlock — live runs
+   * (`current`) vs the ladder count (`target`) — so the shelf-growth hook can
+   * render a concrete "8 / 9" tick and a fill toward it. Null for item/combo
+   * gates, which have no linear countdown to draw. Pure display derive over the
+   * sim predicate (mirrors `CatalogItemRow.unlockProgress`); the unlock LOGIC
+   * still lives in the sim.
+   */
+  progress: { current: number; target: number } | null;
 }
 
 /**
@@ -510,5 +519,29 @@ export function nextUnlockTeaserView(
     itemId: pick.itemId,
     name: table.get(pick.itemId)?.name ?? pick.itemId,
     hint: formatUnlockHint(pick.predicate, table, combos),
+    progress:
+      pick.predicate.kind === 'runsPlayed'
+        ? { current: catalog.stats.runsPlayed, target: pick.predicate.count }
+        : null,
   };
+}
+
+/**
+ * PROG-1 shelf-growth fallback hook. When the unlock ladder is off or exhausted
+ * (`nextUnlockTeaserView` returns null) the header still needs a "what's next"
+ * pointer, so it aims the player at the nearest INCOMPLETE rarity band ("2 more
+ * FINE finds complete the row"). Returns the incomplete band CLOSEST to done
+ * (fewest items remaining); ties resolve to the rarest, since `catalogBands`
+ * arrives rarest-first and only a strictly smaller remainder replaces the pick.
+ * Null when every band is complete (100% — nothing left to chase). Pure derive
+ * over `catalogBands` output; no persistence touched.
+ */
+export function nearestIncompleteBand(bands: readonly CatalogBand[]): CatalogBand | null {
+  let best: CatalogBand | null = null;
+  for (const band of bands) {
+    const remaining = band.total - band.discovered;
+    if (remaining <= 0) continue;
+    if (best === null || remaining < best.total - best.discovered) best = band;
+  }
+  return best;
 }
