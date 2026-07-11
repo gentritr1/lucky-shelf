@@ -287,12 +287,21 @@ function BuildSignpost({
       style={[
         styles.buildCard,
         build?.active ? styles.buildCardActive : null,
-        accent ? { borderLeftColor: accent, borderLeftWidth: 5 } : null,
       ]}
     >
       <View style={styles.buildHero}>
-        {/* decorative emoji glyph — raw <Text> exception */}
-        <Text style={styles.buildEmoji}>{build ? tagEmoji[build.tag] ?? '🏷️' : '🛒'}</Text>
+        {/* Emoji sits in a soft accent-tinted tile — it echoes the shelf item
+            tiles below and carries the build colour as a gentle wash + ring
+            instead of a loud left-edge stripe. */}
+        <View
+          style={[
+            styles.buildEmojiTile,
+            accent ? { backgroundColor: `${accent}1F`, borderColor: accent } : null,
+          ]}
+        >
+          {/* decorative emoji glyph — raw <Text> exception */}
+          <Text style={styles.buildEmoji}>{build ? tagEmoji[build.tag] ?? '🏷️' : '🛒'}</Text>
+        </View>
         <View style={styles.buildHeroText}>
           <AppText variant="label" color={palette.ink} style={styles.buildTitle}>
             {build ? `${build.tag.toUpperCase()} SHELF` : 'YOUR BUILD'}

@@ -124,17 +124,32 @@ export function makeStyles(palette: Palette) {
       flexDirection: 'row',
       gap: spacing.sm,
     },
+    buildEmojiTile: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
+    },
     buildEmoji: {
-      fontSize: 28,
+      fontSize: 24,
+      lineHeight: 30,
+      textAlign: 'center',
     },
     buildHeroText: {
       flex: 1,
-      gap: 1,
+      gap: 2,
     },
     buildTitle: {
+      // fontSize is bumped above the `label` variant's 12 → the variant's
+      // lineHeight of 16 would clip these caps, so pin a roomy one here.
       fontSize: 16,
       fontWeight: '800',
-      letterSpacing: 0.5,
+      letterSpacing: 0.7,
+      lineHeight: 21,
     },
     buildSub: {
       fontSize: 11,
