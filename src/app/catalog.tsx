@@ -90,7 +90,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   const palette = usePalette();
   return (
     <View style={styles.stat}>
-      <AppText variant="heading" color={palette.ink}>{value}</AppText>
+      <AppText variant="stat" color={palette.ink}>{value}</AppText>
       <AppText variant="label" color={palette.inkFaint} style={styles.statLabel}>{label}</AppText>
     </View>
   );

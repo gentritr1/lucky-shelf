@@ -213,7 +213,7 @@ export default function RestockScreen() {
                 <View style={styles.rerollInner}>
                   <AppText variant="label" color={palette.tealDark} style={styles.rerollText}>Reroll</AppText>
                   <View style={styles.coinDot} />
-                  {/* coin-adjacent digit (baloo2IconNudge) — raw <Text> exception */}
+                  {/* coin-adjacent digit (system coin role) — raw <Text> exception */}
                   <Text style={styles.rerollCost}>{rerollCost}</Text>
                 </View>
               )}
@@ -265,7 +265,7 @@ export default function RestockScreen() {
                       style={({ pressed }) => [styles.shopBuy, pressed && styles.pressed, !canBuy && styles.faded]}
                     >
                       <View style={styles.coinDot} />
-                      {/* coin-adjacent digit (baloo2IconNudge) — raw <Text> exception */}
+                      {/* coin-adjacent digit (system coin role) — raw <Text> exception */}
                       <Text style={styles.shopBuyText}>{offer.cost}</Text>
                     </Pressable>
                   </View>

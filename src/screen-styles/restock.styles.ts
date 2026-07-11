@@ -1,15 +1,16 @@
 import { StyleSheet } from 'react-native';
 
-import { baloo2IconNudge, layout, radii, shadows, spacing, typeScale, type Palette } from '@/ui/tokens';
+import { layout, radii, shadows, spacing, typeScale, type Palette } from '@/ui/tokens';
 
 /**
  * Restock / Daily-Shop sheet as a B-M9 themed factory. Colors read from the passed
  * `palette`; text color/role for block copy moved to the `AppText` call sites.
  * Entries kept here that still carry text styling are the documented raw-<Text>
- * exceptions: the coin-adjacent digits (`shopBuyText`, `rerollCost`) that need the
- * `baloo2IconNudge` optical alignment beside the coin dot, the bespoke
- * `signatureBadgeText` (no type role / font family), and the emoji/glyph icons.
- * Their colors are still parametrized, so high contrast re-themes them. The
+ * exceptions: the coin-adjacent digits (`shopBuyText`, `rerollCost`) on the system
+ * `coin` role — TYPO-1 dropped the old `baloo2IconNudge` translateY here, the
+ * system face (`fonts.ui`) centers them against the coin dot on its own — the
+ * bespoke `signatureBadgeText` (no type role / font family), and the emoji/glyph
+ * icons. Their colors are still parametrized, so high contrast re-themes them. The
  * unreferenced `offerCol`/`costRibbon`/`costText`/`buy`/`buyText` entries are
  * pre-existing dead styles, transcribed verbatim (out of scope to remove here).
  * Byte-identical at default prefs.
@@ -151,12 +152,11 @@ export function makeStyles(palette: Palette) {
       paddingVertical: spacing.sm,
     },
     shopBuyText: {
+      // System-font coin role (TYPO-1): centers against the coin dot, no nudge.
       ...typeScale.coin,
       color: palette.creamBright,
       fontSize: 15,
       lineHeight: 18,
-      // Optically center the Baloo2 digit against the coin dot (shared helper).
-      ...baloo2IconNudge(15),
     },
     offerCol: {
       flex: 1,
@@ -218,11 +218,11 @@ export function makeStyles(palette: Palette) {
       letterSpacing: 0,
     },
     rerollCost: {
+      // System-font coin role (TYPO-1): centers against the coin dot, no nudge.
       ...typeScale.coin,
       color: palette.tealDark,
       fontSize: 14,
       lineHeight: 16,
-      ...baloo2IconNudge(14),
     },
     sellGrid: {
       flexDirection: 'row',
@@ -264,13 +264,10 @@ export function makeStyles(palette: Palette) {
       paddingVertical: 2,
     },
     sellValue: {
-      // Block-centered coin label inside a pill (NOT beside a coin dot), so the
-      // shared icon nudge does not apply. A small manual lift keeps the Baloo2
-      // phrase optically centered in the tight pill; verified on the sim.
+      // Block-centered coin label ("Sell +N") inside a pill. TYPO-1: on the system
+      // face this centers by flexbox alone — the old Baloo2 translateY lift is gone.
       fontSize: 13,
       lineHeight: 16,
-      includeFontPadding: false,
-      transform: [{ translateY: 1 }],
     },
     caption: {
       textAlign: 'center',

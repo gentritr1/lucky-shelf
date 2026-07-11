@@ -175,7 +175,7 @@ export default function RunSummaryScreen() {
               <AppText variant="body" color={palette.inkSoft}>
                 Combos this run
               </AppText>
-              <AppText variant="heading" color={palette.ink}>
+              <AppText variant="stat" color={palette.ink}>
                 {combosThisRun}
               </AppText>
             </View>
@@ -237,7 +237,7 @@ function BestRow({ row }: { row: PersonalBestRow }) {
         {row.kind === 'coin' ? (
           <CoinCounter coins={row.thisRun} />
         ) : (
-          <AppText variant="heading" color={palette.ink}>
+          <AppText variant="stat" color={palette.ink}>
             {row.thisRun}
             {unit}
           </AppText>

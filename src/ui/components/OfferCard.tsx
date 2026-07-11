@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { baloo2IconNudge, borders, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { borders, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
 import { useReducedMotion } from '../prefs';
 import { TagChip } from './TagChip';
 
@@ -153,12 +153,11 @@ const styles = StyleSheet.create({
     width: 12,
   },
   value: {
+    // System-font coin role (TYPO-1): centers against the coin dot, no nudge.
     ...typeScale.coin,
     fontSize: 16,
     lineHeight: 20,
     color: palette.ink,
-    // Optically center the Baloo2 digit against the coin dot (shared helper).
-    ...baloo2IconNudge(16),
   },
   tags: {
     alignSelf: 'stretch',

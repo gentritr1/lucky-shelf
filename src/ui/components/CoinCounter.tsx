@@ -8,7 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { baloo2IconNudge, borders, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { borders, fonts, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
 import { useReducedMotion } from '../prefs';
 
 interface CoinCounterProps {
@@ -146,18 +146,20 @@ const styles = StyleSheet.create({
     width: 28,
   },
   amount: {
+    // System-font coin role (TYPO-1): SF/Roboto center against the coin dot with
+    // no translateY nudge — its glyphs sit centered in a constrained line box.
     ...typeScale.coin,
     color: palette.ink,
-    // Optically center the Baloo2 digit against the coin dot. The shared helper
-    // already lands the numeral against the dot; keep its full value (no extra
-    // override — a second `transform` REPLACES the helper's rather than adding,
-    // which is what silently halved the nudge and left the digit sitting high).
-    ...baloo2IconNudge(typeScale.coin.fontSize),
   },
   amountSlam: {
-    ...typeScale.display,
-    color: palette.ink,
+    // The larger dayTotal "slam" figure — its own system-font style (not Baloo2's
+    // display role). Tabular numerals so the count-up doesn't jitter; centers
+    // against the bigger coin dot without a nudge.
+    fontFamily: fonts.ui,
+    fontSize: 34,
+    lineHeight: 42,
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
-    ...baloo2IconNudge(typeScale.display.fontSize),
+    color: palette.ink,
   },
 });

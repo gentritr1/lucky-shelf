@@ -219,6 +219,14 @@ export const touch = {
 export const fonts = {
   display: 'Baloo2',
   body: 'Nunito',
+  // Platform system face for numerals, labels, and body copy (TYPO-1). SF on iOS
+  // / Roboto on Android center their glyphs correctly inside a constrained
+  // lineHeight — unlike Baloo2/Nunito, whose glyphs sit high in the line box and
+  // forced per-site `baloo2IconNudge` translateY hacks beside every coin dot/icon.
+  // Baloo2 (display) now stays ONLY on block-centered display/title/heading
+  // headlines, where the brand personality reads and the metrics don't hurt.
+  // ONE central decision: swapping this one value re-faces body/label/coin/stat.
+  ui: Platform.select({ ios: 'System', android: 'sans-serif', web: 'System', default: 'System' }) ?? 'System',
   // Platform typewriter face for the paper-receipt share card (B-M10). The
   // receipt body is dot-leader aligned by `formatReceipt`, which only lines up
   // in a fixed-width font. No new asset — this uses the OS monospace so it costs
@@ -230,9 +238,13 @@ export const typeScale = {
   display: { fontFamily: fonts.display, fontSize: 34, lineHeight: 42, fontWeight: '800' },
   title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, fontWeight: '700' },
   heading: { fontFamily: fonts.display, fontSize: 18, lineHeight: 24, fontWeight: '600' },
-  body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  label: { fontFamily: fonts.body, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6 },
-  coin: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  body: { fontFamily: fonts.ui, fontSize: 15, lineHeight: 22, fontWeight: '500' },
+  label: { fontFamily: fonts.ui, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6 },
+  coin: { fontFamily: fonts.ui, fontSize: 20, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  // Numeric VALUES (BestRow/Stat totals, previously abusing `heading`'s Baloo2).
+  // System font + tabular-nums so figures align in a column and center against
+  // their labels; sits between heading (18) and coin (20) in emphasis.
+  stat: { fontFamily: fonts.ui, fontSize: 18, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
   receipt: { fontFamily: fonts.mono, fontSize: 12, lineHeight: 18, fontWeight: '400' },
 } as const satisfies Record<string, TextStyle>;
 
@@ -253,13 +265,19 @@ export function scaleTypeStyle(base: TextStyle, scale: number): TextStyle {
 }
 
 /**
+ * @deprecated TYPO-1 moved every numeral/label role (coin/label/body/stat) to the
+ * platform system face (`fonts.ui`), whose glyphs center correctly inside a
+ * constrained line box — so none of the former call sites (CoinCounter, OfferCard,
+ * restock) need this nudge anymore and all were removed. Baloo2 now survives only
+ * on block-centered display/title/heading headlines, which are centered by flexbox
+ * and must NOT use this helper. Kept exported for one release in case a future
+ * Baloo2-beside-an-icon site appears; if none does, delete it.
+ *
  * Optical centering for a display-font (Baloo2) number/label sitting in a ROW
  * beside a SHORTER neighbor — a coin dot, an icon. Baloo2 glyphs sit high in
  * their line box, so `alignItems:'center'` leaves the glyph above the neighbor's
- * center; this nudges it down to sit dead-center. THE ONE place that knowledge
- * lives — previously hand-copied as translateY 1/2/5 across CoinCounter,
- * OfferCard, restock. Calibrated on the iOS simulator (zoomed): dy ≈ 0.12·size
- * (16px→2, 20px→2, 34px→4).
+ * center; this nudges it down to sit dead-center. Calibrated on the iOS simulator
+ * (zoomed): dy ≈ 0.12·size (16px→2, 20px→2, 34px→4).
  *
  * Icon-adjacent ONLY. Do NOT use for block-centered text (buttons, titles): a
  * `<Text>` that is the sole centered child of a box is already centered by

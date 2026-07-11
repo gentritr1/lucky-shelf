@@ -9,10 +9,11 @@ interface AppTextProps extends TextProps {
   /** Type-scale role. Defaults to `body`. */
   variant?: TextVariant;
   /** Horizontal alignment. Vertical centering of BLOCK text is flexbox's job on
-   *  the parent — this primitive deliberately does NOT apply the coin-adjacent
-   *  `baloo2IconNudge` (see tokens.ts): a lone centered label is already centered,
-   *  and nudging it would push it low. Use the helper only for a digit sitting
-   *  beside a shorter coin dot / icon. */
+   *  the parent. Since TYPO-1 the numeral/label/body/stat roles use the platform
+   *  system face (`fonts.ui`), which centers in a constrained line box — so no
+   *  optical nudge is needed here or at coin-adjacent sites (the old
+   *  `baloo2IconNudge` helper is deprecated). Baloo2 survives only on the
+   *  block-centered display/title/heading roles, already centered by flexbox. */
   align?: 'left' | 'center' | 'right';
   color?: string;
   style?: StyleProp<TextStyle>;
@@ -21,8 +22,8 @@ interface AppTextProps extends TextProps {
 /**
  * The one text primitive for block copy — titles, headings, body, labels,
  * button/eyebrow text. Applies a `typeScale` role so type stays consistent by
- * construction; `<Text>` should only survive where a coin-adjacent digit needs
- * the optical nudge (there it pairs with `baloo2IconNudge`).
+ * construction; `<Text>` survives only for the documented raw exceptions (bespoke
+ * badges, glyph icons, and coin-adjacent digits that carry a baked style object).
  *
  * B-M7 accessibility floor: this is THE central funnel for the two comfort prefs.
  * `textScale` grows the role's font/line height here (via `scaleTypeStyle`) so no

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  baloo2IconNudge,
+  fonts,
   highContrastPalette,
   layout,
   palette,
@@ -15,12 +15,20 @@ import {
 import { makeStyles } from './restock.styles';
 
 /**
- * B-M9 byte-identity proof for the restock / daily-shop sheet. `expected(p)` is an
- * independent transcription of the original static sheet: text entries whose
- * color/role moved to `AppText` are slimmed to their leftover layout props; the
- * coin-adjacent digits, bespoke badge, glyph icons, and pre-existing dead styles
- * are transcribed in full (parametrized). Base palette = default prefs →
- * byte-identical; high-contrast palette → every themed prop threads the argument.
+ * Byte-identity proof for the restock / daily-shop sheet. `expected(p)` is an
+ * independent transcription of the sheet: text entries whose color/role moved to
+ * `AppText` are slimmed to their leftover layout props; the coin-adjacent digits,
+ * bespoke badge, glyph icons, and pre-existing dead styles are transcribed in
+ * full (parametrized). Base palette = default prefs; high-contrast palette →
+ * every themed prop threads the argument.
+ *
+ * TYPO-1: the coin-adjacent digits (`shopBuyText`, `rerollCost`) and the pill
+ * label (`sellValue`) previously carried a Baloo2 optical nudge
+ * (`baloo2IconNudge` / manual `translateY`). They now ride the system `coin` role
+ * (`fonts.ui`), which centers against the coin dot with NO nudge — so those
+ * entries here have no `transform`/`includeFontPadding`, and a dedicated `it`
+ * below asserts the system font + nudge-free shape directly (not just via the
+ * whole-sheet transcription).
  */
 function expected(p: Palette) {
   return {
@@ -160,7 +168,6 @@ function expected(p: Palette) {
       color: p.creamBright,
       fontSize: 15,
       lineHeight: 18,
-      ...baloo2IconNudge(15),
     },
     offerCol: {
       flex: 1,
@@ -226,7 +233,6 @@ function expected(p: Palette) {
       color: p.tealDark,
       fontSize: 14,
       lineHeight: 16,
-      ...baloo2IconNudge(14),
     },
     sellGrid: {
       flexDirection: 'row',
@@ -270,8 +276,6 @@ function expected(p: Palette) {
     sellValue: {
       fontSize: 13,
       lineHeight: 16,
-      includeFontPadding: false,
-      transform: [{ translateY: 1 }],
     },
     caption: {
       textAlign: 'center',
@@ -295,5 +299,27 @@ describe('restock.tsx themed styles', () => {
 
   it('threads the palette argument under high contrast (no static leak)', () => {
     expect(makeStyles(highContrastPalette)).toEqual(expected(highContrastPalette));
+  });
+
+  // TYPO-1: the coin-adjacent digits and the sell pill label now ride the platform
+  // system face and must carry NO optical nudge — the whole point of the font swap.
+  // These assertions replace the old `baloo2IconNudge(...)` transcriptions so the
+  // regression is caught directly, not just as a byte-diff.
+  it('coin-adjacent digits use the system font with no translateY nudge', () => {
+    const s = makeStyles(palette);
+    for (const key of ['shopBuyText', 'rerollCost'] as const) {
+      expect(s[key].fontFamily).toBe(fonts.ui);
+      expect(s[key].fontVariant).toEqual(['tabular-nums']);
+      // No leftover optical-centering hacks.
+      expect(s[key]).not.toHaveProperty('transform');
+      expect(s[key]).not.toHaveProperty('includeFontPadding');
+    }
+  });
+
+  it('the sell pill label dropped its Baloo2 lift (no transform)', () => {
+    const s = makeStyles(palette);
+    expect(s.sellValue).not.toHaveProperty('transform');
+    expect(s.sellValue).not.toHaveProperty('includeFontPadding');
+    expect(s.sellValue).toEqual({ fontSize: 13, lineHeight: 16 });
   });
 });
