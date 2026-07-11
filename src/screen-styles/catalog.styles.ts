@@ -222,5 +222,188 @@ export function makeStyles(palette: Palette) {
     comboHint: { fontSize: 12 },
     // CAT-2 earn-count context under an achieved combo ("achieved 3 times").
     comboContext: { fontSize: 11, letterSpacing: 0 },
+
+    // --- COMBO-1 recipe cards: a 2-column grid of arrangement cards. ---
+    comboGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    // Base card; achieved/locked material spreads on top (echoes the item grid).
+    comboCard: {
+      alignItems: 'center',
+      borderRadius: radii.md,
+      borderWidth: borders.hairline,
+      gap: spacing.sm,
+      padding: spacing.md,
+      width: '48%',
+    },
+    // Achieved: the gold-framed collectible (RARE's brass frame + a soft lift).
+    comboCardFound: {
+      backgroundColor: palette.creamBright,
+      borderColor: palette.goldDeep,
+      borderWidth: borders.strong,
+      ...shadows.card,
+    },
+    // Unachieved: quiet parchment mystery, still inviting (matches the items tab).
+    comboCardLocked: {
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
+      opacity: 0.85,
+    },
+    comboCardName: { minHeight: 34, textAlign: 'center' },
+    comboCardCount: { fontSize: 13, letterSpacing: 0 },
+    comboCardHint: { fontSize: 12, textAlign: 'center' },
+    // The "new" badge, pinned to the achieved card's top-right corner.
+    comboCardBadge: { position: 'absolute', right: spacing.xs, top: spacing.xs, zIndex: 2 },
+
+    // The mini shelf cluster: a plus of wells around a center slot. Uses the same
+    // wood well tones as the shelf/cascade so it reads as "this in the middle,
+    // these around it" instantly.
+    recipe: { alignItems: 'center', gap: spacing.xxs, paddingVertical: spacing.xxs },
+    recipeRow: { flexDirection: 'row', gap: spacing.xxs, justifyContent: 'center' },
+    recipeWell: {
+      alignItems: 'center',
+      backgroundColor: palette.woodInset,
+      borderColor: palette.woodDark,
+      borderRadius: radii.sm,
+      borderWidth: borders.regular,
+      height: 34,
+      justifyContent: 'center',
+      overflow: 'hidden',
+      width: 34,
+    },
+    // A recessed empty well — the "arrange here" negative space of the cluster.
+    recipeWellEmpty: { backgroundColor: palette.woodDark, opacity: 0.45 },
+    // The center slot wears a gold frame so it reads as the anchor of the recipe.
+    recipeWellCenter: { borderColor: palette.goldDeep, borderWidth: borders.strong },
+    recipeSprite: { height: 28, width: 28 },
+
+    // --- CAT-3 item showcase modal. ---
+    modalScrim: {
+      alignItems: 'center',
+      backgroundColor: palette.scrim,
+      flex: 1,
+      justifyContent: 'center',
+      padding: spacing.xl,
+    },
+    // Base card; the item's rarity material (bandBed) spreads on top so the modal
+    // echoes the grid framing exactly (HEIRLOOM gold bed, RARE brass frame…).
+    modalCard: {
+      alignItems: 'center',
+      borderRadius: radii.lg,
+      borderWidth: borders.hairline,
+      gap: spacing.md,
+      maxWidth: 360,
+      padding: spacing.xl,
+      width: '100%',
+    },
+    modalClose: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      height: 32,
+      justifyContent: 'center',
+      position: 'absolute',
+      right: spacing.md,
+      top: spacing.md,
+      width: 32,
+      zIndex: 3,
+    },
+    // The sprite sits on a soft radial-feel bed: an outer ring + a warm halo +
+    // the mat, layered so the big art reads as a framed hero (no gradient dep).
+    modalSpriteBed: {
+      alignItems: 'center',
+      aspectRatio: 1,
+      backgroundColor: palette.wallCream,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.lg,
+      borderWidth: borders.regular,
+      justifyContent: 'center',
+      width: 168,
+    },
+    modalSpriteRing: {
+      borderColor: `${palette.goldDeep}55`,
+      borderRadius: radii.pill,
+      borderWidth: 1.5,
+      height: 150,
+      position: 'absolute',
+      width: 150,
+    },
+    modalSpriteHalo: {
+      backgroundColor: `${palette.sunlight}66`,
+      borderRadius: radii.pill,
+      height: 128,
+      position: 'absolute',
+      width: 128,
+    },
+    modalSprite: { height: 128, width: 128 },
+    modalCrown: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: 2,
+      height: 34,
+      justifyContent: 'center',
+      position: 'absolute',
+      right: -spacing.xs,
+      top: -spacing.xs,
+      width: 34,
+      zIndex: 2,
+    },
+    modalName: { textAlign: 'center' },
+    modalBandChip: {
+      backgroundColor: palette.parchment,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xxs,
+    },
+    modalBandChipText: { letterSpacing: 1.2 },
+    modalTags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, justifyContent: 'center' },
+    modalTagChip: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: spacing.xxs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xxs,
+    },
+    modalTagText: { letterSpacing: 0 },
+    modalValueRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+    modalCoinDot: {
+      backgroundColor: palette.coinGold,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: borders.regular,
+      height: 16,
+      width: 16,
+    },
+    modalDivider: { alignSelf: 'stretch', backgroundColor: palette.parchmentEdge, height: 1 },
+    modalSection: { alignSelf: 'stretch', gap: spacing.sm },
+    modalRuleList: { gap: spacing.xs },
+    modalRule: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm },
+    modalRuleBullet: {
+      backgroundColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      height: 6,
+      marginTop: 7,
+      width: 6,
+    },
+    modalRuleText: { flex: 1 },
+    // The one-time gold shine ring that pulses as the modal opens (CAT-1 language).
+    modalShine: {
+      borderColor: palette.goldDeep,
+      borderRadius: radii.lg,
+      borderWidth: 2,
+      bottom: 0,
+      left: 0,
+      position: 'absolute',
+      right: 0,
+      top: 0,
+    },
   });
 }

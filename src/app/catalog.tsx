@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ import {
   Medallion,
   Panel,
   SectionLabel,
+  TagIcon,
   TopBar,
   layout,
   motion,
@@ -30,6 +31,7 @@ import { easings, spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/catalog.styles';
 import {
+  RARITY_BANDS,
   buildCatalogView,
   catalogBands,
   catalogSelectors,
@@ -38,6 +40,9 @@ import {
   type CatalogItemRow,
   type CatalogView,
 } from '../state/catalogStore';
+
+/** RuleTarget descriptor shared by combo center/adjacent — a tag or a concrete item. */
+type ComboSlot = CatalogComboRow['center'];
 
 /**
  * The Catalog album (kickoff §1 meta): every item discovered, every named combo
@@ -100,12 +105,30 @@ export default function CatalogScreen() {
   // Optional `?tab=combos` deep link (mirrors how-to-play's `?page=N`): a real
   // affordance so the Combos tab is reachable without a tap — used for
   // per-tab verification, inert in normal use (defaults to the Items tab).
-  const params = useLocalSearchParams<{ tab?: string }>();
+  // `?item=<id>` opens the showcase modal for a discovered item on mount — a
+  // documented affordance that makes the (untappable-headlessly) modal
+  // deep-linkable for verification; ignored for an undiscovered/unknown id.
+  const params = useLocalSearchParams<{ tab?: string; item?: string }>();
   const [tab, setTab] = useState<CatalogTab>(params.tab === 'combos' ? 'combos' : 'items');
+  const [showcaseId, setShowcaseId] = useState<string | null>(params.item ?? null);
 
   useEffect(() => {
     void loadCatalog().catch(() => undefined);
   }, [loadCatalog]);
+
+  // Re-open the showcase when the `?item=` deep link CHANGES to a new id (the
+  // screen instance is reused across deep links, so init-from-params alone can't
+  // re-trigger). Keyed on the param value: closing the modal sets showcaseId null
+  // without changing the URL, so this never fights a manual dismiss.
+  useEffect(() => {
+    if (params.item) setShowcaseId(params.item);
+  }, [params.item]);
+
+  // Same reuse story for `?tab=`: honour a tab deep link even when the screen is
+  // already mounted. No param → no-op, so manual tab taps are never overridden.
+  useEffect(() => {
+    if (params.tab === 'combos' || params.tab === 'items') setTab(params.tab);
+  }, [params.tab]);
 
   const newlyAchievedComboIds = useMemo(
     () => new Set(lastRunDiscovery?.comboIds ?? []),
@@ -122,6 +145,14 @@ export default function CatalogScreen() {
         newlyDiscoveredItemIds,
       }),
     [catalog, newlyAchievedComboIds, newlyDiscoveredItemIds],
+  );
+
+  // The showcase only ever opens for a DISCOVERED row — an undiscovered or
+  // unknown id resolves to null and the modal stays closed (mystery stays
+  // mystery, and a stale deep link is inert).
+  const showcaseRow = useMemo(
+    () => (showcaseId ? view.items.find((i) => i.id === showcaseId && i.discovered) ?? null : null),
+    [showcaseId, view.items],
   );
 
   return (
@@ -143,8 +174,10 @@ export default function CatalogScreen() {
 
         {/* Conditional render: only the active tab is mounted, so its reveal
             plans (and animators) exist only while it is on screen. */}
-        {tab === 'items' ? <ItemsTab view={view} /> : <CombosTab view={view} />}
+        {tab === 'items' ? <ItemsTab view={view} onOpenItem={setShowcaseId} /> : <CombosTab view={view} />}
       </ScrollView>
+
+      <ItemShowcaseModal row={showcaseRow} onClose={() => setShowcaseId(null)} />
     </View>
   );
 }
@@ -244,7 +277,7 @@ function SegmentedTabs({
  * cards grouped into bands rarest-first, each with a per-band discovered/total
  * count. The one-time reveal is planned here on first mount (see planReveals).
  */
-function ItemsTab({ view }: { view: CatalogView }) {
+function ItemsTab({ view, onOpenItem }: { view: CatalogView; onOpenItem: (id: string) => void }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const bands = useMemo(() => catalogBands(view.items), [view.items]);
@@ -270,7 +303,12 @@ function ItemsTab({ view }: { view: CatalogView }) {
           <SectionLabel>{`${band.name} — ${band.discovered}/${band.total}`}</SectionLabel>
           <View style={styles.grid}>
             {band.items.map((item) => (
-              <ItemStamp key={item.id} item={item} revealIndex={revealPlan.get(item.id) ?? null} />
+              <ItemStamp
+                key={item.id}
+                item={item}
+                revealIndex={revealPlan.get(item.id) ?? null}
+                onOpenItem={onOpenItem}
+              />
             ))}
           </View>
         </View>
@@ -279,17 +317,19 @@ function ItemsTab({ view }: { view: CatalogView }) {
   );
 }
 
-/** The Combos tab: the Medallion rows, each achieved row carrying its earn-count
- *  context. Its reveal is planned on this tab's first mount. */
+/** The Combos tab: a 2-column grid of RECIPE CARDS. An achieved card shows its
+ *  arrangement (a mini shelf cluster); an unachieved card stays a mystery and
+ *  leaks no recipe. Reveal planned on this tab's first mount (session-scoped,
+ *  ≤MAX_REVEAL, shared with the items tab machinery). */
 function CombosTab({ view }: { view: CatalogView }) {
   const styles = useThemedStyles(makeStyles);
   const [revealPlan] = useState(() =>
     planReveals(view.combos.filter((c) => c.isNew).map((c) => c.comboId)),
   );
   return (
-    <View style={styles.comboList}>
+    <View style={styles.comboGrid}>
       {view.combos.map((combo) => (
-        <ComboStamp
+        <ComboCard
           key={combo.comboId}
           combo={combo}
           revealIndex={revealPlan.get(combo.comboId) ?? null}
@@ -383,11 +423,22 @@ function useReveal(revealIndex: number | null) {
   return { pop, shine, active };
 }
 
-function ItemStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: number | null }) {
+function ItemStamp({
+  item,
+  revealIndex,
+  onOpenItem,
+}: {
+  item: CatalogItemRow;
+  revealIndex: number | null;
+  onOpenItem: (id: string) => void;
+}) {
   // Locked ≠ undiscovered (B-M5 Part 2): a locked ladder item shows its real
   // silhouette + unlock hint (+ CAT-1 progress tick), so it reads as "earn this".
+  // Only a DISCOVERED stamp opens the showcase — locked/mystery stay closed.
   if (item.locked) return <LockedStamp item={item} />;
-  if (item.discovered) return <FoundStamp item={item} revealIndex={revealIndex} />;
+  if (item.discovered) {
+    return <FoundStamp item={item} revealIndex={revealIndex} onOpenItem={onOpenItem} />;
+  }
   return <MysteryStamp />;
 }
 
@@ -410,7 +461,15 @@ function bandBed(tier: CatalogItemRow['tier'], styles: ReturnType<typeof makeSty
 /** A discovered, owned collectible: springs on press, wears its rarity band's
  *  material framing, and plays the gold reveal if it was first found since the
  *  last catalog visit. */
-function FoundStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: number | null }) {
+function FoundStamp({
+  item,
+  revealIndex,
+  onOpenItem,
+}: {
+  item: CatalogItemRow;
+  revealIndex: number | null;
+  onOpenItem: (id: string) => void;
+}) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const reduced = useReducedMotion();
@@ -432,6 +491,9 @@ function FoundStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: 
 
   return (
     <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name} — view details`}
+      onPress={() => onOpenItem(item.id)}
       style={[styles.stamp, bandBed(item.tier, styles), cardStyle]}
       onPressIn={() => {
         if (!reduced) press.value = withTiming(0.95, { duration: motion.durations.tick });
@@ -521,52 +583,272 @@ function LockedStamp({ item }: { item: CatalogItemRow }) {
   );
 }
 
-function ComboStamp({ combo, revealIndex }: { combo: CatalogComboRow; revealIndex: number | null }) {
+/**
+ * One combo recipe card. Achieved: gold-framed, an earned Medallion seal, the
+ * combo name, its mini recipe diagram, and "×N achieved". Unachieved: parchment
+ * mystery — hollow Medallion, "???", "Arrange to discover", and NO diagram (the
+ * recipe is never leaked). Achieved cards spring on press (uniform scale); the
+ * isNew reveal (ring pulse + pop) carries over from CAT-1.
+ */
+function ComboCard({ combo, revealIndex }: { combo: CatalogComboRow; revealIndex: number | null }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
+  const reduced = useReducedMotion();
   const { pop, shine, active } = useReveal(revealIndex);
+  const press = useSharedValue(1);
 
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(pop.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
-    transform: [{ scale: interpolate(pop.value, [0, 1], [0.9, 1]) }],
-  }));
+  const cardStyle = useAnimatedStyle(() => {
+    const revealScale = interpolate(pop.value, [0, 1], [0.9, 1]);
+    return {
+      opacity: interpolate(pop.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
+      transform: [{ scale: press.value * revealScale }],
+    };
+  });
   const ringStyle = useAnimatedStyle(() => ({
     opacity: interpolate(shine.value, [0, 0.35, 1], [0, 0.9, 0], Extrapolation.CLAMP),
-    transform: [{ scale: interpolate(shine.value, [0, 1], [0.94, 1.12]) }],
+    transform: [{ scale: interpolate(shine.value, [0, 1], [0.94, 1.08]) }],
   }));
 
-  return (
-    <Animated.View
-      style={[
-        styles.combo,
-        combo.achieved ? styles.comboFound : styles.comboLocked,
-        combo.isNew && styles.comboNew,
-        cardStyle,
-      ]}
-    >
-      <Medallion size={34} earned={combo.achieved} />
-      <View style={styles.comboText}>
-        <AppText variant="heading" color={palette.ink} numberOfLines={1} style={styles.comboName}>
-          {combo.achieved ? combo.name : 'Undiscovered combo'}
+  const body = (
+    <>
+      <Medallion size={30} earned={combo.achieved} />
+      <AppText
+        variant="heading"
+        color={combo.achieved ? palette.ink : palette.inkFaint}
+        numberOfLines={2}
+        style={styles.comboCardName}
+      >
+        {combo.achieved ? combo.name : '???'}
+      </AppText>
+      {combo.achieved ? (
+        <>
+          <RecipeDiagram combo={combo} />
+          <AppText variant="stat" color={palette.accentTeal} style={styles.comboCardCount}>
+            {`×${combo.count} achieved`}
+          </AppText>
+        </>
+      ) : (
+        <AppText variant="body" color={palette.inkFaint} style={styles.comboCardHint}>
+          Arrange to discover
         </AppText>
-        {combo.achieved ? (
-          <>
-            <AppText variant="body" color={palette.accentTeal} style={styles.comboCount}>×{combo.count}</AppText>
-            <AppText variant="label" color={palette.inkFaint} style={styles.comboContext}>
-              {`Achieved ${combo.count} ${combo.count === 1 ? 'time' : 'times'}`}
-            </AppText>
-          </>
-        ) : (
-          <AppText variant="body" color={palette.inkFaint} style={styles.comboHint}>Arrange to discover</AppText>
-        )}
-      </View>
-      {/* B-M11: subtle "new" stamp accent for a combo the latest run first achieved */}
+      )}
       {combo.isNew ? (
-        <View style={styles.newBadge}>
-          <AppText variant="label" color={palette.creamBright} style={styles.newBadgeText}>NEW</AppText>
+        <View style={styles.comboCardBadge}>
+          <View style={styles.newBadge}>
+            <AppText variant="label" color={palette.creamBright} style={styles.newBadgeText}>
+              NEW
+            </AppText>
+          </View>
         </View>
       ) : null}
       {active ? <Animated.View pointerEvents="none" style={[styles.revealRing, ringStyle]} /> : null}
+    </>
+  );
+
+  // Achieved cards are the "owned collectible" — pressable with a spring. An
+  // unachieved mystery card is inert (nothing to press into).
+  if (!combo.achieved) {
+    return <Animated.View style={[styles.comboCard, styles.comboCardLocked, cardStyle]}>{body}</Animated.View>;
+  }
+  return (
+    <AnimatedPressable
+      accessibilityLabel={`${combo.name} combo, achieved ${combo.count} times`}
+      style={[styles.comboCard, styles.comboCardFound, combo.isNew && styles.comboNew, cardStyle]}
+      onPressIn={() => {
+        if (!reduced) press.value = withTiming(0.96, { duration: motion.durations.tick });
+      }}
+      onPressOut={() => {
+        press.value = reduced ? 1 : withSpring(1, motion.springs.settle);
+      }}
+    >
+      {body}
+    </AnimatedPressable>
+  );
+}
+
+/**
+ * The mini recipe diagram: a plus-shaped shelf cluster — a gold-framed center
+ * slot with `adjacentCount` filled neighbor wells around it (the remaining
+ * positions stay empty recessed wells, so the shape reads as "this in the
+ * middle, these around it"). center/adjacent 'item' → its sprite; 'tag' → the
+ * TagIcon tinted to the tag accent. Uses the shelf's wood-well tones for
+ * instant recognition. Only ever rendered for an achieved combo.
+ */
+function RecipeDiagram({ combo }: { combo: CatalogComboRow }) {
+  const styles = useThemedStyles(makeStyles);
+  // Fill order around the center: flank horizontally first (reads as a pairing),
+  // then up, then down. count is 1–3, so `down` is only used at higher counts.
+  const order: ('right' | 'left' | 'up' | 'down')[] = ['right', 'left', 'up', 'down'];
+  const filled = new Set(order.slice(0, combo.adjacentCount));
+  const neighbor = (pos: 'right' | 'left' | 'up' | 'down') =>
+    filled.has(pos) ? combo.adjacent : null;
+
+  return (
+    <View style={styles.recipe}>
+      <View style={styles.recipeRow}>
+        <RecipeSlot slot={neighbor('up')} />
+      </View>
+      <View style={styles.recipeRow}>
+        <RecipeSlot slot={neighbor('left')} />
+        <RecipeSlot slot={combo.center} isCenter />
+        <RecipeSlot slot={neighbor('right')} />
+      </View>
+      <View style={styles.recipeRow}>
+        <RecipeSlot slot={neighbor('down')} />
+      </View>
+    </View>
+  );
+}
+
+/** One well of the recipe cluster: a sprite (item), a tinted TagIcon (tag), or
+ *  an empty recessed well (null). */
+function RecipeSlot({ slot, isCenter = false }: { slot: ComboSlot | null; isCenter?: boolean }) {
+  const styles = useThemedStyles(makeStyles);
+  if (!slot) return <View style={[styles.recipeWell, styles.recipeWellEmpty]} />;
+  const wellStyle = [styles.recipeWell, isCenter && styles.recipeWellCenter];
+  if (slot.kind === 'item') {
+    const sprite = spriteFor(slot.itemId);
+    return (
+      <View style={wellStyle}>
+        {sprite ? <Image source={sprite} style={styles.recipeSprite} resizeMode="contain" /> : null}
+      </View>
+    );
+  }
+  return (
+    <View style={wellStyle}>
+      <TagIcon tag={slot.tag} size={18} />
+    </View>
+  );
+}
+
+/**
+ * CAT-3 item showcase modal — an "unforgettable" close-up of a discovered item.
+ * A dim scrim fades in; the card springs up (uniform scale + translateY) wearing
+ * the item's rarity BAND framing (HEIRLOOM gold bed + crown, RARE brass frame…),
+ * a big sprite on a layered radial-feel bed, name, band chip, TagIcon tags, a
+ * coin value, and the "WHAT IT DOES" rule sentences. One gold shine ring pulses
+ * as it opens (CAT-1 language — not confetti). Reduced motion snaps everything.
+ * Its animators mount only while the modal is open (Modal unmounts on close).
+ */
+function ItemShowcaseModal({ row, onClose }: { row: CatalogItemRow | null; onClose: () => void }) {
+  return (
+    <Modal
+      visible={row !== null}
+      transparent
+      statusBarTranslucent
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      {row ? <ShowcaseCard row={row} onClose={onClose} /> : null}
+    </Modal>
+  );
+}
+
+function ShowcaseCard({ row, onClose }: { row: CatalogItemRow; onClose: () => void }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const reduced = useReducedMotion();
+  const sprite = spriteFor(row.id);
+  const bandName = RARITY_BANDS.find((b) => b.tier === row.tier)?.name ?? 'COMMON';
+
+  // Open drivers: `enter` springs the card up + fades the scrim; `shine` sweeps
+  // the gold ring once. Reduced motion snaps both to the resting state.
+  const enter = useSharedValue(reduced ? 1 : 0);
+  const shine = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    if (reduced) {
+      enter.value = 1;
+      shine.value = 1;
+      return;
+    }
+    enter.value = withSpring(1, motion.springs.settle);
+    shine.value = withTiming(1, { duration: REVEAL_SHINE_MS, easing: easings.out });
+  }, [reduced, enter, shine]);
+
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: enter.value }));
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(enter.value, [0, 0.5], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      { translateY: interpolate(enter.value, [0, 1], [24, 0]) },
+      { scale: interpolate(enter.value, [0, 1], [0.9, 1]) },
+    ],
+  }));
+  const shineStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shine.value, [0, 0.35, 1], [0, 0.8, 0], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(shine.value, [0, 1], [0.92, 1.06]) }],
+  }));
+
+  return (
+    <Animated.View style={[styles.modalScrim, scrimStyle]}>
+      {/* Scrim tap dismisses. The card sits above it (an absolute-fill Pressable
+          behind the card so a tap outside closes, a tap on the card doesn't). */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
+      <Animated.View style={[styles.modalCard, bandBed(row.tier, styles), cardStyle]}>
+        <Pressable style={styles.modalClose} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
+          <MaterialCommunityIcons name="close" size={18} color={palette.inkSoft} />
+        </Pressable>
+
+        <View style={styles.modalSpriteBed}>
+          <View style={styles.modalSpriteRing} pointerEvents="none" />
+          <View style={styles.modalSpriteHalo} pointerEvents="none" />
+          {sprite ? (
+            <Image source={sprite} style={styles.modalSprite} resizeMode="contain" />
+          ) : (
+            <AppText variant="display" color={palette.inkFaint}>?</AppText>
+          )}
+          {row.tier === 4 ? (
+            <View pointerEvents="none" style={styles.modalCrown}>
+              <MaterialCommunityIcons name="crown" size={18} color={palette.goldDeep} />
+            </View>
+          ) : null}
+        </View>
+
+        <AppText variant="title" color={palette.ink} style={styles.modalName}>
+          {row.name}
+        </AppText>
+
+        <View style={styles.modalBandChip}>
+          <AppText variant="label" color={palette.goldDeep} style={styles.modalBandChipText}>
+            {bandName}
+          </AppText>
+        </View>
+
+        {row.tags.length > 0 ? (
+          <View style={styles.modalTags}>
+            {row.tags.map((tag) => (
+              <View key={tag} style={styles.modalTagChip}>
+                <TagIcon tag={tag} size={14} />
+                <AppText variant="label" color={palette.inkSoft} style={styles.modalTagText}>
+                  {tag}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.modalValueRow}>
+          <View style={styles.modalCoinDot} />
+          <AppText variant="stat" color={palette.ink}>{row.baseValue}</AppText>
+        </View>
+
+        <View style={styles.modalDivider} />
+
+        <View style={styles.modalSection}>
+          <SectionLabel>WHAT IT DOES</SectionLabel>
+          <View style={styles.modalRuleList}>
+            {row.ruleSentences.map((sentence, index) => (
+              <View key={index} style={styles.modalRule}>
+                <View style={styles.modalRuleBullet} />
+                <AppText variant="body" color={palette.inkSoft} style={styles.modalRuleText}>
+                  {sentence}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <Animated.View pointerEvents="none" style={[styles.modalShine, shineStyle]} />
+      </Animated.View>
     </Animated.View>
   );
 }

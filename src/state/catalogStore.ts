@@ -13,6 +13,7 @@ import {
 } from '../sim';
 import { mergeRunIntoCatalog } from '../persistence/catalog';
 import type { CatalogPersistence, LoadCatalogStatus } from '../persistence/catalog';
+import { describeItemRules } from './describeItemRules';
 
 /**
  * The permanent Catalog store — collection meta, separate from the run store
@@ -203,6 +204,16 @@ export interface CatalogItemRow {
    *  count (`target`); null for non-runs gates and for anything not locked. Pure
    *  display — the unlock LOGIC still lives in the sim. */
   unlockProgress: { current: number; target: number } | null;
+  /**
+   * CAT-3 showcase payload — the item's tags, base value, and player-facing rule
+   * sentences for the tap-to-open modal. Populated ONLY for a DISCOVERED item, so
+   * an undiscovered id never ships its rule text (or tags) to the UI — mystery
+   * stays mystery. An undiscovered/locked row carries `[] / 0 / []`. Pure derive
+   * over the item def; no persistence touched.
+   */
+  tags: readonly string[];
+  baseValue: number;
+  ruleSentences: readonly string[];
 }
 
 /**
@@ -239,6 +250,18 @@ export interface CatalogComboRow {
    *  stamp accent in the album. Always `false` unless `newlyAchievedComboIds` is
    *  supplied, so the default album render is unchanged. */
   isNew: boolean;
+  /**
+   * COMBO-1 recipe-card diagram descriptors: the combo's center and the neighbor
+   * it wants, resolved straight from the combo def (a tag, or a sprite-able item
+   * id), plus how many of that neighbor (`adjacentCount`, 1–3 — distinct from
+   * `count` above, which is times-achieved). The card renders these as a mini
+   * shelf cluster. Present on every row — the UI only DRAWS the diagram for an
+   * achieved combo, so an unachieved recipe is never leaked. Pure passthrough of
+   * the combo def; no persistence touched.
+   */
+  center: NamedCombo['center'];
+  adjacent: NamedCombo['adjacent'];
+  adjacentCount: number;
 }
 
 export interface CatalogView {
@@ -293,6 +316,13 @@ export function buildCatalogView(
       unlockHint: locked && predicate ? formatUnlockHint(predicate, table, combos) : null,
       isNew: discovered && newlyDiscovered.has(def.id),
       unlockProgress,
+      // Showcase payload only for a discovered item — an undiscovered/locked row
+      // ships no tags or rule text to the UI (mystery stays mystery).
+      tags: discovered ? def.tags : [],
+      baseValue: discovered ? def.baseValue : 0,
+      ruleSentences: discovered
+        ? describeItemRules(def, { itemName: (id) => table.get(id)?.name ?? id })
+        : [],
     };
   });
 
@@ -302,6 +332,9 @@ export function buildCatalogView(
     count: catalog.comboCounts[combo.comboId] ?? 0,
     achieved: achievedCombos.has(combo.comboId),
     isNew: newlyAchieved.has(combo.comboId),
+    center: combo.center,
+    adjacent: combo.adjacent,
+    adjacentCount: combo.count,
   }));
 
   const itemsDiscovered = items.filter((i) => i.discovered).length;

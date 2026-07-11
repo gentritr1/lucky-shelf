@@ -214,6 +214,51 @@ describe('buildCatalogView — CAT-2 rarity bands', () => {
   });
 });
 
+describe('buildCatalogView — CAT-3 showcase payload (discovered items only)', () => {
+  it('rides tags, baseValue and rule sentences on a DISCOVERED row', () => {
+    const catalog = freshCatalog();
+    catalog.discoveredItemIds.push('wine-bottle');
+    const wine = itemRow(catalog, 'wine-bottle', false);
+    expect(wine.discovered).toBe(true);
+    expect(wine.tags).toEqual(['drink', 'fancy']);
+    expect(wine.baseValue).toBe(4);
+    expect(wine.ruleSentences).toEqual(['Earns +3 for each cheese item nearby']);
+  });
+
+  it('ships NO tags or rule text for an undiscovered id (mystery stays mystery)', () => {
+    const wine = itemRow(freshCatalog(), 'wine-bottle', false);
+    expect(wine.discovered).toBe(false);
+    expect(wine.tags).toEqual([]);
+    expect(wine.baseValue).toBe(0);
+    expect(wine.ruleSentences).toEqual([]);
+  });
+
+  it('a locked ladder item also leaks nothing', () => {
+    const chocolate = itemRow(freshCatalog(), 'chocolate-box', true); // locked
+    expect(chocolate.locked).toBe(true);
+    expect(chocolate.tags).toEqual([]);
+    expect(chocolate.ruleSentences).toEqual([]);
+  });
+});
+
+describe('buildCatalogView — COMBO-1 recipe descriptors', () => {
+  it('carries the combo center/adjacent/count straight from the combo def', () => {
+    const view = buildCatalogView(freshCatalog(), table, combos);
+    const bakery = view.combos.find((c) => c.comboId === 'bakery-corner');
+    expect(bakery?.center).toEqual({ kind: 'item', itemId: 'bread-loaf' });
+    expect(bakery?.adjacent).toEqual({ kind: 'tag', tag: 'food' });
+
+    const sugar = view.combos.find((c) => c.comboId === 'sugar-rush');
+    expect(sugar?.center).toEqual({ kind: 'tag', tag: 'sweet' });
+    expect(sugar?.adjacent).toEqual({ kind: 'tag', tag: 'sweet' });
+    // adjacentCount (how many neighbors the diagram fills) is the combo def's
+    // count — distinct from `count`, which is times-achieved (0 in a fresh
+    // catalog).
+    expect(sugar?.adjacentCount).toBe(2);
+    expect(sugar?.count).toBe(0);
+  });
+});
+
 describe('nextUnlockTeaserView — the summary "one more run" prompt (Part 3)', () => {
   it('prefers the nearest runs-gated unlock', () => {
     const teaser = nextUnlockTeaserView(freshCatalog(), table, combos, { unlockLadder: true });
