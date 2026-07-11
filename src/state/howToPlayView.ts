@@ -19,9 +19,12 @@ import {
  * - `spotlight` ← SPOTLIGHT_ENABLED (engine `pickSpotlight` returns null when
  *   off → `GameState.spotlight` absent → the ShelfScene window marker is hidden;
  *   run.tsx passes `gameState.spotlight`).
- * - `order` ← DEMAND_ENABLED (engine `pickCycleOrder` returns null when off →
- *   `GameState.dailyOrder` absent → `orderHudView` returns null → the ORDER goal
- *   chip is hidden).
+ * - `order` ← DEMAND_ENABLED && !tagSynergyEnabled() (engine `pickCycleOrder`
+ *   returns null when off → `GameState.dailyOrder` absent → `orderHudView`
+ *   returns null → the ORDER goal chip is hidden; and scoring fires order ONLY
+ *   when the synergy flag is off — `!synergyEnabled && order …` in
+ *   resolveOpenShop — so under synergy the chip/teaching would promise a ×1.5
+ *   that never pays. Human ruling 2026-07-11: hide rather than stack).
  * - `target` ← goalLadderEnabled() (createRun only sets `GameState.dailyTarget`
  *   when the goal ladder is on; run.tsx shows the TARGET chip off that field).
  *
@@ -41,7 +44,7 @@ export interface HowToPlayTwists {
 
 export function howToPlayTwists(): HowToPlayTwists {
   const spotlight = SPOTLIGHT_ENABLED;
-  const order = DEMAND_ENABLED;
+  const order = DEMAND_ENABLED && !tagSynergyEnabled();
   const target = goalLadderEnabled();
   return {
     spotlight,

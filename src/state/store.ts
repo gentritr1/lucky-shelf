@@ -314,8 +314,13 @@ export function nearMissView(gameState: GameState): { coinsToSpare: number } | n
   return { coinsToSpare: margin };
 }
 
-/** Today's-Order signpost with live shelf progress, or null when no order. */
+/** Today's-Order signpost with live shelf progress, or null when no order.
+ *  Also null while tag synergy is on: scoring fires order ONLY when the synergy
+ *  flag is off (`!synergyEnabled && order …` in resolveOpenShop), so under the
+ *  graduating set the chip would promise a ×1.5 that never pays (human ruling
+ *  2026-07-11: hide the chip rather than stack the bonuses). */
 export function orderHudView(gameState: GameState): OrderHudView | null {
+  if (tagSynergyEnabled()) return null;
   const order = gameState.dailyOrder;
   if (!order) return null;
   const have = gameState.shelf.slots.filter((slot) => slot.item?.tags.includes(order.tag)).length;

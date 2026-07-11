@@ -211,3 +211,37 @@ describe('run store', () => {
     });
   });
 });
+
+// -----------------------------------------------------------------------------
+// orderHudView flag gate (human ruling 2026-07-11): scoring fires Today's Order
+// ONLY when the synergy flag is off (`!synergyEnabled && order …` in
+// resolveOpenShop), so the HUD chip must hide under tag synergy — otherwise it
+// promises a ×1.5 that never pays. Flag world pinned per the Gate-1 scar.
+// -----------------------------------------------------------------------------
+import { orderHudView } from './store';
+import { withFlagWorld } from '../sim/testkit';
+
+describe('orderHudView synergy gate', () => {
+  const withOrder = () =>
+    makeState([], { dailyOrder: { tag: 'drink', count: 2 } });
+
+  it('shows the chip when synergy is OFF (order can pay)', () => {
+    withFlagWorld([], () => {
+      const view = orderHudView(withOrder());
+      expect(view).not.toBeNull();
+      expect(view?.tag).toBe('drink');
+    });
+  });
+
+  it('hides the chip when TAG_SYNERGY is ON (scoring skips order)', () => {
+    withFlagWorld(['TAG_SYNERGY_ENABLED'], () => {
+      expect(orderHudView(withOrder())).toBeNull();
+    });
+  });
+
+  it('still hides it with no order regardless of flags', () => {
+    withFlagWorld([], () => {
+      expect(orderHudView(makeState([]))).toBeNull();
+    });
+  });
+});
