@@ -4,6 +4,7 @@ import {
   DEMAND_ENABLED,
   SPOTLIGHT_ENABLED,
   TAG_SYNERGY_LADDER,
+  buildSteeringEnabled,
   goalLadderEnabled,
   tagSynergyEnabled,
 } from '../sim/economy';
@@ -79,4 +80,143 @@ export function howToPlaySynergy(): HowToPlaySynergy {
     minCount: first.minCount,
     mult: first.mult,
   };
+}
+
+/**
+ * Glossary term list (GLOS-1). The How-to-Play glossary page is a lookup surface
+ * for the words the game coins in the HUD and cascade; this seam bakes the SAME
+ * flag gating the run uses so the page never defines a term for a mechanic the
+ * player can't currently meet (the screen must not value-import `@/sim`).
+ *
+ * Gated terms mirror their run gating exactly:
+ * - `Build` ← tagSynergyEnabled() (scoring applies the same-trade ladder only
+ *   when this flag is on — `resolveOpenShop` skips it otherwise).
+ * - `Supplier` ← buildSteeringEnabled() (the `chooseSupplier` action throws when
+ *   the flag is off, and the delivery screen hides the picker).
+ * - `Front Window` ← SPOTLIGHT_ENABLED (createRun leaves `GameState.spotlight`
+ *   absent when off, so no slot is ever lit).
+ * - `Daily Target` + `Reroll` ← goalLadderEnabled() (createRun only sets
+ *   `GameState.dailyTarget` under the ladder, and the free-reroll reward — the
+ *   thing that makes Reroll worth teaching here — exists only with it).
+ *
+ * Definitions are number-free by construction so they never drift with tuning
+ * (the one named constant a player meets, the Front Window ×N, is already taught
+ * on the TWISTS page). Grouped into the run loop ("THE DAY") and the cross-run
+ * meta ("THE COLLECTION"); the always-on terms guarantee both groups are never
+ * empty, so the page always has content.
+ *
+ * Pure: reads compiled/env flag state only, no persisted-state or run coupling.
+ */
+export interface GlossaryTerm {
+  term: string;
+  definition: string;
+}
+
+export interface GlossaryGroup {
+  /** Small-caps section label ("THE DAY"). */
+  label: string;
+  terms: GlossaryTerm[];
+}
+
+export function howToPlayGlossary(): GlossaryGroup[] {
+  const build = tagSynergyEnabled();
+  const supplier = buildSteeringEnabled();
+  const spotlight = SPOTLIGHT_ENABLED;
+  const target = goalLadderEnabled();
+
+  const day: GlossaryTerm[] = [
+    {
+      term: 'Delivery',
+      definition: 'The start of each day, where you draft new stock from a few offers.',
+    },
+    {
+      term: 'Moves',
+      definition:
+        'Rearranging items already on the shelf — the first few each day are free, then each one costs coins.',
+    },
+    {
+      term: 'Trade',
+      definition:
+        'The kind an item is — drink, food, antique and the like; matching trades power your multipliers.',
+    },
+    ...(build
+      ? [
+          {
+            term: 'Build',
+            definition:
+              "Your shelf's identity: stock several items of the same trade and every one of them pays more.",
+          },
+        ]
+      : []),
+    ...(supplier
+      ? [
+          {
+            term: 'Supplier',
+            definition:
+              'A trade you pick at the start of a run; your shop then leans toward stock that fits it.',
+          },
+        ]
+      : []),
+    ...(spotlight
+      ? [
+          {
+            term: 'Front Window',
+            definition:
+              'One lit shelf slot each day — whatever you place there pays a big multiplier.',
+          },
+        ]
+      : []),
+    {
+      term: 'Named Combo',
+      definition:
+        "A special arrangement with a name — discover one and it's stamped into your Catalog.",
+    },
+    {
+      term: 'Day Total',
+      definition: 'Every item and bonus paid out when you open the shop, added into the day’s coins.',
+    },
+    ...(target
+      ? [
+          {
+            term: 'Daily Target',
+            definition: "A coin goal for the day; beat it to earn a free reroll.",
+          },
+          {
+            term: 'Reroll',
+            definition:
+              'Swap the shop’s current offers for a fresh set — free with a target reward, otherwise a few coins.',
+          },
+        ]
+      : []),
+    {
+      term: 'Rent',
+      definition:
+        'The bill that comes due every few days — pay it from your coins or the run ends.',
+    },
+  ];
+
+  const collection: GlossaryTerm[] = [
+    {
+      term: 'Catalog',
+      definition:
+        "Your permanent collection — every item you've discovered and every combo you've earned, kept across runs.",
+    },
+    {
+      term: 'Rarity Bands',
+      definition: 'The tiers the Catalog sorts items into — Common, Fine, Rare and Heirloom.',
+    },
+    {
+      term: 'Daily Shelf',
+      definition: 'One seeded run everyone shares each calendar day, played once.',
+    },
+    {
+      term: 'Streak',
+      definition: "How many days in a row you've played the Daily Shelf.",
+    },
+  ];
+
+  return [
+    { label: 'THE DAY', terms: day },
+    { label: 'THE COLLECTION', terms: collection },
+  ];
 }

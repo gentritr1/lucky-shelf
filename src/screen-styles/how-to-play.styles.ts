@@ -32,6 +32,18 @@ export function makeStyles(palette: Palette) {
       maxWidth: 420,
       width: '100%',
     },
+    // Full-height page variant (glossary, GLOS-1): claim the page's height and
+    // top-align so the nested vertical ScrollView has a bounded box to fill,
+    // instead of the short centred block the default pages use. A tighter gap
+    // than `pageInner` keeps the title close to the scrolling list.
+    pageFill: {
+      justifyContent: 'flex-start',
+    },
+    pageInnerFill: {
+      flex: 1,
+      gap: spacing.md,
+      justifyContent: 'flex-start',
+    },
     // Big-visual stage — a soft parchment plinth the illustration sits on.
     stage: {
       alignItems: 'center',
@@ -253,6 +265,30 @@ export function makeStyles(palette: Palette) {
     twistMult: {
       color: palette.goldDeep,
       fontWeight: '900',
+    },
+
+    // --- Glossary (GLOS-1): a scrollable term list, the lookup surface for the
+    // named concepts the run/cascade throw at the player. The ScrollView fills
+    // the fill-page's height (bounded box → scrolls); rows are term heading +
+    // one-line body definition, grouped under quiet small-caps section labels.
+    glossaryScroll: {
+      alignSelf: 'stretch',
+      flex: 1,
+      width: '100%',
+    },
+    glossaryContent: {
+      gap: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    glossaryGroup: {
+      gap: spacing.sm,
+    },
+    glossaryGroupLabel: {
+      letterSpacing: 0.8,
+      paddingBottom: spacing.xxs,
+    },
+    glossaryRow: {
+      gap: 2,
     },
 
     // --- Section rail (HTP-2): a tappable map of the pages above the pager, so

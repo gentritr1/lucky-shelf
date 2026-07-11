@@ -35,7 +35,12 @@ import {
 import { spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/how-to-play.styles';
-import { howToPlaySynergy, howToPlayTwists } from '../state/howToPlayView';
+import {
+  howToPlayGlossary,
+  howToPlaySynergy,
+  howToPlayTwists,
+  type GlossaryGroup,
+} from '../state/howToPlayView';
 
 type Styles = ReturnType<typeof makeStyles>;
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -46,6 +51,10 @@ interface Page {
   /** Short small-caps name for the section rail chip (HTP-2). Kept to ≤6 chars so
    *  the full set reads on one line at iPhone-SE width; the rail scrolls if not. */
   chip: string;
+  /** When true, the page claims the full page height instead of centring a short
+   *  block — used by the glossary so its inner vertical ScrollView has a bounded
+   *  box to scroll within (GLOS-1). */
+  fill?: boolean;
   render: (styles: Styles, palette: ReturnType<typeof usePalette>) => React.ReactNode;
 }
 
@@ -74,7 +83,11 @@ export default function HowToPlayScreen() {
 
   const twists = useMemo(() => howToPlayTwists(), []);
   const synergy = useMemo(() => howToPlaySynergy(), []);
-  const pages = useMemo(() => buildPages(twists, synergy), [twists, synergy]);
+  const glossary = useMemo(() => howToPlayGlossary(), []);
+  const pages = useMemo(
+    () => buildPages(twists, synergy, glossary),
+    [twists, synergy, glossary],
+  );
 
   // Optional `?page=N` deep link so each page is reachable without a swipe
   // (used for per-page verification; inert in normal use, defaults to page 0).
@@ -161,8 +174,11 @@ export default function HowToPlayScreen() {
 
   const renderItem = useCallback(
     ({ item, index }: ListRenderItemInfo<Page>) => (
-      <PageFrame width={width} active={index === active} reduced={reduced}>
-        <View style={styles.pageInner}>
+      // `fill` pages (the glossary) claim the full page height so their own
+      // vertical ScrollView has a bounded box to scroll inside; the default
+      // pages stay short and vertically centred.
+      <PageFrame width={width} active={index === active} reduced={reduced} fill={!!item.fill}>
+        <View style={[styles.pageInner, item.fill && styles.pageInnerFill]}>
           <AppText variant="title" color={palette.ink} align="center" style={styles.heading}>
             {item.title}
           </AppText>
@@ -254,11 +270,13 @@ function PageFrame({
   width,
   active,
   reduced,
+  fill,
   children,
 }: {
   width: number;
   active: boolean;
   reduced: boolean;
+  fill?: boolean;
   children: React.ReactNode;
 }) {
   const styles = useThemedStyles(makeStyles);
@@ -281,8 +299,10 @@ function PageFrame({
   }));
 
   return (
-    <View style={[styles.page, { width }]}>
-      <Animated.View style={[styles.pageInner, animStyle]}>{children}</Animated.View>
+    <View style={[styles.page, fill && styles.pageFill, { width }]}>
+      <Animated.View style={[styles.pageInner, fill && styles.pageInnerFill, animStyle]}>
+        {children}
+      </Animated.View>
     </View>
   );
 }
@@ -376,6 +396,7 @@ function clampIndex(value: number, length: number): number {
 function buildPages(
   twists: ReturnType<typeof howToPlayTwists>,
   synergy: ReturnType<typeof howToPlaySynergy>,
+  glossary: GlossaryGroup[],
 ): Page[] {
   const pages: Page[] = [
     {
@@ -595,7 +616,58 @@ function buildPages(
     });
   }
 
+  // Glossary (GLOS-1) — the last page and the lookup surface for every named
+  // concept the run and cascade throw at the player. Always present (its
+  // always-on terms guarantee content); flag-gated terms are baked in by the
+  // pure `howToPlayGlossary` seam, so a term never appears for a mechanic that
+  // can't fire in this build. `fill` so the term list scrolls within the page.
+  pages.push({
+    key: 'glossary',
+    title: 'The Words',
+    chip: 'WORDS',
+    fill: true,
+    render: (styles, palette) => <Glossary styles={styles} palette={palette} groups={glossary} />,
+  });
+
   return pages;
+}
+
+/** The glossary page body: grouped term rows in a vertical ScrollView (nested
+ *  inside the horizontal pager — axis-orthogonal, so both scrolls behave). */
+function Glossary({
+  styles,
+  palette,
+  groups,
+}: {
+  styles: Styles;
+  palette: ReturnType<typeof usePalette>;
+  groups: GlossaryGroup[];
+}) {
+  return (
+    <ScrollView
+      style={styles.glossaryScroll}
+      contentContainerStyle={styles.glossaryContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {groups.map((group) => (
+        <View key={group.label} style={styles.glossaryGroup}>
+          <AppText variant="label" color={palette.inkFaint} style={styles.glossaryGroupLabel}>
+            {group.label}
+          </AppText>
+          {group.terms.map((entry) => (
+            <View key={entry.term} style={styles.glossaryRow}>
+              <AppText variant="heading" color={palette.ink}>
+                {entry.term}
+              </AppText>
+              <AppText variant="body" color={palette.inkSoft}>
+                {entry.definition}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      ))}
+    </ScrollView>
+  );
 }
 
 function LoopStep({ styles, icon, label }: { styles: Styles; icon: MCIName; label: string }) {
