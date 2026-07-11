@@ -15,6 +15,7 @@ import type { GameState, ItemInstance, Slot } from '@/contracts';
 import { SPOTLIGHT_MULT } from '@/sim';
 import { borders, palette, radii, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { DraggableItem, type SceneShared } from './DraggableItem';
 import { DeliveryTrayItem } from './DeliveryTrayItem';
 import {
@@ -303,7 +304,8 @@ function SpotlightMarker({ slot, layout, breath, reduced }: SpotlightMarkerProps
     >
       <View style={styles.spotlightTagWrap}>
         <View style={styles.spotlightTag}>
-          <Text numberOfLines={1} style={styles.spotlightTagText}>✨ WINDOW ×{SPOTLIGHT_MULT}</Text>
+          <MaterialCommunityIcons name="star-four-points" size={10} color={palette.sunlight} />
+          <Text numberOfLines={1} style={styles.spotlightTagText}>WINDOW ×{SPOTLIGHT_MULT}</Text>
         </View>
       </View>
     </Animated.View>
@@ -402,7 +404,8 @@ const styles = StyleSheet.create({
   },
   // Full-width band above the slot so the pill centres over the window and can
   // extend a little past the slot edges symmetrically — instead of being clamped
-  // to slot width (which wrapped "✨ WINDOW ×N" onto two lines and spilled right).
+  // to slot width (which wrapped the "WINDOW ×N" pill onto two lines and spilled
+  // right).
   spotlightTagWrap: {
     position: 'absolute',
     top: -13,
@@ -411,8 +414,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   spotlightTag: {
+    alignItems: 'center',
     backgroundColor: palette.goldDeep,
     borderRadius: radii.xs,
+    flexDirection: 'row',
+    gap: 2,
     paddingHorizontal: spacing.xs,
     paddingVertical: 1,
   },

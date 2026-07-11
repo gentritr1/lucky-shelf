@@ -51,17 +51,29 @@ function expected(p: Palette) {
       letterSpacing: 1,
       marginTop: spacing.xs,
     },
+    recapRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xs,
+      justifyContent: 'center',
+      marginTop: spacing.sm,
+    },
     recap: {
       fontWeight: '700',
-      marginTop: spacing.sm,
     },
     nearMiss: {
       fontWeight: '700',
       marginTop: spacing.sm,
     },
+    streakRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xs,
+      justifyContent: 'center',
+      marginTop: spacing.xs,
+    },
     streak: {
       fontWeight: '700',
-      marginTop: spacing.xs,
     },
     statsCard: {
       gap: spacing.sm,
@@ -94,6 +106,12 @@ function expected(p: Palette) {
     },
     bestCaption: {
       color: p.inkFaint,
+      letterSpacing: 1,
+    },
+    recordRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xxs,
     },
     recordText: {
       color: p.goldDeep,
@@ -107,10 +125,6 @@ function expected(p: Palette) {
       flexDirection: 'row',
       overflow: 'hidden',
     },
-    teaserAccent: {
-      backgroundColor: p.goldDeep,
-      width: spacing.xs,
-    },
     teaserInner: {
       alignItems: 'center',
       flex: 1,
@@ -118,12 +132,22 @@ function expected(p: Palette) {
       gap: spacing.md,
       padding: spacing.md,
     },
-    teaserThumb: { height: 40, tintColor: p.inkFaint, width: 40 },
-    teaserThumbBox: {
+    teaserThumbCircle: {
+      alignItems: 'center',
+      backgroundColor: p.parchment,
+      borderColor: p.parchmentEdge,
+      borderRadius: radii.pill,
+      borderWidth: borders.hairline,
+      height: 48,
+      justifyContent: 'center',
+      width: 48,
+    },
+    teaserThumb: { height: 32, tintColor: p.inkFaint, width: 32 },
+    teaserThumbDot: {
       backgroundColor: p.inkFaint,
-      borderRadius: radii.sm,
-      height: 40,
-      width: 40,
+      borderRadius: radii.pill,
+      height: 28,
+      width: 28,
     },
     teaserText: { flex: 1, gap: spacing.xxs },
     actions: {

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
-import { AppText, OfferCard, SectionLabel, WoodButton, buildAccents, layout, tagEmoji, usePalette, useThemedStyles, type OfferCardData } from '@/ui';
+import { AppText, OfferCard, SectionLabel, TagIcon, WoodButton, buildAccents, layout, usePalette, useThemedStyles, type OfferCardData } from '@/ui';
 import { Entrance, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/draft.styles';
@@ -107,8 +107,7 @@ export default function DraftScreen() {
                   ]}
                   onPress={() => chooseSupplier(tag)}
                 >
-                  {/* decorative emoji glyph — raw <Text> exception (icon-like) */}
-                  <Text style={styles.supplierEmoji}>{tagEmoji[tag] ?? '🏷️'}</Text>
+                  <TagIcon tag={tag} size={28} badge badgeSize={56} />
                   <AppText variant="heading" color={palette.ink} style={styles.supplierChipText}>{capitalize(tag)}</AppText>
                 </Pressable>
               ))}

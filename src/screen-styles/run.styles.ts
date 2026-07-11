@@ -7,8 +7,9 @@ import { layout, radii, spacing, type Palette } from '@/ui/tokens';
  * human-WIP exception during the sweep). Colors read from the passed `palette`;
  * text color/role for block copy moved to the `AppText` call sites, so entries
  * that still carry text styling are only the leftover size/weight pins (the
- * pre-existing sub-role sizes, preserved byte-identically) and `buildEmoji`, the
- * decorative glyph raw-<Text> exception. Byte-identical at default prefs.
+ * pre-existing sub-role sizes, preserved byte-identically). The build-hero glyph
+ * is now a MaterialCommunityIcons node (ICON-2) sized/colored via props, so the
+ * former `buildEmoji` text style is gone. Byte-identical at default prefs.
  */
 export function makeStyles(palette: Palette) {
   return StyleSheet.create({
@@ -134,11 +135,6 @@ export function makeStyles(palette: Palette) {
       justifyContent: 'center',
       width: 44,
     },
-    buildEmoji: {
-      fontSize: 24,
-      lineHeight: 30,
-      textAlign: 'center',
-    },
     buildHeroText: {
       flex: 1,
       gap: 2,
@@ -193,6 +189,12 @@ export function makeStyles(palette: Palette) {
     goalChipMet: {
       backgroundColor: palette.slotLegal,
       borderColor: palette.tealDark,
+    },
+    goalChipLabelRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexShrink: 1,
+      gap: spacing.xxs,
     },
     goalChipLabel: {
       flexShrink: 1,

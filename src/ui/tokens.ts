@@ -120,21 +120,30 @@ export const buildAccents: Record<string, string> = {
 } as const;
 
 /**
- * One emoji per build/synergy tag, shared by the build-identity hero and the
- * supplier picker so an archetype reads the same everywhere. Fall back to 🏷️.
+ * One MaterialCommunityIcons name per build/synergy tag, shared by the
+ * build-identity hero, the supplier picker, and the summary recap so an
+ * archetype reads the same everywhere. Rendered inside a tinted container by
+ * `<TagIcon>` so iconography obeys the palette (accent-tinted) like the rest of
+ * the chrome — never a bare emoji (inconsistent width, no color control). One
+ * coherent FILLED set; falls back to `tagIconFallback` for unknown tags (never
+ * shown in normal play — all synergy tags are mapped). Names verified against
+ * the MCI glyphmap (scripts note in the ICON-2 report).
  */
-export const tagEmoji: Record<string, string> = {
-  fancy: '✨',
-  food: '🍎',
-  antique: '🏺',
-  lucky: '🍀',
-  fragile: '🥂',
-  utility: '🔧',
-  drink: '🍷',
-  perishable: '🍓',
-  sweet: '🍬',
-  plant: '🪴',
+export const tagIcon: Record<string, string> = {
+  fancy: 'star-four-points',
+  food: 'food-apple',
+  antique: 'treasure-chest',
+  lucky: 'clover',
+  fragile: 'glass-flute',
+  utility: 'wrench',
+  drink: 'glass-mug-variant',
+  perishable: 'fruit-cherries',
+  sweet: 'candy',
+  plant: 'sprout',
 } as const;
+
+/** Defensive fallback glyph for an unmapped tag (filled, matches the set). */
+export const tagIconFallback = 'tag';
 
 // ---------------------------------------------------------------------------
 // Layout scales.

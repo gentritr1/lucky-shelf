@@ -16,6 +16,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -36,6 +37,7 @@ import { makeStyles } from '@/screen-styles/how-to-play.styles';
 import { howToPlaySynergy, howToPlayTwists } from '../state/howToPlayView';
 
 type Styles = ReturnType<typeof makeStyles>;
+type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 interface Page {
   key: string;
@@ -251,13 +253,13 @@ function buildPages(
         <>
           <View style={styles.stage}>
             <View style={styles.loopRow}>
-              <LoopStep styles={styles} glyph="🛒" label="Buy" />
+              <LoopStep styles={styles} icon="cart-outline" label="Buy" />
               <Text style={styles.loopArrow}>›</Text>
-              <LoopStep styles={styles} glyph="🧩" label="Arrange" />
+              <LoopStep styles={styles} icon="puzzle-outline" label="Arrange" />
               <Text style={styles.loopArrow}>›</Text>
-              <LoopStep styles={styles} glyph="✨" label="Open Shop" />
+              <LoopStep styles={styles} icon="storefront-outline" label="Open Shop" />
               <Text style={styles.loopArrow}>›</Text>
-              <LoopStep styles={styles} glyph="🏠" label="Pay Rent" />
+              <LoopStep styles={styles} icon="home-outline" label="Pay Rent" />
             </View>
           </View>
           <Body styles={styles} palette={palette} lines={[
@@ -418,7 +420,7 @@ function buildPages(
                 <TwistRow
                   styles={styles}
                   palette={palette}
-                  glyph="✨"
+                  icon="star-four-points-outline"
                   name="Front Window"
                   mult={`×${twists.spotlightMult}`}
                   hint="One slot is lit each day — whatever lands there pays big."
@@ -428,7 +430,7 @@ function buildPages(
                 <TwistRow
                   styles={styles}
                   palette={palette}
-                  glyph="🧺"
+                  icon="basket-outline"
                   name="Today's Order"
                   mult={`×${twists.orderMult}`}
                   hint="A customer wants a tag — fill the shelf with it for a bonus."
@@ -438,9 +440,9 @@ function buildPages(
                 <TwistRow
                   styles={styles}
                   palette={palette}
-                  glyph="🎯"
+                  icon="target"
                   name="Daily Target"
-                  mult="→ 🔁"
+                  mult="→ Reroll"
                   hint="Beat the day's coin goal to earn a free reroll."
                 />
               ) : null}
@@ -457,11 +459,11 @@ function buildPages(
   return pages;
 }
 
-function LoopStep({ styles, glyph, label }: { styles: Styles; glyph: string; label: string }) {
+function LoopStep({ styles, icon, label }: { styles: Styles; icon: MCIName; label: string }) {
   const palette = usePalette();
   return (
     <View style={styles.loopStep}>
-      <Text style={styles.stepGlyph}>{glyph}</Text>
+      <MaterialCommunityIcons name={icon} size={28} color={palette.inkSoft} />
       <AppText variant="label" color={palette.inkSoft}>{label}</AppText>
     </View>
   );
@@ -492,14 +494,14 @@ function ItemChip({
 function TwistRow({
   styles,
   palette,
-  glyph,
+  icon,
   name,
   mult,
   hint,
 }: {
   styles: Styles;
   palette: ReturnType<typeof usePalette>;
-  glyph: string;
+  icon: MCIName;
   name: string;
   mult: string;
   hint: string;
@@ -507,7 +509,7 @@ function TwistRow({
   return (
     <View style={styles.twistRow}>
       <View style={styles.twistBadge}>
-        <Text style={styles.twistGlyph}>{glyph}</Text>
+        <MaterialCommunityIcons name={icon} size={26} color={palette.goldDeep} />
       </View>
       <View style={styles.twistText}>
         <AppText variant="heading" color={palette.ink}>

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Action, GameState, Slot } from '@/contracts';
@@ -15,7 +16,7 @@ import {
   buildAccents,
   layout,
   spacing,
-  tagEmoji,
+  tagIconName,
   usePalette,
   useThemedStyles,
 } from '@/ui';
@@ -299,8 +300,11 @@ function BuildSignpost({
             accent ? { backgroundColor: `${accent}1F`, borderColor: accent } : null,
           ]}
         >
-          {/* decorative emoji glyph — raw <Text> exception */}
-          <Text style={styles.buildEmoji}>{build ? tagEmoji[build.tag] ?? '🏷️' : '🛒'}</Text>
+          <MaterialCommunityIcons
+            name={build ? tagIconName(build.tag) : 'cart-outline'}
+            size={24}
+            color={accent ?? palette.ink}
+          />
         </View>
         <View style={styles.buildHeroText}>
           <AppText variant="label" color={palette.ink} style={styles.buildTitle}>
@@ -331,17 +335,17 @@ function BuildSignpost({
         <View style={styles.goalRow}>
           {order ? (
             <GoalChip
-              icon="📋"
+              icon="basket-outline"
               label={`ORDER · ${order.count}× ${order.tag}`}
-              value={order.met ? `✓ ${order.have}/${order.count}` : `${order.have}/${order.count}`}
+              value={`${order.have}/${order.count}`}
               met={order.met}
             />
           ) : null}
           {target ? (
             <GoalChip
-              icon="🎯"
+              icon="target"
               label={`TARGET · ${target.target}c`}
-              value={target.rewardEarned ? '🔁 free reroll' : 'beat it →'}
+              value={target.rewardEarned ? 'Free reroll' : 'beat it →'}
               met={target.rewardEarned}
             />
           ) : null}
@@ -351,14 +355,27 @@ function BuildSignpost({
   );
 }
 
-function GoalChip({ icon, label, value, met }: { icon: string; label: string; value: string; met: boolean }) {
+function GoalChip({
+  icon,
+  label,
+  value,
+  met,
+}: {
+  icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
+  label: string;
+  value: string;
+  met: boolean;
+}) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   return (
     <View style={[styles.goalChip, met ? styles.goalChipMet : null]}>
-      <AppText variant="label" color={palette.ink} numberOfLines={1} style={styles.goalChipLabel}>
-        {`${icon} ${label}`}
-      </AppText>
+      <View style={styles.goalChipLabelRow}>
+        <MaterialCommunityIcons name={icon} size={13} color={palette.ink} />
+        <AppText variant="label" color={palette.ink} numberOfLines={1} style={styles.goalChipLabel}>
+          {label}
+        </AppText>
+      </View>
       <AppText
         variant="label"
         color={met ? palette.tealDark : palette.inkFaint}

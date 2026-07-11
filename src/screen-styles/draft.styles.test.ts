@@ -90,20 +90,16 @@ function expected(p: Palette) {
       backgroundColor: p.creamBright,
       borderRadius: radii.md,
       borderWidth: 2,
-      gap: spacing.xxs,
+      gap: spacing.xs,
       justifyContent: 'center',
       minHeight: touch.minTargetPt,
-      minWidth: 88,
-      paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
+      width: 96,
       ...shadows.card,
     },
     supplierChipPressed: {
       opacity: 0.7,
       transform: [{ scale: 0.97 }],
-    },
-    supplierEmoji: {
-      fontSize: 26,
     },
     supplierChipText: {
       fontSize: 15,

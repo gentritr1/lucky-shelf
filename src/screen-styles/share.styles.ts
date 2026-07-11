@@ -90,6 +90,8 @@ export function makeStyles(palette: Palette) {
     completionText: { fontSize: 12 },
 
     streak: { letterSpacing: 1, fontWeight: '700' },
+    // Fire icon + streak text as one centered row (ICON-2: chrome emoji retired).
+    streakRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs, justifyContent: 'center' },
     tagline: { fontStyle: 'italic', textAlign: 'center' },
     hintRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
     hintDot: {

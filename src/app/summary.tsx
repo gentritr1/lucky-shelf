@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -15,11 +16,11 @@ import {
   AppText,
   CoinCounter,
   Panel,
+  TagIcon,
   WoodButton,
   buildAccents,
   layout,
   motion,
-  tagEmoji,
   usePalette,
   useReducedMotion,
   useThemedStyles,
@@ -147,15 +148,16 @@ export default function RunSummaryScreen() {
           ) : null}
 
           {build ? (
-            <AppText
-              variant="body"
-              align="center"
-              color={buildAccents[build.tag] ?? palette.goldDeep}
-              style={styles.recap}
-            >
-              {(tagEmoji[build.tag] ?? '🏷️') + ' '}
-              {build.tag.charAt(0).toUpperCase() + build.tag.slice(1)} build · {plural(combosThisRun, 'combo')}
-            </AppText>
+            <View style={styles.recapRow}>
+              <TagIcon tag={build.tag} size={16} color={buildAccents[build.tag] ?? palette.goldDeep} />
+              <AppText
+                variant="body"
+                color={buildAccents[build.tag] ?? palette.goldDeep}
+                style={styles.recap}
+              >
+                {build.tag.charAt(0).toUpperCase() + build.tag.slice(1)} build · {plural(combosThisRun, 'combo')}
+              </AppText>
+            </View>
           ) : null}
 
           {nearMiss ? (
@@ -165,9 +167,12 @@ export default function RunSummaryScreen() {
           ) : null}
 
           {isDaily && streakCount >= 2 ? (
-            <AppText variant="body" align="center" color={palette.goldDeep} style={styles.streak}>
-              🔥 {streakCount}-day daily streak
-            </AppText>
+            <View style={styles.streakRow}>
+              <MaterialCommunityIcons name="fire" size={16} color={palette.goldDeep} />
+              <AppText variant="body" color={palette.goldDeep} style={styles.streak}>
+                {streakCount}-day daily streak
+              </AppText>
+            </View>
           ) : null}
         </View>
 
@@ -273,22 +278,24 @@ function StatRow({
   );
 }
 
-/** The quiet "one more run" prompt (B-M5 Part 3): a silhouette thumb + unlock
- *  hint for the nearest locked item. SUM-1 gives it a gold accent bar so it
- *  reads as a "coming up next" info strip, not a disabled parchment button. */
+/** The quiet "one more run" prompt (B-M5 Part 3): a silhouette thumb in a soft
+ *  parchment circle + unlock hint for the nearest locked item. SUM-2 drops the
+ *  gold accent bar (human disliked it) for a plain full-hairline card — visually
+ *  subordinate to the stats card and clearly not a button (no wood tones). */
 function NextUnlockTeaser({ row }: { row: NextUnlockRow }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const sprite = spriteFor(row.itemId);
   return (
     <View style={styles.teaser}>
-      <View style={styles.teaserAccent} />
       <View style={styles.teaserInner}>
-        {sprite ? (
-          <Image source={sprite} style={styles.teaserThumb} resizeMode="contain" />
-        ) : (
-          <View style={styles.teaserThumbBox} />
-        )}
+        <View style={styles.teaserThumbCircle}>
+          {sprite ? (
+            <Image source={sprite} style={styles.teaserThumb} resizeMode="contain" />
+          ) : (
+            <View style={styles.teaserThumbDot} />
+          )}
+        </View>
         <View style={styles.teaserText}>
           <AppText variant="label" color={palette.inkFaint}>
             NEXT UNLOCK
@@ -322,16 +329,17 @@ function BestRow({ row, recordDelay }: { row: PersonalBestRow; recordDelay: numb
   const caption = row.isRecord ? (
     <RecordAccent delay={recordDelay} />
   ) : row.thisRun === row.best ? (
-    // Tied the all-time best — celebrate it, don't repeat the number.
+    // Tied the all-time best — a quiet small-caps eyebrow, coherent with the
+    // record caption below (no ASCII glyph, letterspaced metadata).
     <AppText variant="label" color={palette.tealDark} style={styles.bestCaption}>
-      ✓ Your best
+      YOUR BEST
     </AppText>
   ) : (
-    // Below the record: name it "Record" (not "Best" — the row label is already
-    // "Best day"/etc.) so the two don't read as the same word.
+    // Below the record: one deliberate line of metadata — small-caps eyebrow +
+    // middle dot + the standing number, so "record" and its value read as a
+    // single quiet unit rather than a stray label beside a number.
     <AppText variant="label" color={palette.inkFaint} style={styles.bestCaption}>
-      Record {row.best}
-      {unit}
+      {`RECORD · ${row.best}${unit}`}
     </AppText>
   );
 
@@ -374,9 +382,12 @@ function RecordAccent({ delay }: { delay: number }) {
 
   return (
     <Animated.View style={anim}>
-      <AppText variant="label" color={palette.goldDeep} style={styles.recordText}>
-        ★ New record!
-      </AppText>
+      <View style={styles.recordRow}>
+        <MaterialCommunityIcons name="star" size={14} color={palette.goldDeep} />
+        <AppText variant="label" color={palette.goldDeep} style={styles.recordText}>
+          New record!
+        </AppText>
+      </View>
     </Animated.View>
   );
 }

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Image, Pressable, Share, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { captureRef } from 'react-native-view-shot';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -140,9 +141,12 @@ export default function ShareScreen() {
             </View>
 
             {isDaily && streakCount >= 2 ? (
-              <AppText variant="label" align="center" color={palette.goldDeep} style={styles.streak}>
-                🔥 {streakCount}-DAY STREAK
-              </AppText>
+              <View style={styles.streakRow}>
+                <MaterialCommunityIcons name="fire" size={14} color={palette.goldDeep} />
+                <AppText variant="label" align="center" color={palette.goldDeep} style={styles.streak}>
+                  {streakCount}-DAY STREAK
+                </AppText>
+              </View>
             ) : null}
 
             <AppText variant="body" color={palette.inkFaint} style={styles.tagline}>Arrange the shelf. Watch it pay.</AppText>

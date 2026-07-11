@@ -85,25 +85,24 @@ export function makeStyles(palette: Palette) {
       gap: spacing.sm,
       justifyContent: 'center',
     },
+    // Fixed-width tiles so every archetype cell is identical (ICON-2): a 56px
+    // accent circle + label. 96px + 8px gap wraps 3 per row on the reference
+    // device (3/3/3/1), the last row centered by the grid's justifyContent.
     supplierChip: {
       alignItems: 'center',
       backgroundColor: palette.creamBright,
       borderRadius: radii.md,
       borderWidth: 2,
-      gap: spacing.xxs,
+      gap: spacing.xs,
       justifyContent: 'center',
       minHeight: touch.minTargetPt,
-      minWidth: 88,
-      paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
+      width: 96,
       ...shadows.card,
     },
     supplierChipPressed: {
       opacity: 0.7,
       transform: [{ scale: 0.97 }],
-    },
-    supplierEmoji: {
-      fontSize: 26,
     },
     supplierChipText: {
       fontSize: 15,

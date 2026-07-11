@@ -131,10 +131,12 @@ export default function TitleScreen() {
         <WoodButton label="New Run" onPress={onNewRun} />
         <WoodButton
           label={
-            // A live streak (≥2) takes the compact form ("Daily ✓ · 🔥 4") so it
-            // stays one line on iPhone SE; without a streak, keep the fuller copy.
+            // A live streak (≥2) takes the compact form ("Daily ✓ · Streak 4")
+            // so it stays one line on iPhone SE; no streak keeps the fuller copy.
+            // Text only — WoodButton labels are strings, and chrome emoji are
+            // retired (ICON-2).
             streakCount >= 2
-              ? `${playedToday ? 'Daily ✓' : 'Daily Shelf'} · 🔥 ${streakCount}`
+              ? `${playedToday ? 'Daily ✓' : 'Daily Shelf'} · Streak ${streakCount}`
               : playedToday
                 ? 'Daily ✓ — View Card'
                 : 'Daily Shelf'

@@ -9,10 +9,11 @@ import { makeStyles } from './run.styles';
  * `expected(p)` is an independent transcription of the original static sheet:
  * text entries whose color/role moved to `AppText` are slimmed to their leftover
  * size/weight pins (`back`/`eyebrow`/`phase` hoisted entirely and dropped;
- * `buildMultTextActive`/`goalChipValueMet` became conditional `color` props);
- * `buildEmoji` — the decorative glyph raw-<Text> exception — is transcribed in
- * full. Base palette = default prefs → byte-identical; high-contrast palette →
- * every themed prop threads the argument (no static leak).
+ * `buildMultTextActive`/`goalChipValueMet` became conditional `color` props). The
+ * build-hero glyph moved from a raw <Text> emoji to a MaterialCommunityIcons node
+ * (ICON-2), so the former `buildEmoji` text style is gone from both sheet and
+ * transcription. Base palette = default prefs → byte-identical; high-contrast
+ * palette → every themed prop threads the argument (no static leak).
  */
 function expected(p: Palette) {
   return {
@@ -132,11 +133,6 @@ function expected(p: Palette) {
       justifyContent: 'center',
       width: 44,
     },
-    buildEmoji: {
-      fontSize: 24,
-      lineHeight: 30,
-      textAlign: 'center',
-    },
     buildHeroText: {
       flex: 1,
       gap: 2,
@@ -189,6 +185,12 @@ function expected(p: Palette) {
     goalChipMet: {
       backgroundColor: p.slotLegal,
       borderColor: p.tealDark,
+    },
+    goalChipLabelRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexShrink: 1,
+      gap: spacing.xxs,
     },
     goalChipLabel: {
       flexShrink: 1,

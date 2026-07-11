@@ -9,8 +9,8 @@ import { borders, layout, radii, spacing, type Palette } from '@/ui/tokens';
  *
  * SUM-1 structure: three deliberate groups — a centered verdict HERO, a stats
  * CARD (Panel) whose rows share one right-alignment edge with a fixed-height
- * caption slot so no row goes ragged, and a TEASER info-strip that reads as a
- * "coming up next" card (gold accent bar) rather than a disabled button.
+ * caption slot so no row goes ragged, and a quiet TEASER card (SUM-2: no accent
+ * bar) that reads as "coming up next", subordinate to the stats card.
  */
 export function makeStyles(palette: Palette) {
   return StyleSheet.create({
@@ -56,9 +56,16 @@ export function makeStyles(palette: Palette) {
       letterSpacing: 1,
       marginTop: spacing.xs,
     },
+    // Build recap: an accent tag icon beside the recap text, centered as one row.
+    recapRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xs,
+      justifyContent: 'center',
+      marginTop: spacing.sm,
+    },
     recap: {
       fontWeight: '700',
-      marginTop: spacing.sm,
     },
     // The near-miss is the emotional sting — give it room to breathe below the
     // recap and above the stats card, so it doesn't butt against either.
@@ -66,9 +73,16 @@ export function makeStyles(palette: Palette) {
       fontWeight: '700',
       marginTop: spacing.sm,
     },
+    // Daily streak: a fire icon beside the streak text, centered as one row.
+    streakRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xs,
+      justifyContent: 'center',
+      marginTop: spacing.xs,
+    },
     streak: {
       fontWeight: '700',
-      marginTop: spacing.xs,
     },
 
     // --- Stats card: label left, value right on a shared alignment edge. ---
@@ -119,14 +133,24 @@ export function makeStyles(palette: Palette) {
       justifyContent: 'flex-end',
       minHeight: spacing.lg,
     },
+    // Small-caps metadata eyebrow (SUM-2): letterspaced so "RECORD · 25" /
+    // "YOUR BEST" read as one deliberate quiet unit, not a stray label + number.
     bestCaption: {
       color: palette.inkFaint,
+      letterSpacing: 1,
+    },
+    // The celebratory "New record!" — star icon beside the gold text, as one row.
+    recordRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.xxs,
     },
     recordText: {
       color: palette.goldDeep,
     },
 
-    // --- Next-unlock teaser: an info strip, not a button. ---
+    // --- Next-unlock teaser: a quiet full-hairline card (SUM-2), subordinate to
+    // the stats card. No accent bar, no wood tones — clearly not a button. ---
     teaser: {
       alignItems: 'stretch',
       backgroundColor: palette.creamBright,
@@ -136,12 +160,6 @@ export function makeStyles(palette: Palette) {
       flexDirection: 'row',
       overflow: 'hidden',
     },
-    // The gold accent bar reads "unlock/reward coming" and visually separates the
-    // teaser from the parchment secondary buttons below it.
-    teaserAccent: {
-      backgroundColor: palette.goldDeep,
-      width: spacing.xs,
-    },
     teaserInner: {
       alignItems: 'center',
       flex: 1,
@@ -149,12 +167,24 @@ export function makeStyles(palette: Palette) {
       gap: spacing.md,
       padding: spacing.md,
     },
-    teaserThumb: { height: 40, tintColor: palette.inkFaint, width: 40 },
-    teaserThumbBox: {
+    // Silhouette thumb sits in a soft parchment circle so the locked item reads
+    // as "coming up" without a loud tile.
+    teaserThumbCircle: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      borderWidth: borders.hairline,
+      height: 48,
+      justifyContent: 'center',
+      width: 48,
+    },
+    teaserThumb: { height: 32, tintColor: palette.inkFaint, width: 32 },
+    teaserThumbDot: {
       backgroundColor: palette.inkFaint,
-      borderRadius: radii.sm,
-      height: 40,
-      width: 40,
+      borderRadius: radii.pill,
+      height: 28,
+      width: 28,
     },
     teaserText: { flex: 1, gap: spacing.xxs },
 

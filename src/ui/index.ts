@@ -11,6 +11,7 @@ export { RentChip } from './components/RentChip';
 export { OfferCard, type OfferCardData } from './components/OfferCard';
 export { ShelfPreview } from './components/ShelfPreview';
 export { TagChip } from './components/TagChip';
+export { TagIcon, tagIconName } from './components/TagIcon';
 export { SectionLabel } from './components/SectionLabel';
 export { Toggle } from './components/Toggle';
 export { MovesPips } from './components/MovesPips';

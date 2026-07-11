@@ -76,10 +76,6 @@ export function makeStyles(palette: Palette) {
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.sm,
     },
-    stepGlyph: {
-      fontSize: 30,
-      lineHeight: 36,
-    },
     loopArrow: {
       color: palette.goldDeep,
       fontSize: 20,
@@ -249,10 +245,6 @@ export function makeStyles(palette: Palette) {
       alignItems: 'center',
       justifyContent: 'center',
       minWidth: 44,
-    },
-    twistGlyph: {
-      fontSize: 26,
-      lineHeight: 30,
     },
     twistText: {
       flex: 1,
