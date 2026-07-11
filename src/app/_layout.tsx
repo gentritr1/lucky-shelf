@@ -10,7 +10,7 @@ import { usePalette, usePrefs, useThemedStyles } from '@/ui';
 import { ITEM_SPRITES } from '@/juice';
 import { useCatalogStore } from '../state/catalogStore';
 
-import { makeStyles } from './_layout.styles';
+import { makeStyles } from '@/screen-styles/_layout.styles';
 
 // Warm the item sprites + room backdrops into the image cache once at startup so
 // they don't decode-on-first-show (the per-screen pop-in). Uses RN's built-in

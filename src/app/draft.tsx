@@ -7,7 +7,7 @@ import type { DeliveryOffer } from '@/contracts';
 import { AppText, OfferCard, SectionLabel, WoodButton, buildAccents, layout, tagEmoji, usePalette, useThemedStyles, type OfferCardData } from '@/ui';
 import { Entrance, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 
-import { makeStyles } from './draft.styles';
+import { makeStyles } from '@/screen-styles/draft.styles';
 import { routeForGameState } from '../state/phaseRouting';
 import { draftAffordanceView, runSelectors, useRunStore } from '../state/store';
 

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText, Medallion, Panel, SectionLabel, TopBar, layout, usePalette, useThemedStyles } from '@/ui';
 import { spriteFor } from '@/juice';
 
-import { makeStyles } from './catalog.styles';
+import { makeStyles } from '@/screen-styles/catalog.styles';
 import {
   buildCatalogView,
   catalogSelectors,

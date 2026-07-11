@@ -25,7 +25,7 @@ import {
 } from '@/ui';
 import { spriteFor } from '@/juice';
 
-import { makeStyles } from './summary.styles';
+import { makeStyles } from '@/screen-styles/summary.styles';
 import { routeForGameState } from '../state/phaseRouting';
 import { buildIdentityView, nearMissView, runSelectors, useRunStore } from '../state/store';
 import {

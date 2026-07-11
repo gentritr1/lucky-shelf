@@ -15,7 +15,7 @@ import {
   type TextScale,
 } from '@/ui';
 
-import { makeStyles } from './settings.styles';
+import { makeStyles } from '@/screen-styles/settings.styles';
 
 /**
  * Settings: comfort (large text, high contrast), motion, sound, and haptics.

@@ -18,7 +18,7 @@ import {
 } from '@/ui';
 import { ITEM_GLYPHS, ShelfScene, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 
-import { makeStyles } from './restock.styles';
+import { makeStyles } from '@/screen-styles/restock.styles';
 import { routeForGameState } from '../state/phaseRouting';
 import {
   hasSlotAction,

@@ -7,7 +7,7 @@ import type { Fixture, GameState, ScoringTrace } from '@/contracts';
 import { AppText, SectionLabel, Toggle, spacing, usePalette, useThemedStyles } from '@/ui';
 import { CascadeLayer, goldenFixtures } from '@/juice';
 
-import { makeStyles } from './cascade-harness.styles';
+import { makeStyles } from '@/screen-styles/cascade-harness.styles';
 
 /**
  * Lane B verification vehicle for the first real `vanish` (M3): the goldens never
