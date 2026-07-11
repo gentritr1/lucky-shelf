@@ -520,18 +520,25 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
     }
   }, [vanished, reduced, puff]);
 
+  // Open-window lift as a shared value so it can COMPOSE with the hop below.
+  // `withTiming(...)` returns an animation object, not a number — arithmetic on
+  // it inside useAnimatedStyle is NaN, which made Fabric drop every sprite.
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    lift.value = withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap });
+  }, [active, reduced, lift]);
+
   const style = useAnimatedStyle(() => {
     // Single uniform `scale` ONLY — separate scaleX/scaleY transforms collapse the
     // view on the New Architecture (Fabric, newArchEnabled), which blanked every
     // cascade sprite. So the "receive" impact is a uniform bump (grow, spring back)
     // rather than a non-uniform squash; pop + puff (vanish swell) also fold in here.
     const base = (1 + pop.value * 0.12) * (1 + puff.value * 0.35);
-    const activeLift = withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap });
     return {
       opacity: 1 - puff.value,
       transform: [
         { scale: base * (1 + impact.value * 0.12) },
-        { translateY: activeLift - motion.cascade.hopY * hop.value },
+        { translateY: lift.value - motion.cascade.hopY * hop.value },
       ],
     };
   });
