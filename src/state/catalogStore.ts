@@ -35,7 +35,7 @@ export interface CatalogStoreState {
    *  field); it survives until the next run records or the app restarts — the
    *  "until first viewed" fade would need view-tracking persistence, so it is
    *  dropped (see the B-M11 packet). */
-  lastRunDiscovery: { runId: string; comboIds: readonly string[] } | null;
+  lastRunDiscovery: { runId: string; comboIds: readonly string[]; itemIds: readonly string[] } | null;
   loadCatalog(): Promise<Catalog>;
   recordRunEnd(gameState: GameState): Promise<Catalog>;
 }
@@ -96,11 +96,18 @@ export function createCatalogStore(options: CatalogStoreOptions = {}) {
       const newCombos = gameState.catalogDelta.discoveredComboIds.filter(
         (comboId) => !priorAchieved.has(comboId),
       );
+      // …and the items this run saw for the FIRST TIME EVER (absent from the
+      // pre-merge catalog) — drives the album's item reveal, exactly mirroring the
+      // combo derivation above. In-memory only; no new persisted field.
+      const priorDiscovered = new Set(previous.discoveredItemIds);
+      const newItems = gameState.catalogDelta.discoveredItemIds.filter(
+        (itemId) => !priorDiscovered.has(itemId),
+      );
       set({
         catalog: merged,
         lastRecordedRunId: gameState.runId,
         prevRunStats: { runId: gameState.runId, stats: previous.stats },
-        lastRunDiscovery: { runId: gameState.runId, comboIds: newCombos },
+        lastRunDiscovery: { runId: gameState.runId, comboIds: newCombos, itemIds: newItems },
       });
       await (await getPersistence()).saveCatalog(merged);
       return merged;
@@ -186,6 +193,16 @@ export interface CatalogItemRow {
   locked: boolean;
   /** Human unlock hint for a locked item ("Reach 6 runs"); null unless locked. */
   unlockHint: string | null;
+  /** CAT-1: discovered for the first time by the latest run — gets a one-time
+   *  reveal in the album. Always `false` unless `newlyDiscoveredItemIds` is
+   *  supplied, so the default album render is unchanged. */
+  isNew: boolean;
+  /** CAT-1: numeric progress toward a `runsPlayed`-gated locked item, so the card
+   *  reads "there's something here worth getting" with a concrete "4/5" tick
+   *  instead of a bare hint. Derived from live stats (`current`) vs the ladder
+   *  count (`target`); null for non-runs gates and for anything not locked. Pure
+   *  display — the unlock LOGIC still lives in the sim. */
+  unlockProgress: { current: number; target: number } | null;
 }
 
 /**
@@ -242,10 +259,15 @@ export function buildCatalogView(
   catalog: Catalog,
   table: ItemTable = loadItemTable(),
   combos: readonly NamedCombo[] = loadCombos(),
-  options: { unlockLadder?: boolean; newlyAchievedComboIds?: ReadonlySet<string> } = {},
+  options: {
+    unlockLadder?: boolean;
+    newlyAchievedComboIds?: ReadonlySet<string>;
+    newlyDiscoveredItemIds?: ReadonlySet<string>;
+  } = {},
 ): CatalogView {
   const ladderOn = options.unlockLadder ?? unlockLadderEnabled();
   const newlyAchieved = options.newlyAchievedComboIds ?? EMPTY_COMBO_SET;
+  const newlyDiscovered = options.newlyDiscoveredItemIds ?? EMPTY_COMBO_SET;
   const discoveredItems = new Set(catalog.discoveredItemIds);
   const achievedCombos = new Set(catalog.achievedComboIds);
   // Only computed when the ladder is on — off keeps every item `locked: false`.
@@ -258,6 +280,10 @@ export function buildCatalogView(
     const predicate = UNLOCK_LADDER[def.id];
     const locked =
       unlocked !== null && !discovered && predicate !== undefined && !unlocked.has(def.id);
+    const unlockProgress =
+      locked && predicate?.kind === 'runsPlayed'
+        ? { current: catalog.stats.runsPlayed, target: predicate.count }
+        : null;
     return {
       id: def.id,
       name: def.name,
@@ -265,6 +291,8 @@ export function buildCatalogView(
       discovered,
       locked,
       unlockHint: locked && predicate ? formatUnlockHint(predicate, table, combos) : null,
+      isNew: discovered && newlyDiscovered.has(def.id),
+      unlockProgress,
     };
   });
 

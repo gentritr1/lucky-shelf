@@ -37,12 +37,17 @@ export function makeStyles(palette: Palette) {
       padding: spacing.xs,
       width: '22%',
     },
+    // A found item is "owned": warmer gold-touched edge + a soft lifted shadow so
+    // discovered cards read as collected trophies, distinct from the flat locked
+    // bed. (CAT-1 — was parchmentEdge + shadows.float.)
     stampFound: {
       backgroundColor: palette.creamBright,
-      borderColor: palette.parchmentEdge,
-      ...shadows.float,
+      borderColor: palette.goldDeep,
+      ...shadows.card,
     },
-    stampLocked: { backgroundColor: palette.parchment, borderColor: palette.parchmentEdge, opacity: 0.7 },
+    // Locked/undiscovered bed. Raised from 0.7 → 0.85 so it reads "worth getting"
+    // rather than "denied" (CAT-1).
+    stampLocked: { backgroundColor: palette.parchment, borderColor: palette.parchmentEdge, opacity: 0.85 },
     // the art sits on a soft mat with breathing room, framed like a collectible
     stampArt: {
       alignItems: 'center',
@@ -54,11 +59,17 @@ export function makeStyles(palette: Palette) {
       width: '100%',
     },
     stampSprite: { height: '100%', width: '100%' },
+    // Undiscovered "?" mat — warm parchment with an inset edge, so a mystery card
+    // reads as a covered collectible on paper (an invitation), not a flat dark
+    // hole. The embossed "?" sits carved into the paper (color set at the call
+    // site). CAT-1 — was a flat woodInset box.
     stampMystery: {
       alignItems: 'center',
       aspectRatio: 1,
-      backgroundColor: palette.woodInset,
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
       borderRadius: radii.sm,
+      borderWidth: 1.5,
       justifyContent: 'center',
       width: '100%',
     },
@@ -76,6 +87,30 @@ export function makeStyles(palette: Palette) {
       fontSize: 9,
       letterSpacing: 0,
       textAlign: 'center',
+    },
+    // CAT-1 progress tick for a runs-gated locked item: a tiny bar + "4/5" so the
+    // card shows how close the unlock is.
+    stampProgress: { alignItems: 'center', gap: spacing.xxs, width: '100%' },
+    stampProgressTrack: {
+      backgroundColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      height: 4,
+      overflow: 'hidden',
+      width: '100%',
+    },
+    stampProgressFill: { backgroundColor: palette.goldDeep, borderRadius: radii.pill, height: 4 },
+    stampProgressText: { fontSize: 9, letterSpacing: 0 },
+    // CAT-1 reveal: a gold ring that pulses out once when a NEW card first shows.
+    // Absolutely fills the card; scale+opacity are animated (uniform scale only).
+    revealRing: {
+      borderColor: palette.goldDeep,
+      borderRadius: radii.md,
+      borderWidth: 2,
+      bottom: 0,
+      left: 0,
+      position: 'absolute',
+      right: 0,
+      top: 0,
     },
 
     comboList: { gap: spacing.sm },

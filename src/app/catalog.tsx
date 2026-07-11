@@ -1,10 +1,30 @@
-import { useEffect, useMemo } from 'react';
-import { Image, ScrollView, View } from 'react-native';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Image, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { AppText, Medallion, Panel, SectionLabel, TopBar, layout, usePalette, useThemedStyles } from '@/ui';
-import { spriteFor } from '@/juice';
+import {
+  AppText,
+  Medallion,
+  Panel,
+  SectionLabel,
+  TopBar,
+  layout,
+  motion,
+  usePalette,
+  useReducedMotion,
+  useThemedStyles,
+} from '@/ui';
+import { easings, spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/catalog.styles';
 import {
@@ -17,9 +37,43 @@ import {
 
 /**
  * The Catalog album (kickoff §1 meta): every item discovered, every named combo
- * achieved, best-run stats. Discovery should feel like collecting stamps —
- * found items show their real sprite; undiscovered stay a shadowed "?".
+ * achieved, best-run stats. Discovery should feel like opening an album of
+ * trophies — found items are owned collectibles (warm edge, soft lift, a spring
+ * on press); items discovered SINCE the last catalog visit get a one-time gold
+ * reveal on mount; and locked cards read as an invitation ("worth getting"),
+ * with a progress tick toward the unlock, not a flat "denied" hole.
  */
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/** At most this many cards play the reveal at once; the rest snap in already-owned. */
+const MAX_REVEAL = 8;
+const REVEAL_STAGGER_MS = 90;
+const REVEAL_SHINE_MS = 520;
+
+/**
+ * Ids already given their one-time reveal this app session. Module-level (not
+ * persisted, not React state) so a screen re-mount can't replay the reveal, yet
+ * it costs no schema change and clears on app restart — which also clears the
+ * in-memory `lastRunDiscovery` that seeds it, so there is nothing to re-reveal.
+ */
+const revealedThisSession = new Set<string>();
+
+/** Assign a stagger slot to each not-yet-revealed id (in screen order), marking
+ *  every id revealed so it never animates again this session. Capped at
+ *  MAX_REVEAL concurrent animators; overflow ids are marked seen but get no slot. */
+function planReveals(newIds: readonly string[]): Map<string, number> {
+  const plan = new Map<string, number>();
+  let slot = 0;
+  for (const id of newIds) {
+    if (revealedThisSession.has(id)) continue;
+    revealedThisSession.add(id);
+    if (slot < MAX_REVEAL) plan.set(id, slot);
+    slot += 1;
+  }
+  return plan;
+}
+
 export default function CatalogScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -27,7 +81,8 @@ export default function CatalogScreen() {
   const palette = usePalette();
   const catalog = useCatalogStore(catalogSelectors.catalog);
   const loadCatalog = useCatalogStore((state) => state.loadCatalog);
-  // B-M11: combos the latest run achieved for the first time → the "new" accent.
+  // B-M11 / CAT-1: what the latest run first-achieved (combos) and first-saw
+  // (items) — drives the "new" accent and the one-time reveal. In-memory only.
   const lastRunDiscovery = useCatalogStore((state) => state.lastRunDiscovery);
 
   useEffect(() => {
@@ -38,9 +93,29 @@ export default function CatalogScreen() {
     () => new Set(lastRunDiscovery?.comboIds ?? []),
     [lastRunDiscovery],
   );
+  const newlyDiscoveredItemIds = useMemo(
+    () => new Set(lastRunDiscovery?.itemIds ?? []),
+    [lastRunDiscovery],
+  );
   const view = useMemo(
-    () => buildCatalogView(catalog, undefined, undefined, { newlyAchievedComboIds }),
-    [catalog, newlyAchievedComboIds],
+    () =>
+      buildCatalogView(catalog, undefined, undefined, {
+        newlyAchievedComboIds,
+        newlyDiscoveredItemIds,
+      }),
+    [catalog, newlyAchievedComboIds, newlyDiscoveredItemIds],
+  );
+
+  // Plan the reveal ONCE on mount. In the only path that produces a reveal
+  // (finishing a run, then opening the album in the same session), the store
+  // already holds the merged catalog synchronously, so `view` carries the new
+  // ids at first render — no flicker. A cold start has a null `lastRunDiscovery`,
+  // so there is nothing to reveal and the plan is empty.
+  const [revealPlan] = useState(() =>
+    planReveals([
+      ...view.items.filter((i) => i.isNew).map((i) => i.id),
+      ...view.combos.filter((c) => c.isNew).map((c) => c.comboId),
+    ]),
   );
 
   return (
@@ -53,11 +128,11 @@ export default function CatalogScreen() {
       >
         <Panel style={styles.summary}>
           <View style={styles.completionRow}>
-            <AppText variant="display" color={palette.accentTeal}>{view.completionPct}%</AppText>
+            <CompletionNumber pct={view.completionPct} />
             <AppText variant="label" color={palette.inkFaint}>COLLECTED</AppText>
           </View>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${view.completionPct}%` }]} />
+            <ProgressFill pct={view.completionPct} />
           </View>
           <View style={styles.statsGrid}>
             <Stat label="Runs" value={String(catalog.stats.runsPlayed)} />
@@ -70,19 +145,72 @@ export default function CatalogScreen() {
         <SectionLabel>{`ITEMS — ${view.itemsDiscovered}/${view.itemsTotal}`}</SectionLabel>
         <View style={styles.grid}>
           {view.items.map((item) => (
-            <ItemStamp key={item.id} item={item} />
+            <ItemStamp key={item.id} item={item} revealIndex={revealPlan.get(item.id) ?? null} />
           ))}
         </View>
 
         <SectionLabel>{`NAMED COMBOS — ${view.combosAchieved}/${view.combosTotal}`}</SectionLabel>
         <View style={styles.comboList}>
           {view.combos.map((combo) => (
-            <ComboStamp key={combo.comboId} combo={combo} />
+            <ComboStamp
+              key={combo.comboId}
+              combo={combo}
+              revealIndex={revealPlan.get(combo.comboId) ?? null}
+            />
           ))}
         </View>
       </ScrollView>
     </View>
   );
+}
+
+/** rAF count-up from 0 to `target` over ~600ms (ease-out); snaps if reduced. */
+function useCountUp(target: number, durationMs = motion.durations.banner): number {
+  const reduced = useReducedMotion();
+  const [value, setValue] = useState(reduced ? target : 0);
+  useEffect(() => {
+    if (reduced) {
+      setValue(target);
+      return;
+    }
+    let raf = 0;
+    const start = Date.now();
+    const tick = () => {
+      const t = Math.min(1, (Date.now() - start) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(Math.round(eased * target));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, reduced, durationMs]);
+  return value;
+}
+
+function CompletionNumber({ pct }: { pct: number }) {
+  const palette = usePalette();
+  const value = useCountUp(pct);
+  return (
+    <AppText variant="display" color={palette.accentTeal}>
+      {value}%
+    </AppText>
+  );
+}
+
+/** The header progress bar fills 0 → pct% on mount over the same ~600ms beat. */
+function ProgressFill({ pct }: { pct: number }) {
+  const styles = useThemedStyles(makeStyles);
+  const reduced = useReducedMotion();
+  const w = useSharedValue(reduced ? pct : 0);
+  useEffect(() => {
+    if (reduced) {
+      w.value = pct;
+      return;
+    }
+    w.value = withTiming(pct, { duration: motion.durations.banner, easing: easings.out });
+  }, [pct, reduced, w]);
+  const style = useAnimatedStyle(() => ({ width: `${w.value}%` }));
+  return <Animated.View style={[styles.progressFill, style]} />;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -96,40 +224,116 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ItemStamp({ item }: { item: CatalogItemRow }) {
+/**
+ * The one-time reveal driver: a `pop` spring (scale + opacity) and a `shine`
+ * sweep for the gold ring. Uniform scale only (separate scaleX/scaleY collapse
+ * views on Fabric). Snaps to placed when reduced-motion is on or the card was
+ * given no reveal slot.
+ */
+function useReveal(revealIndex: number | null) {
+  const reduced = useReducedMotion();
+  const active = revealIndex != null && !reduced;
+  const pop = useSharedValue(active ? 0 : 1);
+  const shine = useSharedValue(active ? 0 : 1);
+  useEffect(() => {
+    if (!active) {
+      pop.value = 1;
+      shine.value = 1;
+      return;
+    }
+    const delay = (revealIndex ?? 0) * REVEAL_STAGGER_MS;
+    pop.value = withDelay(delay, withSpring(1, motion.springs.impact));
+    shine.value = withDelay(delay, withTiming(1, { duration: REVEAL_SHINE_MS, easing: easings.out }));
+  }, [active, revealIndex, pop, shine]);
+  return { pop, shine, active };
+}
+
+function ItemStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: number | null }) {
   // Locked ≠ undiscovered (B-M5 Part 2): a locked ladder item shows its real
-  // silhouette + unlock hint, so it reads as "earn this", not "mystery". Only
-  // reachable when the flag is on; flag off leaves the two branches below byte-
-  // identical to today.
+  // silhouette + unlock hint (+ CAT-1 progress tick), so it reads as "earn this".
+  if (item.locked) return <LockedStamp item={item} />;
+  if (item.discovered) return <FoundStamp item={item} revealIndex={revealIndex} />;
+  return <MysteryStamp />;
+}
+
+/** A discovered, owned collectible: springs on press, and plays the gold reveal
+ *  if it was first found since the last catalog visit. */
+function FoundStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: number | null }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
-  if (item.locked) return <LockedStamp item={item} />;
+  const reduced = useReducedMotion();
+  const { pop, shine, active } = useReveal(revealIndex);
+  const press = useSharedValue(1);
+  const sprite = spriteFor(item.id);
 
-  const sprite = item.discovered ? spriteFor(item.id) : null;
+  const cardStyle = useAnimatedStyle(() => {
+    const revealScale = interpolate(pop.value, [0, 1], [0.7, 1]);
+    return {
+      opacity: interpolate(pop.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
+      transform: [{ scale: press.value * revealScale }],
+    };
+  });
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shine.value, [0, 0.35, 1], [0, 0.9, 0], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(shine.value, [0, 1], [0.85, 1.35]) }],
+  }));
+
   return (
-    <View style={[styles.stamp, item.discovered ? styles.stampFound : styles.stampLocked]}>
+    <AnimatedPressable
+      style={[styles.stamp, styles.stampFound, cardStyle]}
+      onPressIn={() => {
+        if (!reduced) press.value = withTiming(0.95, { duration: motion.durations.tick });
+      }}
+      onPressOut={() => {
+        press.value = reduced ? 1 : withSpring(1, motion.springs.settle);
+      }}
+    >
       {sprite ? (
         <View style={styles.stampArt}>
           <Image source={sprite} style={styles.stampSprite} resizeMode="contain" />
         </View>
       ) : (
         <View style={styles.stampMystery}>
-          <AppText variant="title" color={palette.parchment}>?</AppText>
+          <AppText variant="title" color={palette.inkFaint}>?</AppText>
         </View>
       )}
       <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.stampName}>
-        {item.discovered ? item.name : '???'}
+        {item.name}
+      </AppText>
+      {active ? <Animated.View pointerEvents="none" style={[styles.revealRing, ringStyle]} /> : null}
+    </AnimatedPressable>
+  );
+}
+
+/** An undiscovered "?" — a covered collectible on warm parchment (an invitation),
+ *  with an embossed carved "?" instead of a flat dark hole. */
+function MysteryStamp() {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  return (
+    <View style={[styles.stamp, styles.stampLocked]}>
+      <View style={styles.stampMystery}>
+        <AppText variant="title" color={palette.inkFaint}>?</AppText>
+      </View>
+      <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.stampName}>
+        ???
       </AppText>
     </View>
   );
 }
 
 /** A locked ladder item: the real sprite tinted to a dark silhouette (no new
- *  art) over the standard card, with its unlock hint where the name would sit. */
+ *  art) over the standard card, with its unlock hint and — for a runs gate — a
+ *  small progress tick ("4/5") so it reads "almost there", not "denied". */
 function LockedStamp({ item }: { item: CatalogItemRow }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const sprite = spriteFor(item.id);
+  const progress = item.unlockProgress;
+  const pct =
+    progress && progress.target > 0
+      ? Math.min(100, Math.round((progress.current / progress.target) * 100))
+      : 0;
   return (
     <View style={[styles.stamp, styles.stampLocked]}>
       {sprite ? (
@@ -142,15 +346,43 @@ function LockedStamp({ item }: { item: CatalogItemRow }) {
       <AppText variant="label" color={palette.inkSoft} numberOfLines={2} style={styles.stampLockHint}>
         {item.unlockHint}
       </AppText>
+      {progress ? (
+        <View style={styles.stampProgress}>
+          <View style={styles.stampProgressTrack}>
+            <View style={[styles.stampProgressFill, { width: `${pct}%` }]} />
+          </View>
+          <AppText variant="label" color={palette.inkFaint} style={styles.stampProgressText}>
+            {`${progress.current}/${progress.target}`}
+          </AppText>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-function ComboStamp({ combo }: { combo: CatalogComboRow }) {
+function ComboStamp({ combo, revealIndex }: { combo: CatalogComboRow; revealIndex: number | null }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
+  const { pop, shine, active } = useReveal(revealIndex);
+
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pop.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(pop.value, [0, 1], [0.9, 1]) }],
+  }));
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(shine.value, [0, 0.35, 1], [0, 0.9, 0], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(shine.value, [0, 1], [0.94, 1.12]) }],
+  }));
+
   return (
-    <View style={[styles.combo, combo.achieved ? styles.comboFound : styles.comboLocked, combo.isNew && styles.comboNew]}>
+    <Animated.View
+      style={[
+        styles.combo,
+        combo.achieved ? styles.comboFound : styles.comboLocked,
+        combo.isNew && styles.comboNew,
+        cardStyle,
+      ]}
+    >
       <Medallion size={34} earned={combo.achieved} />
       <View style={styles.comboText}>
         <AppText variant="heading" color={palette.ink} numberOfLines={1} style={styles.comboName}>
@@ -168,7 +400,7 @@ function ComboStamp({ combo }: { combo: CatalogComboRow }) {
           <AppText variant="label" color={palette.creamBright} style={styles.newBadgeText}>NEW</AppText>
         </View>
       ) : null}
-    </View>
+      {active ? <Animated.View pointerEvents="none" style={[styles.revealRing, ringStyle]} /> : null}
+    </Animated.View>
   );
 }
-
