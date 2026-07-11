@@ -241,6 +241,51 @@ function formatUnlockHint(
   }
 }
 
+/** Indefinite article for a phrase, by its first letter's vowel sound (good
+ *  enough for the combo vocabulary — no "hour"/"honest" edge cases here). */
+function indefiniteArticle(word: string): 'a' | 'an' {
+  return /^[aeiou]/i.test(word) ? 'an' : 'a';
+}
+
+/** Naive display-name plural for the "×N" adjacent phrasing (Cheese Wheel →
+ *  Cheese Wheels). Handles the sibilant endings so a future item reads right. */
+function pluralizeName(name: string): string {
+  return /(s|x|z|sh|ch)$/i.test(name) ? `${name}es` : `${name}s`;
+}
+
+/** The center descriptor as prose: a concrete item ("a Bread Loaf") or a tag
+ *  archetype ("a sweet item" / "an antique item"). */
+function describeComboCenter(center: NamedCombo['center'], table: ItemTable): string {
+  if (center.kind === 'item') {
+    const name = table.get(center.itemId)?.name ?? center.itemId;
+    return `${indefiniteArticle(name)} ${name}`;
+  }
+  return `${indefiniteArticle(center.tag)} ${center.tag} item`;
+}
+
+/** The adjacent descriptor as prose, counted: "2 food items" (tag) or
+ *  "3 Cheese Wheels" / "1 Mirror" (concrete item). */
+function describeComboAdjacent(
+  adjacent: NamedCombo['adjacent'],
+  count: number,
+  table: ItemTable,
+): string {
+  if (adjacent.kind === 'item') {
+    const name = table.get(adjacent.itemId)?.name ?? adjacent.itemId;
+    return `${count} ${count === 1 ? name : pluralizeName(name)}`;
+  }
+  return `${count} ${adjacent.tag} ${count === 1 ? 'item' : 'items'}`;
+}
+
+/** The one-line recipe sentence for a combo's detail modal. Item ids resolve to
+ *  display names via the passed table so the SCREEN never imports @/items. */
+function formatComboUnlock(combo: NamedCombo, table: ItemTable): string {
+  return `Arrange ${describeComboAdjacent(combo.adjacent, combo.count, table)} around ${describeComboCenter(
+    combo.center,
+    table,
+  )}`;
+}
+
 export interface CatalogComboRow {
   comboId: string;
   name: string;
@@ -262,6 +307,26 @@ export interface CatalogComboRow {
   center: NamedCombo['center'];
   adjacent: NamedCombo['adjacent'];
   adjacentCount: number;
+  /**
+   * COMBO-2 detail-modal prose: the recipe as one player-facing sentence
+   * ("Arrange 2 food items around a Bread Loaf"), derived from
+   * center/adjacent/adjacentCount with item ids resolved to display names HERE
+   * (the screen never imports @/items). Present on every row; the UI only shows
+   * it inside an ACHIEVED combo's modal, so an unachieved recipe is never
+   * leaked. Pure derive over the combo def; no persistence touched.
+   */
+  unlockSentence: string;
+  /**
+   * COMBO-2 R1: a representative DISCOVERED item for a tag-kind slot, so the
+   * recipe diagram can show a real gameplay item card ("any food item — like
+   * this one") instead of a bare glyph. Deterministic: the FIRST discovered id
+   * in table order carrying the tag. STRICTLY discovered-only (never leaks an
+   * unseen sprite). Null when the slot is item-kind (the card is the recipe's
+   * own item) or when the player has discovered nothing with the tag (the UI
+   * falls back to the tag glyph). Pure derive; no persistence touched.
+   */
+  centerExampleItemId: string | null;
+  adjacentExampleItemId: string | null;
 }
 
 export interface CatalogView {
@@ -326,6 +391,18 @@ export function buildCatalogView(
     };
   });
 
+  // COMBO-2 R1: the representative card for a tag slot — the first DISCOVERED
+  // item in table order carrying the tag (deterministic; discovered-only so an
+  // unseen sprite is never leaked); null → the UI keeps its tag-glyph fallback.
+  const exampleForTag = (tag: string): string | null => {
+    for (const def of table.values()) {
+      if (discoveredItems.has(def.id) && def.tags.includes(tag)) return def.id;
+    }
+    return null;
+  };
+  const exampleForSlot = (slot: NamedCombo['center']): string | null =>
+    slot.kind === 'tag' ? exampleForTag(slot.tag) : null;
+
   const comboRows: CatalogComboRow[] = combos.map((combo) => ({
     comboId: combo.comboId,
     name: combo.name,
@@ -335,6 +412,9 @@ export function buildCatalogView(
     center: combo.center,
     adjacent: combo.adjacent,
     adjacentCount: combo.count,
+    unlockSentence: formatComboUnlock(combo, table),
+    centerExampleItemId: exampleForSlot(combo.center),
+    adjacentExampleItemId: exampleForSlot(combo.adjacent),
   }));
 
   const itemsDiscovered = items.filter((i) => i.discovered).length;

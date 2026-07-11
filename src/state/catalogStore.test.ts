@@ -257,6 +257,57 @@ describe('buildCatalogView — COMBO-1 recipe descriptors', () => {
     expect(sugar?.adjacentCount).toBe(2);
     expect(sugar?.count).toBe(0);
   });
+
+  it('derives a player-facing unlock sentence with item names resolved', () => {
+    const view = buildCatalogView(freshCatalog(), table, combos);
+    const find = (id: string) => view.combos.find((c) => c.comboId === id);
+    // item center + tag adjacent → "Arrange 2 food items around a Bread Loaf"
+    expect(find('bakery-corner')?.unlockSentence).toBe('Arrange 2 food items around a Bread Loaf');
+    // item center + item adjacent, count 3 → pluralised concrete neighbour
+    expect(find('wine-and-dine')?.unlockSentence).toBe('Arrange 3 Cheese Wheels around a Wine Bottle');
+    // tag center + tag adjacent → both read as archetypes
+    expect(find('sugar-rush')?.unlockSentence).toBe('Arrange 2 sweet items around a sweet item');
+    // vowel-initial tag takes "an"
+    expect(find('heirloom-row')?.unlockSentence).toBe('Arrange 2 antique items around an antique item');
+    // singular concrete neighbour is not pluralised
+    expect(find('infinite-reflection')?.unlockSentence).toBe('Arrange 1 Mirror around a Mirror');
+  });
+
+  it('resolves tag-slot example cards from DISCOVERED items only, deterministically', () => {
+    // Discovered: bread-loaf (food) + wine-bottle (drink). cheese-wheel and
+    // honey-jar come EARLIER in table order but are NOT discovered, so the food
+    // example must be bread-loaf — the first DISCOVERED food item, proving both
+    // the leak rule (undiscovered ids never surface) and the deterministic pick.
+    const catalog = freshCatalog();
+    catalog.discoveredItemIds.push('bread-loaf', 'wine-bottle');
+    const view = buildCatalogView(catalog, table, combos);
+    const find = (id: string) => view.combos.find((c) => c.comboId === id);
+
+    const bakery = find('bakery-corner');
+    expect(bakery?.centerExampleItemId).toBeNull(); // item-kind slot → no example
+    expect(bakery?.adjacentExampleItemId).toBe('bread-loaf');
+
+    // No discovered item carries 'sweet' → null (UI keeps the tag glyph, no leak).
+    const sugar = find('sugar-rush');
+    expect(sugar?.centerExampleItemId).toBeNull();
+    expect(sugar?.adjacentExampleItemId).toBeNull();
+
+    // Every example id across every combo row must be a discovered id.
+    const discovered = new Set(catalog.discoveredItemIds);
+    for (const row of view.combos) {
+      for (const example of [row.centerExampleItemId, row.adjacentExampleItemId]) {
+        if (example !== null) expect(discovered.has(example)).toBe(true);
+      }
+    }
+  });
+
+  it('a fresh catalog (nothing discovered) ships no example ids at all', () => {
+    const view = buildCatalogView(freshCatalog(), table, combos);
+    for (const row of view.combos) {
+      expect(row.centerExampleItemId).toBeNull();
+      expect(row.adjacentExampleItemId).toBeNull();
+    }
+  });
 });
 
 describe('nextUnlockTeaserView — the summary "one more run" prompt (Part 3)', () => {

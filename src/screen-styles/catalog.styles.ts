@@ -49,9 +49,33 @@ export function makeStyles(palette: Palette) {
     segmentBtn: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 44, zIndex: 1 },
     segmentLabel: { letterSpacing: 0.6 },
 
-    // CAT-2 rarity legend — one quiet dot-separated line, no card, no box.
-    legend: { paddingHorizontal: spacing.sm },
-    legendText: { lineHeight: 18, textAlign: 'center' },
+    // LEG-1 rarity legend — four equal-width band chips in ONE row (replaces the
+    // old dot-separated line the human called unreadable). Each chip stacks a
+    // band name over its n/total, with the band's material accent as a thin top
+    // border. flex:1 makes the four chips share the row exactly (no wrap).
+    legendChips: { flexDirection: 'row', gap: spacing.xs },
+    legendChip: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.sm,
+      borderTopWidth: borders.strong,
+      borderWidth: borders.hairline,
+      flex: 1,
+      gap: spacing.xxs,
+      paddingHorizontal: spacing.xxs,
+      paddingVertical: spacing.xs,
+    },
+    // Per-band accent for the chip's top edge — the exact material ladder the
+    // stamps climb (coinGold → goldDeep → sunlight → parchmentEdge). Overrides
+    // only borderTopColor, so the rest of the chip frame stays the neutral edge.
+    legendAccentHeirloom: { borderTopColor: palette.coinGold },
+    legendAccentRare: { borderTopColor: palette.goldDeep },
+    legendAccentFine: { borderTopColor: palette.sunlight },
+    legendAccentCommon: { borderTopColor: palette.parchmentEdge },
+    legendChipName: { fontSize: 10, letterSpacing: 0.4, textAlign: 'center' },
+    legendChipCountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
+    legendChipCount: { fontSize: 13, letterSpacing: 0 },
 
     // CAT-2 band group: a SectionLabel + its rarity grid, kept tight.
     band: { gap: spacing.sm },
@@ -207,8 +231,7 @@ export function makeStyles(palette: Palette) {
     },
     comboFound: { backgroundColor: palette.creamBright, borderColor: palette.goldDeep },
     comboLocked: { backgroundColor: palette.parchment, borderColor: palette.parchmentEdge, opacity: 0.7 },
-    // B-M11 "new" accent: a stronger gold stamp edge + a small badge.
-    comboNew: { borderColor: palette.goldDeep, borderWidth: 2 },
+    // B-M11 "new" accent badge, reused by the COMBO-2 minted medal.
     newBadge: {
       backgroundColor: palette.goldDeep,
       borderRadius: radii.pill,
@@ -223,39 +246,94 @@ export function makeStyles(palette: Palette) {
     // CAT-2 earn-count context under an achieved combo ("achieved 3 times").
     comboContext: { fontSize: 11, letterSpacing: 0 },
 
-    // --- COMBO-1 recipe cards: a 2-column grid of arrangement cards. ---
-    comboGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-    // Base card; achieved/locked material spreads on top (echoes the item grid).
-    comboCard: {
-      alignItems: 'center',
+    // --- COMBO-2 trophy shelf: rows of 2 medals standing in wooden wells. ---
+    // The tab is a stack of wooden shelves (the game's own shelfWood language) so
+    // it reads instantly as "the same wood as my shelf".
+    comboShelf: { gap: spacing.lg },
+    // One shelf: a shelfWood bed the medals stand on, capped by a plank lip.
+    shelfBed: {
+      backgroundColor: palette.shelfWood,
+      borderColor: palette.woodDark,
       borderRadius: radii.md,
-      borderWidth: borders.hairline,
-      gap: spacing.sm,
-      padding: spacing.md,
-      width: '48%',
-    },
-    // Achieved: the gold-framed collectible (RARE's brass frame + a soft lift).
-    comboCardFound: {
-      backgroundColor: palette.creamBright,
-      borderColor: palette.goldDeep,
       borderWidth: borders.strong,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
       ...shadows.card,
     },
-    // Unachieved: quiet parchment mystery, still inviting (matches the items tab).
-    comboCardLocked: {
-      backgroundColor: palette.parchment,
-      borderColor: palette.parchmentEdge,
-      opacity: 0.85,
+    shelfMedalRow: { flexDirection: 'row' },
+    // Each medal + its name; flex:1 so a row of two splits the shelf evenly.
+    shelfCell: { alignItems: 'center', flex: 1, gap: spacing.xs, paddingHorizontal: spacing.xxs },
+    // The front lip of the shelf the medals sit on (cascade Board plank language).
+    shelfPlank: {
+      backgroundColor: palette.woodLight,
+      borderBottomColor: palette.woodDark,
+      borderBottomWidth: borders.strong,
+      borderRadius: radii.xs,
+      height: 12,
+      marginTop: spacing.md,
     },
-    comboCardName: { minHeight: 34, textAlign: 'center' },
-    comboCardCount: { fontSize: 13, letterSpacing: 0 },
-    comboCardHint: { fontSize: 12, textAlign: 'center' },
-    // The "new" badge, pinned to the achieved card's top-right corner.
-    comboCardBadge: { position: 'absolute', right: spacing.xs, top: spacing.xs, zIndex: 2 },
+    // The "×N" notch chip, centered and overlapping the medal's lower rim (R2 —
+    // a clean notch, not a sticker): goldDeep frame on a coinGold bed, stat text.
+    medalCountChip: {
+      alignItems: 'center',
+      backgroundColor: palette.coinGold,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: borders.regular,
+      marginTop: -spacing.lg,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      zIndex: 2,
+    },
+    medalCountText: { fontSize: 12, letterSpacing: 0 },
+    // Sized to the medal (108), so the absolute mint ring + NEW badge register to
+    // the well's box.
+    medalStack: { alignItems: 'center', justifyContent: 'center' },
+    // Combo name under the medal (Baloo2 heading, sized down for the trophy).
+    medalName: { fontSize: 14, lineHeight: 18, minHeight: 18, textAlign: 'center' },
+    medalLockHint: { fontSize: 10, lineHeight: 14, textAlign: 'center' },
+    // isNew "minting" pulse — a gold ring around the well (circular revealRing).
+    medalRevealRing: {
+      borderColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: borders.strong,
+      height: 108,
+      position: 'absolute',
+      width: 108,
+    },
+    // The one-time mount glint: a bright streak swept across the medal (clipped to
+    // the ring). translateX + a constant rotate carry the sweep — uniform only.
+    medalGlint: {
+      backgroundColor: palette.creamBright,
+      borderRadius: radii.xs,
+      height: 150,
+      opacity: 0.5,
+      position: 'absolute',
+      width: 22,
+    },
+    // The minted "NEW" badge, pinned to the medal's top-right.
+    medalNewBadge: { position: 'absolute', right: 0, top: -spacing.xs, zIndex: 3 },
+
+    // --- COMBO-2 combo detail modal (echoes the item ShowcaseModal anatomy). ---
+    comboModalCard: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.lg,
+      borderWidth: borders.strong,
+      gap: spacing.md,
+      maxWidth: 360,
+      padding: spacing.xl,
+      width: '100%',
+      ...shadows.lifted,
+    },
+    comboModalUnlock: { textAlign: 'center' },
+    comboModalCount: { fontSize: 13, letterSpacing: 0 },
 
     // The mini shelf cluster: a plus of wells around a center slot. Uses the same
     // wood well tones as the shelf/cascade so it reads as "this in the middle,
-    // these around it" instantly.
+    // these around it" instantly. Modal-only since COMBO-2; the wells grew to
+    // hold REAL gameplay item cards (ItemSprite plinths, R1) instead of glyphs.
     recipe: { alignItems: 'center', gap: spacing.xxs, paddingVertical: spacing.xxs },
     recipeRow: { flexDirection: 'row', gap: spacing.xxs, justifyContent: 'center' },
     recipeWell: {
@@ -264,16 +342,30 @@ export function makeStyles(palette: Palette) {
       borderColor: palette.woodDark,
       borderRadius: radii.sm,
       borderWidth: borders.regular,
-      height: 34,
+      height: 52,
       justifyContent: 'center',
-      overflow: 'hidden',
-      width: 34,
+      width: 52,
     },
     // A recessed empty well — the "arrange here" negative space of the cluster.
     recipeWellEmpty: { backgroundColor: palette.woodDark, opacity: 0.45 },
     // The center slot wears a gold frame so it reads as the anchor of the recipe.
     recipeWellCenter: { borderColor: palette.goldDeep, borderWidth: borders.strong },
-    recipeSprite: { height: 28, width: 28 },
+    // R1: the "any <tag> item" marker on a tag slot showing an example card — a
+    // small TagIcon chip pinned to the well's top-right corner.
+    recipeTagChip: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      height: 18,
+      justifyContent: 'center',
+      position: 'absolute',
+      right: -spacing.xs,
+      top: -spacing.xs,
+      width: 18,
+      zIndex: 2,
+    },
 
     // --- CAT-3 item showcase modal. ---
     modalScrim: {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,19 +15,21 @@ import Animated, {
 
 import {
   AppText,
-  Medallion,
   Panel,
   SectionLabel,
   TagIcon,
   TopBar,
+  borders,
   layout,
   motion,
+  shadows,
   spacing,
   usePalette,
   useReducedMotion,
   useThemedStyles,
 } from '@/ui';
-import { easings, spriteFor } from '@/juice';
+import type { ItemInstance } from '@/contracts';
+import { ItemSprite, easings, spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/catalog.styles';
 import {
@@ -36,6 +38,7 @@ import {
   catalogBands,
   catalogSelectors,
   useCatalogStore,
+  type CatalogBand,
   type CatalogComboRow,
   type CatalogItemRow,
   type CatalogView,
@@ -66,6 +69,10 @@ type CatalogTab = 'items' | 'combos';
 const MAX_REVEAL = 8;
 const REVEAL_STAGGER_MS = 90;
 const REVEAL_SHINE_MS = 520;
+/** ItemSprite size inside a recipe-diagram well (plinth ≈ 0.82× this). */
+const RECIPE_CARD_SIZE = 50;
+/** Trophy medal diameter on the shelf (R2: +12.5% from 96; SE math in report). */
+const MEDAL_SIZE = 108;
 
 /**
  * Ids already given their one-time reveal this app session. Module-level (not
@@ -92,6 +99,28 @@ function planReveals(newIds: readonly string[]): Map<string, number> {
   return plan;
 }
 
+/** COMBO-2 mount glint: which achieved medals have already swept their one-time
+ *  shine this app session. Parallel to `revealedThisSession` but a distinct set —
+ *  the glint is the "already earned" flourish, the reveal is the "just earned"
+ *  one, and a medal never plays both (new medals are excluded from the glint). */
+const glintedThisSession = new Set<string>();
+const GLINT_START_MS = 260;
+
+/** Assign a stagger slot to each achieved medal that hasn't glinted yet this
+ *  session (in screen order), marking them all glinted so the sweep never
+ *  replays. Capped at MAX_REVEAL concurrent animators; overflow gets no slot. */
+function planGlints(ids: readonly string[]): Map<string, number> {
+  const plan = new Map<string, number>();
+  let slot = 0;
+  for (const id of ids) {
+    if (glintedThisSession.has(id)) continue;
+    glintedThisSession.add(id);
+    if (slot < MAX_REVEAL) plan.set(id, slot);
+    slot += 1;
+  }
+  return plan;
+}
+
 export default function CatalogScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -108,9 +137,13 @@ export default function CatalogScreen() {
   // `?item=<id>` opens the showcase modal for a discovered item on mount — a
   // documented affordance that makes the (untappable-headlessly) modal
   // deep-linkable for verification; ignored for an undiscovered/unknown id.
-  const params = useLocalSearchParams<{ tab?: string; item?: string }>();
+  // `?combo=<comboId>` mirrors `?item=`: opens the combo detail modal for an
+  // ACHIEVED combo on mount — the same verification affordance, inert for an
+  // unachieved/unknown id (mystery stays mystery).
+  const params = useLocalSearchParams<{ tab?: string; item?: string; combo?: string }>();
   const [tab, setTab] = useState<CatalogTab>(params.tab === 'combos' ? 'combos' : 'items');
   const [showcaseId, setShowcaseId] = useState<string | null>(params.item ?? null);
+  const [comboShowcaseId, setComboShowcaseId] = useState<string | null>(params.combo ?? null);
 
   useEffect(() => {
     void loadCatalog().catch(() => undefined);
@@ -123,6 +156,13 @@ export default function CatalogScreen() {
   useEffect(() => {
     if (params.item) setShowcaseId(params.item);
   }, [params.item]);
+
+  // Same reuse story for `?combo=`: honour the deep link on an already-mounted
+  // screen; closing sets the id null without touching the URL, so a manual
+  // dismiss is never overridden.
+  useEffect(() => {
+    if (params.combo) setComboShowcaseId(params.combo);
+  }, [params.combo]);
 
   // Same reuse story for `?tab=`: honour a tab deep link even when the screen is
   // already mounted. No param → no-op, so manual tab taps are never overridden.
@@ -155,6 +195,16 @@ export default function CatalogScreen() {
     [showcaseId, view.items],
   );
 
+  // The combo modal only ever opens for an ACHIEVED combo — an unachieved or
+  // unknown id resolves to null and stays closed (no recipe leak, stale link inert).
+  const comboShowcaseRow = useMemo(
+    () =>
+      comboShowcaseId
+        ? view.combos.find((c) => c.comboId === comboShowcaseId && c.achieved) ?? null
+        : null,
+    [comboShowcaseId, view.combos],
+  );
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <TopBar title="Catalog" backLabel="‹ Menu" onBack={() => router.dismissTo('/')} />
@@ -174,10 +224,15 @@ export default function CatalogScreen() {
 
         {/* Conditional render: only the active tab is mounted, so its reveal
             plans (and animators) exist only while it is on screen. */}
-        {tab === 'items' ? <ItemsTab view={view} onOpenItem={setShowcaseId} /> : <CombosTab view={view} />}
+        {tab === 'items' ? (
+          <ItemsTab view={view} onOpenItem={setShowcaseId} />
+        ) : (
+          <CombosTab view={view} onOpenCombo={setComboShowcaseId} />
+        )}
       </ScrollView>
 
       <ItemShowcaseModal row={showcaseRow} onClose={() => setShowcaseId(null)} />
+      <ComboShowcaseModal row={comboShowcaseRow} onClose={() => setComboShowcaseId(null)} />
     </View>
   );
 }
@@ -288,14 +343,15 @@ function ItemsTab({ view, onOpenItem }: { view: CatalogView; onOpenItem: (id: st
     planReveals(bands.flatMap((b) => b.items).filter((i) => i.isNew).map((i) => i.id)),
   );
 
-  const legend = bands.map((b) => `${b.name} ${b.discovered}/${b.total}`).join('  ·  ');
-
   return (
     <>
-      <View style={styles.legend}>
-        <AppText variant="label" color={palette.inkFaint} style={styles.legendText}>
-          {legend}
-        </AppText>
+      {/* LEG-1: four equal-width band chips in one row (band name over n/total,
+          a material accent on the top edge, a quiet check when a band is
+          complete) — replaces the ragged dot-separated line. */}
+      <View style={styles.legendChips}>
+        {bands.map((band) => (
+          <LegendChip key={band.tier} band={band} />
+        ))}
       </View>
 
       {bands.map((band) => (
@@ -317,23 +373,88 @@ function ItemsTab({ view, onOpenItem }: { view: CatalogView; onOpenItem: (id: st
   );
 }
 
-/** The Combos tab: a 2-column grid of RECIPE CARDS. An achieved card shows its
- *  arrangement (a mini shelf cluster); an unachieved card stays a mystery and
- *  leaks no recipe. Reveal planned on this tab's first mount (session-scoped,
- *  ≤MAX_REVEAL, shared with the items tab machinery). */
-function CombosTab({ view }: { view: CatalogView }) {
+/** One LEG-1 legend chip: band name over its n/total, a material accent on the
+ *  top edge, and a quiet check when the band is fully collected. flex:1 (in the
+ *  sheet) makes the four chips split the row equally, one line, no wrap. */
+function LegendChip({ band }: { band: CatalogBand }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const accent =
+    band.tier === 4
+      ? styles.legendAccentHeirloom
+      : band.tier === 3
+        ? styles.legendAccentRare
+        : band.tier === 2
+          ? styles.legendAccentFine
+          : styles.legendAccentCommon;
+  const complete = band.total > 0 && band.discovered === band.total;
+  return (
+    <View style={[styles.legendChip, accent]}>
+      <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.legendChipName}>
+        {band.name}
+      </AppText>
+      <View style={styles.legendChipCountRow}>
+        <AppText variant="stat" color={palette.ink} style={styles.legendChipCount}>
+          {`${band.discovered}/${band.total}`}
+        </AppText>
+        {complete ? (
+          <MaterialCommunityIcons name="check" size={12} color={palette.accentTeal} />
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The Combos tab: a WOODEN TROPHY SHELF (COMBO-2). Combos sit two-per-row as
+ * layered medals standing in woodInset wells on shelfWood beds — the game's own
+ * shelf language, so it reads instantly as "the same wood as my shelf". An
+ * achieved medal wears the combo's center art + a "×N" ribbon and opens a detail
+ * modal; a locked medal is a dark recessed disc with a lock (no recipe leak).
+ * Two one-shot flourishes, both session-scoped and ≤MAX_REVEAL: newly-earned
+ * medals MINT (reveal ring + pop, shared with the items machinery); previously-
+ * earned medals GLINT once on mount (a swept shine). New medals mint instead of
+ * glinting, so a medal never runs both.
+ */
+function CombosTab({
+  view,
+  onOpenCombo,
+}: {
+  view: CatalogView;
+  onOpenCombo: (comboId: string) => void;
+}) {
   const styles = useThemedStyles(makeStyles);
   const [revealPlan] = useState(() =>
     planReveals(view.combos.filter((c) => c.isNew).map((c) => c.comboId)),
   );
+  const [glintPlan] = useState(() =>
+    planGlints(view.combos.filter((c) => c.achieved && !c.isNew).map((c) => c.comboId)),
+  );
+
+  // Pair the combos into shelf rows of two (20 combos → 10 shelves).
+  const rows: CatalogComboRow[][] = [];
+  for (let i = 0; i < view.combos.length; i += 2) rows.push(view.combos.slice(i, i + 2));
+
   return (
-    <View style={styles.comboGrid}>
-      {view.combos.map((combo) => (
-        <ComboCard
-          key={combo.comboId}
-          combo={combo}
-          revealIndex={revealPlan.get(combo.comboId) ?? null}
-        />
+    <View style={styles.comboShelf}>
+      {rows.map((row) => (
+        <View key={row[0]!.comboId} style={styles.shelfBed}>
+          <View style={styles.shelfMedalRow}>
+            {row.map((combo) => (
+              <ComboMedalCell
+                key={combo.comboId}
+                combo={combo}
+                revealIndex={revealPlan.get(combo.comboId) ?? null}
+                glintIndex={glintPlan.get(combo.comboId) ?? null}
+                onOpenCombo={onOpenCombo}
+              />
+            ))}
+            {/* Keep a lone final medal left-aligned on its shelf (defensive — the
+                combo count is even today). */}
+            {row.length === 1 ? <View style={styles.shelfCell} /> : null}
+          </View>
+          <View style={styles.shelfPlank} />
+        </View>
       ))}
     </View>
   );
@@ -421,6 +542,27 @@ function useReveal(revealIndex: number | null) {
     shine.value = withDelay(delay, withTiming(1, { duration: REVEAL_SHINE_MS, easing: easings.out }));
   }, [active, revealIndex, pop, shine]);
   return { pop, shine, active };
+}
+
+/**
+ * COMBO-2 mount glint driver: one shared value `g` sweeps 0→1 (staggered by the
+ * medal's glint slot) and the medal maps it to a translating shine bar. One-shot,
+ * never a loop. Reduced motion or "no slot" → `g` rests at 1 and the bar never
+ * renders, so the tab is still.
+ */
+function useGlint(glintIndex: number | null) {
+  const reduced = useReducedMotion();
+  const active = glintIndex != null && !reduced;
+  const g = useSharedValue(active ? 0 : 1);
+  useEffect(() => {
+    if (!active) {
+      g.value = 1;
+      return;
+    }
+    const delay = GLINT_START_MS + (glintIndex ?? 0) * REVEAL_STAGGER_MS;
+    g.value = withDelay(delay, withTiming(1, { duration: REVEAL_SHINE_MS, easing: easings.out }));
+  }, [active, glintIndex, g]);
+  return { g, active };
 }
 
 function ItemStamp({
@@ -583,79 +725,241 @@ function LockedStamp({ item }: { item: CatalogItemRow }) {
   );
 }
 
+/** The heart of an achieved medal: the combo's CENTER descriptor, so every medal
+ *  is visually unique — a concrete item shows its sprite, a tag its TagIcon glyph. */
+function ComboMedalCenter({
+  slot,
+  spriteSize,
+  tagSize,
+}: {
+  slot: ComboSlot;
+  spriteSize: number;
+  tagSize: number;
+}) {
+  const palette = usePalette();
+  if (slot.kind === 'item') {
+    const sprite = spriteFor(slot.itemId);
+    return sprite ? (
+      <Image source={sprite} style={{ height: spriteSize, width: spriteSize }} resizeMode="contain" />
+    ) : (
+      // Defensive: every combo center resolves to a sprite today; a missing one
+      // falls back to a glyph rather than blanking.
+      <MaterialCommunityIcons name="star-four-points" size={tagSize} color={palette.goldDeep} />
+    );
+  }
+  return <TagIcon tag={slot.tag} size={tagSize} />;
+}
+
 /**
- * One combo recipe card. Achieved: gold-framed, an earned Medallion seal, the
- * combo name, its mini recipe diagram, and "×N achieved". Unachieved: parchment
- * mystery — hollow Medallion, "???", "Arrange to discover", and NO diagram (the
- * recipe is never leaked). Achieved cards spring on press (uniform scale); the
- * isNew reveal (ring pulse + pop) carries over from CAT-1.
+ * A layered-View trophy medal for a combo, size-parametric (dims scale from
+ * `size`, colors from usePalette so it re-themes under high contrast).
+ *
+ * R2 depth model — the medal sits IN the shelf, not on it:
+ * - The WELL is a visibly recessed woodInset disc: woodDark border with a
+ *   woodLight bottom edge (light catches the lower lip of a recess).
+ * - An ACHIEVED medal wears a lit rim (sunlight top edge on the goldDeep ring)
+ *   and casts `shadows.lifted`; the shadow lives on a wrapper because the ring
+ *   clips its glint with overflow:hidden (masksToBounds would eat the shadow).
+ * - A LOCKED medal is a darker recessed disc; the lock glyph is creamBright at
+ *   ~55% so it reads on brown (inkFaint vanished). Zero recipe leak.
  */
-function ComboCard({ combo, revealIndex }: { combo: CatalogComboRow; revealIndex: number | null }) {
+function ComboMedal({
+  combo,
+  size = MEDAL_SIZE,
+  glintIndex = null,
+}: {
+  combo: CatalogComboRow;
+  size?: number;
+  /** Mount-glint stagger slot for this medal (grid only). Null / omitted (the
+   *  modal hero) means no sweep — the hook stays inactive. */
+  glintIndex?: number | null;
+}) {
+  const p = usePalette();
+  const styles = useThemedStyles(makeStyles);
+  const { g, active: glinting } = useGlint(glintIndex);
+  const ring = Math.round(size * 0.78);
+  const disc = Math.round(size * 0.6);
+  const spriteSize = Math.round(size * 0.42);
+  const tagSize = Math.round(size * 0.36);
+  const lockSize = Math.round(size * 0.32);
+  // Sweep bounds scale with the ring so the streak fully crosses any size.
+  const glintStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(g.value, [0, 0.5, 1], [0, 0.55, 0], Extrapolation.CLAMP),
+    transform: [
+      { translateX: interpolate(g.value, [0, 1], [-ring * 0.75, ring * 1.05]) },
+      { rotate: '20deg' },
+    ],
+  }));
+
+  const well: ViewStyle = {
+    alignItems: 'center',
+    backgroundColor: p.woodInset,
+    borderColor: p.woodDark,
+    // Recessed lighting: dark upper lip, light catches the lower lip.
+    borderBottomColor: p.woodLight,
+    borderRadius: size / 2,
+    borderWidth: borders.strong,
+    height: size,
+    justifyContent: 'center',
+    width: size,
+  };
+
+  if (!combo.achieved) {
+    return (
+      <View style={well}>
+        <View
+          style={{
+            alignItems: 'center',
+            backgroundColor: p.woodDark,
+            borderColor: p.woodDark,
+            borderBottomColor: p.woodInset,
+            borderRadius: ring / 2,
+            borderWidth: borders.regular,
+            height: ring,
+            justifyContent: 'center',
+            width: ring,
+          }}
+        >
+          <MaterialCommunityIcons
+            name="lock"
+            size={lockSize}
+            color={p.creamBright}
+            style={lockGlyphOpacity}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={well}>
+      {/* Shadow wrapper: the ring clips (for the glint), so the lift lives here. */}
+      <View style={[{ borderRadius: ring / 2 }, shadows.lifted]}>
+        <View
+          style={{
+            alignItems: 'center',
+            backgroundColor: p.coinGold,
+            borderColor: p.goldDeep,
+            // Lit rim: the top edge catches the light.
+            borderTopColor: p.sunlight,
+            borderRadius: ring / 2,
+            borderWidth: borders.strong,
+            height: ring,
+            justifyContent: 'center',
+            overflow: 'hidden',
+            width: ring,
+          }}
+        >
+          <View
+            style={{
+              alignItems: 'center',
+              backgroundColor: p.sunlight,
+              borderRadius: disc / 2,
+              height: disc,
+              justifyContent: 'center',
+              width: disc,
+            }}
+          >
+            <ComboMedalCenter slot={combo.center} spriteSize={spriteSize} tagSize={tagSize} />
+          </View>
+          {glinting ? <Animated.View pointerEvents="none" style={[styles.medalGlint, glintStyle]} /> : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Locked lock-glyph emphasis: creamBright softened so it reads carved, not lit. */
+const lockGlyphOpacity = { opacity: 0.55 } as const;
+
+/**
+ * One trophy-shelf cell: the medal + its "×N" ribbon + name. Achieved medals are
+ * the owned collectible — pressable (spring, uniform scale) and open the detail
+ * modal; they MINT (reveal ring + pop) when newly earned, else GLINT once on
+ * mount. Locked medals show "???" + "Arrange to discover" and are inert.
+ */
+function ComboMedalCell({
+  combo,
+  revealIndex,
+  glintIndex,
+  onOpenCombo,
+}: {
+  combo: CatalogComboRow;
+  revealIndex: number | null;
+  glintIndex: number | null;
+  onOpenCombo: (comboId: string) => void;
+}) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const reduced = useReducedMotion();
-  const { pop, shine, active } = useReveal(revealIndex);
+  const { pop, shine, active: minting } = useReveal(revealIndex);
   const press = useSharedValue(1);
 
-  const cardStyle = useAnimatedStyle(() => {
+  const contentStyle = useAnimatedStyle(() => {
     const revealScale = interpolate(pop.value, [0, 1], [0.9, 1]);
     return {
       opacity: interpolate(pop.value, [0, 0.4], [0, 1], Extrapolation.CLAMP),
       transform: [{ scale: press.value * revealScale }],
     };
   });
-  const ringStyle = useAnimatedStyle(() => ({
+  const revealRingStyle = useAnimatedStyle(() => ({
     opacity: interpolate(shine.value, [0, 0.35, 1], [0, 0.9, 0], Extrapolation.CLAMP),
-    transform: [{ scale: interpolate(shine.value, [0, 1], [0.94, 1.08]) }],
+    transform: [{ scale: interpolate(shine.value, [0, 1], [0.85, 1.15]) }],
   }));
 
   const body = (
     <>
-      <Medallion size={30} earned={combo.achieved} />
+      <View style={styles.medalStack}>
+        <ComboMedal combo={combo} glintIndex={glintIndex} />
+        {minting ? (
+          <Animated.View pointerEvents="none" style={[styles.medalRevealRing, revealRingStyle]} />
+        ) : null}
+        {combo.isNew ? (
+          <View style={styles.medalNewBadge}>
+            <View style={styles.newBadge}>
+              <AppText variant="label" color={palette.creamBright} style={styles.newBadgeText}>
+                NEW
+              </AppText>
+            </View>
+          </View>
+        ) : null}
+      </View>
+      {combo.achieved ? (
+        <View style={styles.medalCountChip}>
+          <AppText variant="stat" color={palette.ink} style={styles.medalCountText}>
+            {`×${combo.count}`}
+          </AppText>
+        </View>
+      ) : null}
+      {/* R2: text ON WOOD must be light — creamBright names, parchment mystery
+          lines. Dark ink vanished on the brown bed. */}
       <AppText
         variant="heading"
-        color={combo.achieved ? palette.ink : palette.inkFaint}
+        color={combo.achieved ? palette.creamBright : palette.parchment}
         numberOfLines={2}
-        style={styles.comboCardName}
+        style={styles.medalName}
       >
         {combo.achieved ? combo.name : '???'}
       </AppText>
-      {combo.achieved ? (
-        <>
-          <RecipeDiagram combo={combo} />
-          <AppText variant="stat" color={palette.accentTeal} style={styles.comboCardCount}>
-            {`×${combo.count} achieved`}
-          </AppText>
-        </>
-      ) : (
-        <AppText variant="body" color={palette.inkFaint} style={styles.comboCardHint}>
+      {combo.achieved ? null : (
+        <AppText variant="label" color={palette.parchment} numberOfLines={2} style={styles.medalLockHint}>
           Arrange to discover
         </AppText>
       )}
-      {combo.isNew ? (
-        <View style={styles.comboCardBadge}>
-          <View style={styles.newBadge}>
-            <AppText variant="label" color={palette.creamBright} style={styles.newBadgeText}>
-              NEW
-            </AppText>
-          </View>
-        </View>
-      ) : null}
-      {active ? <Animated.View pointerEvents="none" style={[styles.revealRing, ringStyle]} /> : null}
     </>
   );
 
-  // Achieved cards are the "owned collectible" — pressable with a spring. An
-  // unachieved mystery card is inert (nothing to press into).
   if (!combo.achieved) {
-    return <Animated.View style={[styles.comboCard, styles.comboCardLocked, cardStyle]}>{body}</Animated.View>;
+    return <Animated.View style={[styles.shelfCell, contentStyle]}>{body}</Animated.View>;
   }
   return (
     <AnimatedPressable
-      accessibilityLabel={`${combo.name} combo, achieved ${combo.count} times`}
-      style={[styles.comboCard, styles.comboCardFound, combo.isNew && styles.comboNew, cardStyle]}
+      accessibilityRole="button"
+      accessibilityLabel={`${combo.name} combo, achieved ${combo.count} times — view details`}
+      onPress={() => onOpenCombo(combo.comboId)}
+      style={[styles.shelfCell, contentStyle]}
       onPressIn={() => {
-        if (!reduced) press.value = withTiming(0.96, { duration: motion.durations.tick });
+        if (!reduced) press.value = withTiming(0.95, { duration: motion.durations.tick });
       }}
       onPressOut={() => {
         press.value = reduced ? 1 : withSpring(1, motion.springs.settle);
@@ -667,12 +971,39 @@ function ComboCard({ combo, revealIndex }: { combo: CatalogComboRow; revealIndex
 }
 
 /**
- * The mini recipe diagram: a plus-shaped shelf cluster — a gold-framed center
- * slot with `adjacentCount` filled neighbor wells around it (the remaining
- * positions stay empty recessed wells, so the shape reads as "this in the
- * middle, these around it"). center/adjacent 'item' → its sprite; 'tag' → the
- * TagIcon tinted to the tag accent. Uses the shelf's wood-well tones for
- * instant recognition. Only ever rendered for an achieved combo.
+ * An inert ItemInstance for the recipe diagram — just enough for ItemSprite to
+ * render the real gameplay card (sprite + cream plinth). Display-only: zeroed
+ * stats, default state, value hidden at the call site. The id comes from the
+ * view model (a recipe id or a DISCOVERED example id), never from @/items.
+ */
+function diagramInstance(itemId: string): ItemInstance {
+  return {
+    instanceId: `diagram-${itemId}`,
+    itemId,
+    name: itemId,
+    tier: 1,
+    baseValue: 0,
+    tags: [],
+    state: {
+      ageDays: 0,
+      growthDays: 0,
+      countdown: null,
+      sticky: false,
+      blocked: false,
+      transformedFromItemId: null,
+    },
+  };
+}
+
+/**
+ * The recipe diagram (modal-only since COMBO-2): a plus-shaped shelf cluster —
+ * a gold-framed center well with `adjacentCount` filled neighbor wells around
+ * it (the rest stay empty recessed wells). Slots render REAL gameplay item
+ * cards (R1): an item slot shows its own ItemSprite card; a tag slot shows a
+ * representative DISCOVERED item's card wearing a small TagIcon corner chip
+ * ("any food item — like this one"), falling back to the bare tag glyph when
+ * nothing with that tag has been discovered (no sprite leak). Only ever
+ * rendered for an achieved combo.
  */
 function RecipeDiagram({ combo }: { combo: CatalogComboRow }) {
   const styles = useThemedStyles(makeStyles);
@@ -686,37 +1017,58 @@ function RecipeDiagram({ combo }: { combo: CatalogComboRow }) {
   return (
     <View style={styles.recipe}>
       <View style={styles.recipeRow}>
-        <RecipeSlot slot={neighbor('up')} />
+        <RecipeSlot slot={neighbor('up')} exampleItemId={combo.adjacentExampleItemId} />
       </View>
       <View style={styles.recipeRow}>
-        <RecipeSlot slot={neighbor('left')} />
-        <RecipeSlot slot={combo.center} isCenter />
-        <RecipeSlot slot={neighbor('right')} />
+        <RecipeSlot slot={neighbor('left')} exampleItemId={combo.adjacentExampleItemId} />
+        <RecipeSlot slot={combo.center} exampleItemId={combo.centerExampleItemId} isCenter />
+        <RecipeSlot slot={neighbor('right')} exampleItemId={combo.adjacentExampleItemId} />
       </View>
       <View style={styles.recipeRow}>
-        <RecipeSlot slot={neighbor('down')} />
+        <RecipeSlot slot={neighbor('down')} exampleItemId={combo.adjacentExampleItemId} />
       </View>
     </View>
   );
 }
 
-/** One well of the recipe cluster: a sprite (item), a tinted TagIcon (tag), or
- *  an empty recessed well (null). */
-function RecipeSlot({ slot, isCenter = false }: { slot: ComboSlot | null; isCenter?: boolean }) {
+/** One well of the recipe cluster: a real item card (the slot's own item, or a
+ *  discovered example for a tag slot + a TagIcon corner chip), the bare tag
+ *  glyph when no example exists, or an empty recessed well (null). */
+function RecipeSlot({
+  slot,
+  exampleItemId = null,
+  isCenter = false,
+}: {
+  slot: ComboSlot | null;
+  exampleItemId?: string | null;
+  isCenter?: boolean;
+}) {
   const styles = useThemedStyles(makeStyles);
   if (!slot) return <View style={[styles.recipeWell, styles.recipeWellEmpty]} />;
   const wellStyle = [styles.recipeWell, isCenter && styles.recipeWellCenter];
+  // An item slot IS its card.
   if (slot.kind === 'item') {
-    const sprite = spriteFor(slot.itemId);
     return (
       <View style={wellStyle}>
-        {sprite ? <Image source={sprite} style={styles.recipeSprite} resizeMode="contain" /> : null}
+        <ItemSprite item={diagramInstance(slot.itemId)} glyph="?" size={RECIPE_CARD_SIZE} hideValue />
+      </View>
+    );
+  }
+  // A tag slot borrows the discovered example's card, marked "any <tag> item"
+  // by a corner chip; no discovered example → bare tag glyph (never a leak).
+  if (exampleItemId) {
+    return (
+      <View style={wellStyle}>
+        <ItemSprite item={diagramInstance(exampleItemId)} glyph="?" size={RECIPE_CARD_SIZE} hideValue />
+        <View style={styles.recipeTagChip} pointerEvents="none">
+          <TagIcon tag={slot.tag} size={11} />
+        </View>
       </View>
     );
   }
   return (
     <View style={wellStyle}>
-      <TagIcon tag={slot.tag} size={18} />
+      <TagIcon tag={slot.tag} size={22} />
     </View>
   );
 }
@@ -744,15 +1096,29 @@ function ItemShowcaseModal({ row, onClose }: { row: CatalogItemRow | null; onClo
   );
 }
 
-function ShowcaseCard({ row, onClose }: { row: CatalogItemRow; onClose: () => void }) {
+/**
+ * The shared showcase shell (CAT-3 language, reused by COMBO-2). Owns the dim
+ * scrim fade, the card spring-up (uniform scale + translateY), the tap-outside
+ * dismiss, the close button, and the one gold shine ring that pulses on open —
+ * so the item and combo modals share one animation body instead of forking it.
+ * The caller supplies the card frame style and the inner content. Reduced motion
+ * snaps everything. Animators mount only while the modal is open.
+ */
+function ShowcaseScaffold({
+  onClose,
+  cardStyle,
+  accessibilityLabel,
+  children,
+}: {
+  onClose: () => void;
+  cardStyle: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
+  children: React.ReactNode;
+}) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const reduced = useReducedMotion();
-  const sprite = spriteFor(row.id);
-  const bandName = RARITY_BANDS.find((b) => b.tier === row.tier)?.name ?? 'COMMON';
 
-  // Open drivers: `enter` springs the card up + fades the scrim; `shine` sweeps
-  // the gold ring once. Reduced motion snaps both to the resting state.
   const enter = useSharedValue(reduced ? 1 : 0);
   const shine = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
@@ -766,7 +1132,7 @@ function ShowcaseCard({ row, onClose }: { row: CatalogItemRow; onClose: () => vo
   }, [reduced, enter, shine]);
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: enter.value }));
-  const cardStyle = useAnimatedStyle(() => ({
+  const enterStyle = useAnimatedStyle(() => ({
     opacity: interpolate(enter.value, [0, 0.5], [0, 1], Extrapolation.CLAMP),
     transform: [
       { translateY: interpolate(enter.value, [0, 1], [24, 0]) },
@@ -783,72 +1149,134 @@ function ShowcaseCard({ row, onClose }: { row: CatalogItemRow; onClose: () => vo
       {/* Scrim tap dismisses. The card sits above it (an absolute-fill Pressable
           behind the card so a tap outside closes, a tap on the card doesn't). */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
-      <Animated.View style={[styles.modalCard, bandBed(row.tier, styles), cardStyle]}>
+      <Animated.View style={[cardStyle, enterStyle]} accessibilityLabel={accessibilityLabel}>
         <Pressable style={styles.modalClose} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close">
           <MaterialCommunityIcons name="close" size={18} color={palette.inkSoft} />
         </Pressable>
-
-        <View style={styles.modalSpriteBed}>
-          <View style={styles.modalSpriteRing} pointerEvents="none" />
-          <View style={styles.modalSpriteHalo} pointerEvents="none" />
-          {sprite ? (
-            <Image source={sprite} style={styles.modalSprite} resizeMode="contain" />
-          ) : (
-            <AppText variant="display" color={palette.inkFaint}>?</AppText>
-          )}
-          {row.tier === 4 ? (
-            <View pointerEvents="none" style={styles.modalCrown}>
-              <MaterialCommunityIcons name="crown" size={18} color={palette.goldDeep} />
-            </View>
-          ) : null}
-        </View>
-
-        <AppText variant="title" color={palette.ink} style={styles.modalName}>
-          {row.name}
-        </AppText>
-
-        <View style={styles.modalBandChip}>
-          <AppText variant="label" color={palette.goldDeep} style={styles.modalBandChipText}>
-            {bandName}
-          </AppText>
-        </View>
-
-        {row.tags.length > 0 ? (
-          <View style={styles.modalTags}>
-            {row.tags.map((tag) => (
-              <View key={tag} style={styles.modalTagChip}>
-                <TagIcon tag={tag} size={14} />
-                <AppText variant="label" color={palette.inkSoft} style={styles.modalTagText}>
-                  {tag}
-                </AppText>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <View style={styles.modalValueRow}>
-          <View style={styles.modalCoinDot} />
-          <AppText variant="stat" color={palette.ink}>{row.baseValue}</AppText>
-        </View>
-
-        <View style={styles.modalDivider} />
-
-        <View style={styles.modalSection}>
-          <SectionLabel>WHAT IT DOES</SectionLabel>
-          <View style={styles.modalRuleList}>
-            {row.ruleSentences.map((sentence, index) => (
-              <View key={index} style={styles.modalRule}>
-                <View style={styles.modalRuleBullet} />
-                <AppText variant="body" color={palette.inkSoft} style={styles.modalRuleText}>
-                  {sentence}
-                </AppText>
-              </View>
-            ))}
-          </View>
-        </View>
-
+        {children}
         <Animated.View pointerEvents="none" style={[styles.modalShine, shineStyle]} />
       </Animated.View>
     </Animated.View>
+  );
+}
+
+function ShowcaseCard({ row, onClose }: { row: CatalogItemRow; onClose: () => void }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const sprite = spriteFor(row.id);
+  const bandName = RARITY_BANDS.find((b) => b.tier === row.tier)?.name ?? 'COMMON';
+
+  return (
+    <ShowcaseScaffold onClose={onClose} cardStyle={[styles.modalCard, bandBed(row.tier, styles)]}>
+      <View style={styles.modalSpriteBed}>
+        <View style={styles.modalSpriteRing} pointerEvents="none" />
+        <View style={styles.modalSpriteHalo} pointerEvents="none" />
+        {sprite ? (
+          <Image source={sprite} style={styles.modalSprite} resizeMode="contain" />
+        ) : (
+          <AppText variant="display" color={palette.inkFaint}>?</AppText>
+        )}
+        {row.tier === 4 ? (
+          <View pointerEvents="none" style={styles.modalCrown}>
+            <MaterialCommunityIcons name="crown" size={18} color={palette.goldDeep} />
+          </View>
+        ) : null}
+      </View>
+
+      <AppText variant="title" color={palette.ink} style={styles.modalName}>
+        {row.name}
+      </AppText>
+
+      <View style={styles.modalBandChip}>
+        <AppText variant="label" color={palette.goldDeep} style={styles.modalBandChipText}>
+          {bandName}
+        </AppText>
+      </View>
+
+      {row.tags.length > 0 ? (
+        <View style={styles.modalTags}>
+          {row.tags.map((tag) => (
+            <View key={tag} style={styles.modalTagChip}>
+              <TagIcon tag={tag} size={14} />
+              <AppText variant="label" color={palette.inkSoft} style={styles.modalTagText}>
+                {tag}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={styles.modalValueRow}>
+        <View style={styles.modalCoinDot} />
+        <AppText variant="stat" color={palette.ink}>{row.baseValue}</AppText>
+      </View>
+
+      <View style={styles.modalDivider} />
+
+      <View style={styles.modalSection}>
+        <SectionLabel>WHAT IT DOES</SectionLabel>
+        <View style={styles.modalRuleList}>
+          {row.ruleSentences.map((sentence, index) => (
+            <View key={index} style={styles.modalRule}>
+              <View style={styles.modalRuleBullet} />
+              <AppText variant="body" color={palette.inkSoft} style={styles.modalRuleText}>
+                {sentence}
+              </AppText>
+            </View>
+          ))}
+        </View>
+      </View>
+    </ShowcaseScaffold>
+  );
+}
+
+/**
+ * COMBO-2 combo detail modal — the premium reveal beat. Opens only for an
+ * ACHIEVED combo (a locked medal never opens it). Echoes the item showcase
+ * anatomy via the shared scaffold: the medal blown up as a hero, the combo name,
+ * the derived unlock sentence ("Arrange 2 food items around a Bread Loaf"), the
+ * recipe diagram (which now lives here, not on the grid), and "×N achieved".
+ */
+function ComboShowcaseModal({ row, onClose }: { row: CatalogComboRow | null; onClose: () => void }) {
+  return (
+    <Modal
+      visible={row !== null}
+      transparent
+      statusBarTranslucent
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      {row ? <ComboShowcaseCard row={row} onClose={onClose} /> : null}
+    </Modal>
+  );
+}
+
+function ComboShowcaseCard({ row, onClose }: { row: CatalogComboRow; onClose: () => void }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  return (
+    <ShowcaseScaffold
+      onClose={onClose}
+      cardStyle={styles.comboModalCard}
+      accessibilityLabel={`${row.name} combo details`}
+    >
+      <ComboMedal combo={row} size={128} />
+
+      <AppText variant="title" color={palette.ink} style={styles.modalName}>
+        {row.name}
+      </AppText>
+
+      <AppText variant="body" color={palette.inkSoft} style={styles.comboModalUnlock}>
+        {row.unlockSentence}
+      </AppText>
+
+      <View style={styles.modalDivider} />
+
+      <RecipeDiagram combo={row} />
+
+      <AppText variant="stat" color={palette.accentTeal} style={styles.comboModalCount}>
+        {`×${row.count} achieved`}
+      </AppText>
+    </ShowcaseScaffold>
   );
 }
