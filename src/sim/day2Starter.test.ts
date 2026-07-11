@@ -13,17 +13,18 @@ import {
 } from './economy';
 import { EngineError, createRun, dispatch, legalActions } from './engine';
 import { hashState } from './hash';
-import { makeState, type PlacedItem } from './testkit';
+import { makeState, withFlagWorld, type PlacedItem } from './testkit';
 import { uiAffordances } from './uiAffordances';
 
 const deps = { table: loadItemTable(), combos: loadCombos() };
 
+/** Overlay helper: named vars apply on top of a fully pinned-OFF flag world
+ *  (undefined = force OFF via '0'); nested calls only touch their named keys. */
 function withEnv<T>(vars: Record<string, string | undefined>, run: () => T): T {
   const previous: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(vars)) {
     previous[key] = process.env[key];
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
+    process.env[key] = value ?? '0';
   }
   try {
     return run();
@@ -33,6 +34,10 @@ function withEnv<T>(vars: Record<string, string | undefined>, run: () => T): T {
       else process.env[key] = value;
     }
   }
+}
+
+function withPinnedWorld<T>(vars: Record<string, string | undefined>, run: () => T): T {
+  return withFlagWorld([], () => withEnv(vars, run));
 }
 
 function openDay1(seed: string): GameState {
@@ -65,7 +70,7 @@ function fullShelfItems(): PlacedItem[] {
 
 describe('A-M6c day-2 starter delivery', () => {
   it('keeps the flag-off loop-v2 day-1 rollover on the existing daily-shop path', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [DAY2_STARTER_ENV_VAR]: undefined }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1' }, () => {
       for (let index = 0; index < 8; index += 1) {
         const seed = `day2-starter-off-${index}`;
         const state = openDay1(seed);
@@ -80,7 +85,7 @@ describe('A-M6c day-2 starter delivery', () => {
     }));
 
   it('routes day 2 through a deterministic free delivery and then the old day-2 shop', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [DAY2_STARTER_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [DAY2_STARTER_ENV_VAR]: '1' }, () => {
       const seed = 'day2-starter-flow';
       const oldDirectShop = withEnv({ [DAY2_STARTER_ENV_VAR]: undefined }, () => openDay1(seed));
       let state = openDay1(seed);
@@ -109,7 +114,7 @@ describe('A-M6c day-2 starter delivery', () => {
     }));
 
   it('keeps supplier choice day-1-only during the day-2 delivery', () =>
-    withEnv(
+    withPinnedWorld(
       {
         [LOOP_V2_ENV_VAR]: '1',
         [DAY2_STARTER_ENV_VAR]: '1',
@@ -147,7 +152,7 @@ describe('A-M6c day-2 starter delivery', () => {
     ));
 
   it('does not dead-end if a synthetic day-2 delivery starts with a full shelf', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [DAY2_STARTER_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [DAY2_STARTER_ENV_VAR]: '1' }, () => {
       const state = makeState(fullShelfItems(), {
         phase: 'delivery',
         day: 2,
@@ -174,7 +179,7 @@ describe('A-M6c day-2 starter delivery', () => {
     }));
 
   it('keeps day-2 buyout plus reroll duplicate-id safe after the free placement', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [DAY2_STARTER_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [DAY2_STARTER_ENV_VAR]: '1' }, () => {
       let state = placeDay2Starter('day2-starter-buyout-reroll');
       state.coins = 500;
 
@@ -208,7 +213,7 @@ describe('A-M6c day-2 starter delivery', () => {
     }));
 
   it('evaluates the goal ladder against the scored day total after the day-2 starter', () =>
-    withEnv(
+    withPinnedWorld(
       {
         [LOOP_V2_ENV_VAR]: '1',
         [DAY2_STARTER_ENV_VAR]: '1',

@@ -273,7 +273,7 @@ describe('receiptFromTrace — synergy + spotlight + signature attribution', () 
           { slot: maneki, itemId: 'maneki-neko' },
           { slot: luckyCat, itemId: 'lucky-cat' },
         ],
-        { spotlight: maneki },
+        { loopV2: true, spotlight: maneki }, // v2 snapshot: synergy/signature scoring is run-gated
       );
       const trace = resolveOpenShop(state, table, combos).trace;
 

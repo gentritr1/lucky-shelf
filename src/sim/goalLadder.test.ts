@@ -14,46 +14,15 @@ import {
 } from './economy';
 import { EngineError, createRun, dispatch, legalActions } from './engine';
 import { hashState } from './hash';
-import { makeState } from './testkit';
+import { makeState, withFlagWorld } from './testkit';
 
 const deps = { table: loadItemTable(), combos: loadCombos() };
 
+/** Full-world pin: every depth flag forced OFF except goal ladder (+ its
+ *  loop-v2 prerequisite) when enabled — ambient defaults (e.g. build steering's
+ *  supplier gate, the day-2 starter's delivery routing) must not leak in. */
 function withGoalLadder<T>(enabled: boolean, run: () => T): T {
-  const previousGoal = process.env[GOAL_LADDER_ENV_VAR];
-  const previousLoop = process.env[LOOP_V2_ENV_VAR];
-  if (enabled) {
-    process.env[GOAL_LADDER_ENV_VAR] = '1';
-    process.env[LOOP_V2_ENV_VAR] = '1';
-  } else {
-    delete process.env[GOAL_LADDER_ENV_VAR];
-    delete process.env[LOOP_V2_ENV_VAR];
-  }
-  try {
-    return run();
-  } finally {
-    if (previousGoal === undefined) delete process.env[GOAL_LADDER_ENV_VAR];
-    else process.env[GOAL_LADDER_ENV_VAR] = previousGoal;
-    if (previousLoop === undefined) delete process.env[LOOP_V2_ENV_VAR];
-    else process.env[LOOP_V2_ENV_VAR] = previousLoop;
-  }
-}
-
-function withEnv<T>(updates: Record<string, string | undefined>, run: () => T): T {
-  const previous = new Map<string, string | undefined>();
-  for (const key of Object.keys(updates)) {
-    previous.set(key, process.env[key]);
-    const value = updates[key];
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  }
-  try {
-    return run();
-  } finally {
-    for (const [key, value] of previous.entries()) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
+  return withFlagWorld(enabled ? [GOAL_LADDER_ENV_VAR, LOOP_V2_ENV_VAR] : [], run);
 }
 
 function scoringState(dayTotal: 'hit' | 'miss', overrides?: Partial<GameState>): GameState {
@@ -72,18 +41,12 @@ function scoringState(dayTotal: 'hit' | 'miss', overrides?: Partial<GameState>):
 
 describe('loop v2 phase 3 goal ladder', () => {
   it('requires loop v2 as well as the goal flag', () =>
-    withEnv(
-      {
-        [GOAL_LADDER_ENV_VAR]: '1',
-        [LOOP_V2_ENV_VAR]: undefined,
-      },
-      () => {
+    withFlagWorld([GOAL_LADDER_ENV_VAR], () => {
         expect(goalLadderEnabled()).toBe(false);
         const state = createRun('goal-without-loop-v2', deps);
         expect(state.dailyTarget).toBeUndefined();
         expect(state.freeRerollTokens).toBeUndefined();
-      },
-    ));
+      }));
 
   it('uses the capped target ladder constant', () => {
     for (let day = 1; day <= 14; day += 1) {

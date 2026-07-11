@@ -31,6 +31,8 @@ import {
   unlockedItemIds,
 } from './unlocks';
 
+import { withFlagWorld } from './testkit';
+
 const deps = { table: loadItemTable(), combos: loadCombos() };
 
 const DEPTH_ENV = {
@@ -45,21 +47,26 @@ const DEPTH_ENV = {
   [UNLOCK_LADDER_ENV_VAR]: '1',
 } as const;
 
+/** Overlay on a fully pinned-OFF world: named keys apply (undefined = force
+ *  OFF via '0'); every unnamed depth flag is pinned '0' so graduated compiled
+ *  defaults (unlock ladder, build steering's supplier gate...) cannot leak
+ *  into these deterministic offer/unlock expectations. */
 function withEnv<T>(env: Record<string, string | undefined>, fn: () => T): T {
-  const previous: Record<string, string | undefined> = {};
-  for (const key of Object.keys(env)) {
-    previous[key] = process.env[key];
-    if (env[key] === undefined) delete process.env[key];
-    else process.env[key] = env[key];
-  }
-  try {
-    return fn();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
+  return withFlagWorld([], () => {
+    const previous: Record<string, string | undefined> = {};
+    for (const key of Object.keys(env)) {
+      previous[key] = process.env[key];
+      process.env[key] = env[key] ?? '0';
     }
-  }
+    try {
+      return fn();
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
 }
 
 function allDepthWithUnlock<T>(fn: () => T): T {

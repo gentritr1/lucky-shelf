@@ -17,15 +17,15 @@ import {
 import { playRun } from './bots';
 import { hashState } from './hash';
 import { resolveOpenShop } from './scoring';
-import { makeState, type PlacedItem } from './testkit';
+import { makeState, type PlacedItem, withFlagWorld } from './testkit';
 
 const table = loadItemTable();
 const combos = loadCombos();
 
 function withSignatureItems<T>(enabled: boolean, run: () => T): T {
   const previous = process.env[SIGNATURE_ITEMS_ENV_VAR];
-  if (enabled) process.env[SIGNATURE_ITEMS_ENV_VAR] = '1';
-  else delete process.env[SIGNATURE_ITEMS_ENV_VAR];
+  // '0' (not delete): the OFF arm must still force OFF now the default is true.
+  process.env[SIGNATURE_ITEMS_ENV_VAR] = enabled ? '1' : '0';
   try {
     return run();
   } finally {
@@ -36,8 +36,8 @@ function withSignatureItems<T>(enabled: boolean, run: () => T): T {
 
 function withLoopV2<T>(enabled: boolean, run: () => T): T {
   const previous = process.env[LOOP_V2_ENV_VAR];
-  if (enabled) process.env[LOOP_V2_ENV_VAR] = '1';
-  else delete process.env[LOOP_V2_ENV_VAR];
+  // '0' (not delete): the OFF arm must still force OFF now the default is true.
+  process.env[LOOP_V2_ENV_VAR] = enabled ? '1' : '0';
   try {
     return run();
   } finally {
@@ -48,8 +48,8 @@ function withLoopV2<T>(enabled: boolean, run: () => T): T {
 
 function withTagSynergy<T>(enabled: boolean, run: () => T): T {
   const previous = process.env[TAG_SYNERGY_ENV_VAR];
-  if (enabled) process.env[TAG_SYNERGY_ENV_VAR] = '1';
-  else delete process.env[TAG_SYNERGY_ENV_VAR];
+  // '0' (not delete): the OFF arm must still force OFF now the default is true.
+  process.env[TAG_SYNERGY_ENV_VAR] = enabled ? '1' : '0';
   try {
     return run();
   } finally {
@@ -81,7 +81,12 @@ function ruleFires(trace: ScoringTrace, ruleId: string): TraceEvent[] {
 }
 
 function scoreWithSignatures(placed: readonly PlacedItem[]) {
-  return withSignatureItems(true, () => resolveOpenShop(makeState(placed), table, combos));
+  // Full-world pin (signatures + loop v2 ON, synergy and the rest forced OFF) and
+  // a loopV2-marked state: signature scoring reads the run snapshot, and ambient
+  // graduated defaults (tag synergy) must not contaminate the expected totals.
+  return withFlagWorld([SIGNATURE_ITEMS_ENV_VAR, LOOP_V2_ENV_VAR], () =>
+    resolveOpenShop(makeState(placed, { loopV2: true }), table, combos),
+  );
 }
 
 describe('signature stock', () => {
@@ -280,7 +285,7 @@ describe('signature stock', () => {
               { slot: { row: 1, col: 1 }, itemId: 'bread-loaf' },
               { slot: { row: 2, col: 0 }, itemId: 'apple-basket' },
             ],
-            { spotlight: bestSlot, dailyOrder: { tag: 'food', count: 2 } },
+            { loopV2: true, spotlight: bestSlot, dailyOrder: { tag: 'food', count: 2 } },
           ),
           table,
           combos,

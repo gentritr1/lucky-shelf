@@ -83,8 +83,8 @@ function synergyMultForCount(count: number): number {
 
 function withTagSynergy<T>(enabled: boolean, run: () => T): T {
   const previous = process.env[TAG_SYNERGY_ENV_VAR];
-  if (enabled) process.env[TAG_SYNERGY_ENV_VAR] = '1';
-  else delete process.env[TAG_SYNERGY_ENV_VAR];
+  // '0' (not delete) so the OFF arm still forces OFF once the compiled default is true.
+  process.env[TAG_SYNERGY_ENV_VAR] = enabled ? '1' : '0';
   try {
     return run();
   } finally {
@@ -216,10 +216,10 @@ describe('prototype depth levers', () => {
       for (const count of [2, 3, 4, 5, 6, 7]) {
         const placed = placedFood(count);
         const baseline = withTagSynergy(false, () =>
-          resolveOpenShop(makeState(placed, { spotlight: null, dailyOrder: null }), table, combos),
+          resolveOpenShop(makeState(placed, { loopV2: true, spotlight: null, dailyOrder: null }), table, combos),
         );
         const result = resolveOpenShop(
-          makeState(placed, { spotlight: null, dailyOrder: null }),
+          makeState(placed, { loopV2: true, spotlight: null, dailyOrder: null }),
           table,
           combos,
         );
@@ -248,7 +248,7 @@ describe('prototype depth levers', () => {
         { slot: { row: 2, col: 0 }, itemId: 'observation-hive' },
       ];
       const result = resolveOpenShop(
-        makeState(placed, { spotlight: null, dailyOrder: null }),
+        makeState(placed, { loopV2: true, spotlight: null, dailyOrder: null }),
         table,
         combos,
       );
@@ -269,6 +269,7 @@ describe('prototype depth levers', () => {
   it('tag synergy supersedes order when enabled and leaves order intact when disabled', () => {
     const placed = placedFood(3);
     const orderedState = makeState(placed, {
+      loopV2: true,
       spotlight: null,
       dailyOrder: { tag: 'food', count: DEMAND_COUNT },
     });
@@ -291,7 +292,7 @@ describe('prototype depth levers', () => {
             { slot: { row: 0, col: 2 }, itemId: 'postcard-rack' },
             { slot: { row: 1, col: 1 }, itemId: 'record-crate' },
           ],
-          { spotlight: null, dailyOrder: null },
+          { loopV2: true, spotlight: null, dailyOrder: null },
         ),
         table,
         combos,
@@ -306,7 +307,7 @@ describe('prototype depth levers', () => {
             { slot: { row: 0, col: 2 }, itemId: 'penny-jar', baseValue: 10 },
             { slot: { row: 1, col: 1 }, itemId: 'lucky-bamboo', baseValue: 10 },
           ],
-          { spotlight: null, dailyOrder: null },
+          { loopV2: true, spotlight: null, dailyOrder: null },
         ),
         table,
         combos,
@@ -327,7 +328,7 @@ describe('prototype depth levers', () => {
         { slot: { row: 2, col: 0 }, itemId: 'apple-basket' },
       ];
       const result = resolveOpenShop(
-        makeState(placed, { spotlight: target, dailyOrder: { tag: 'food', count: DEMAND_COUNT } }),
+        makeState(placed, { loopV2: true, spotlight: target, dailyOrder: { tag: 'food', count: DEMAND_COUNT } }),
         table,
         combos,
       );

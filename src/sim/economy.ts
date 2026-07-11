@@ -30,7 +30,7 @@ export const OFFERS_PER_RESTOCK = 3;
  *
  *   LOOP_V2_ENABLED=1 node --import tsx scripts/fuzz.ts --runs 100
  */
-export const LOOP_V2_ENABLED = false;
+export const LOOP_V2_ENABLED = true;
 export const LOOP_V2_ENV_VAR = 'LOOP_V2_ENABLED';
 export const LOOP_V2_STARTING_COINS = 8;
 export const LOOP_V2_DAILY_SHOP_OFFERS = 4;
@@ -75,7 +75,7 @@ export function startingCoins(): number {
  * Fable sign-off. The target curve is calibrated against the v2 daily-shop
  * payout plateau, so the effective flag requires LOOP_V2 as well.
  */
-export const GOAL_LADDER_ENABLED = false;
+export const GOAL_LADDER_ENABLED = true;
 export const GOAL_LADDER_ENV_VAR = 'GOAL_LADDER_ENABLED';
 // Gate-1 retune (2026-07-10): the 2026-07-08 table was tuned against `allDepth`,
 // which lacks shelf expansion / unlock ladder / day-2 starter — under the real
@@ -99,7 +99,7 @@ export function goalLadderEnabled(runIsLoopV2: boolean = loopV2Enabled()): boole
  * only for runs that were created under LOOP_V2, matching the goal-ladder
  * snapshot pattern so older/v1 saves cannot opt in mid-run by env flip.
  */
-export const SHELF_EXPANSION_ENABLED = false;
+export const SHELF_EXPANSION_ENABLED = true;
 export const SHELF_EXPANSION_ENV_VAR = 'SHELF_EXPANSION_ENABLED';
 export const SHELF_EXPANSION_COST = 250;
 
@@ -124,7 +124,7 @@ export function warmOpeningEnabled(runIsLoopV2: boolean = loopV2Enabled()): bool
  * Effective only for loop-v2 runs, using the run's loop snapshot just like the
  * goal ladder and shelf expansion flags.
  */
-export const DAY2_STARTER_ENABLED = false;
+export const DAY2_STARTER_ENABLED = true;
 export const DAY2_STARTER_ENV_VAR = 'DAY2_STARTER_ENABLED';
 
 export function day2StarterEnabled(runIsLoopV2: boolean = loopV2Enabled()): boolean {
@@ -181,7 +181,7 @@ export const DEMAND_TAG_POOL: readonly string[] = [
  * sign-off. When on, this supersedes Today's Order during scoring: each item
  * receives only the best eligible tag ladder multiplier it qualifies for.
  */
-export const TAG_SYNERGY_ENABLED = false;
+export const TAG_SYNERGY_ENABLED = true;
 export const TAG_SYNERGY_ENV_VAR = 'TAG_SYNERGY_ENABLED';
 export const TAG_SYNERGY_ELIGIBLE_TAGS = DEMAND_TAG_POOL;
 export const TAG_SYNERGY_LADDER: readonly { minCount: number; mult: number }[] = [
@@ -200,7 +200,7 @@ export function tagSynergyEnabled(): boolean {
  * sign-off. When on, the opening delivery can choose a supplier tag and offers
  * carrying that tag get a weighted nudge without locking out the rest of the pool.
  */
-export const BUILD_STEERING_ENABLED = false;
+export const BUILD_STEERING_ENABLED = true;
 export const BUILD_STEERING_ENV_VAR = 'BUILD_STEERING_ENABLED';
 export const BUILD_STEERING_ELIGIBLE_TAGS = TAG_SYNERGY_ELIGIBLE_TAGS;
 export const BUILD_STEER_BIAS = 2.5;
@@ -218,7 +218,7 @@ export function isBuildSteeringTag(tag: string): boolean {
  * and Lane B feel pass. When off, signature items are filtered before offer
  * generation and their scoring rule branch is dead.
  */
-export const SIGNATURE_ITEMS_ENABLED = false;
+export const SIGNATURE_ITEMS_ENABLED = true;
 export const SIGNATURE_ITEMS_ENV_VAR = 'SIGNATURE_ITEMS_ENABLED';
 export const SIGNATURE_ITEM_WEIGHT_MULT = 0.3;
 export const SIGNATURE_ITEM_DAY_PREMIUM = 3;
@@ -233,7 +233,7 @@ export function signatureItemsEnabled(): boolean {
  * catalog-derived unlocked item ids onto GameState and offer generation filters
  * by that snapshot. Not loop-v2-gated because the catalog is cross-run meta.
  */
-export const UNLOCK_LADDER_ENABLED = false;
+export const UNLOCK_LADDER_ENABLED = true;
 export const UNLOCK_LADDER_ENV_VAR = 'UNLOCK_LADDER_ENABLED';
 
 export function unlockLadderEnabled(): boolean {
@@ -324,10 +324,14 @@ export function offerWeight(
   return weight;
 }
 
-/** Items that only exist as transform targets never show up in offers. */
+/** Items that only exist as transform targets never show up in offers.
+ *  `includeSignatureItems` must be the RUN-scoped decision (flag AND the run's
+ *  loopV2 snapshot) — an ambient default here would push signature stock into
+ *  v1 saves' shops the day the compiled default graduates ON. */
 export function offerablePool(
   table: ItemTable,
   unlockedItemIds?: readonly string[],
+  includeSignatureItems: boolean = signatureItemsEnabled(),
 ): ItemDefinition[] {
   const transformTargets = new Set<string>();
   for (const definition of table.values()) {
@@ -340,7 +344,7 @@ export function offerablePool(
   return [...table.values()].filter(
     (definition) =>
       !transformTargets.has(definition.id) &&
-      (signatureItemsEnabled() || !isSignatureItem(definition)) &&
+      (includeSignatureItems || !isSignatureItem(definition)) &&
       (!unlocked || unlocked.has(definition.id)),
   );
 }
@@ -424,9 +428,11 @@ function applyWarmOpening(
   if (cheapCount >= requiredCheapOffers) return warmOffers;
 
   const offeredIds = new Set(warmOffers.map((offer) => offer.item.id));
-  const weightedPool = offerablePool(table, unlockedItemIds).filter(
-    (definition) => offerWeight(definition, day, supplierTag) > 0,
-  );
+  const weightedPool = offerablePool(
+    table,
+    unlockedItemIds,
+    signatureItemsEnabled() && loopV2,
+  ).filter((definition) => offerWeight(definition, day, supplierTag) > 0);
   const candidates = weightedPool.filter(
     (definition) =>
       !offeredIds.has(definition.id) && dailyShopCost(definition, day) <= costCeiling,
@@ -483,7 +489,7 @@ export function generateOffers(
       : loopV2
         ? LOOP_V2_DAILY_SHOP_OFFERS
         : OFFERS_PER_RESTOCK;
-  const pool = offerablePool(table, unlockedItemIds).filter(
+  const pool = offerablePool(table, unlockedItemIds, signatureItemsEnabled() && loopV2).filter(
     (definition) => kind === 'restock' || !isSignatureItem(definition),
   );
   const remaining = pool.filter((definition) => offerWeight(definition, day, supplierTag) > 0);

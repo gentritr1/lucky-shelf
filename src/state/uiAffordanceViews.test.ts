@@ -23,14 +23,17 @@ function actionsOfType<T extends Action['type']>(
 }
 
 describe('UI affordance view builders', () => {
-  it('derives delivery draft actions from the shared affordance source', () => {
+  // Baseline (all-OFF) config: this asserts the v1 default affordances, which
+  // graduated compiled defaults (supplier choice) must not bleed into.
+  it('derives delivery draft actions from the shared affordance source', () =>
+    withBalanceFlagConfig(balanceFlagConfigByName('baseline'), () => {
     const state = createRun('draft-view', deps);
     const affordances = uiAffordances(state);
     const view = draftAffordanceView(state);
 
     expect(view.draftActions).toEqual(actionsOfType(affordances, 'draftItem'));
     expect(view.pendingSupplierTags).toBeNull();
-  });
+  }));
 
   it('derives build-steering supplier chips from the shared affordance source', () => {
     withBalanceFlagConfig(balanceFlagConfigByName('buildSteering'), () => {
