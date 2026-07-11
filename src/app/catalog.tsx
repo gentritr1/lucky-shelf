@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Extrapolation,
@@ -20,6 +21,7 @@ import {
   TopBar,
   layout,
   motion,
+  spacing,
   usePalette,
   useReducedMotion,
   useThemedStyles,
@@ -29,10 +31,12 @@ import { easings, spriteFor } from '@/juice';
 import { makeStyles } from '@/screen-styles/catalog.styles';
 import {
   buildCatalogView,
+  catalogBands,
   catalogSelectors,
   useCatalogStore,
   type CatalogComboRow,
   type CatalogItemRow,
+  type CatalogView,
 } from '../state/catalogStore';
 
 /**
@@ -42,9 +46,16 @@ import {
  * on press); items discovered SINCE the last catalog visit get a one-time gold
  * reveal on mount; and locked cards read as an invitation ("worth getting"),
  * with a progress tick toward the unlock, not a flat "denied" hole.
+ *
+ * CAT-2 makes it a collector's display case, not a list: a persistent completion
+ * header, a segmented ITEMS/COMBOS control, and — on the Items tab — the 41 cards
+ * grouped into rarity bands (rarest first), with a material framing that climbs
+ * paper → brass → gold as the tier rises so a HEIRLOOM reads precious at a glance.
  */
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+type CatalogTab = 'items' | 'combos';
 
 /** At most this many cards play the reveal at once; the rest snap in already-owned. */
 const MAX_REVEAL = 8;
@@ -61,7 +72,9 @@ const revealedThisSession = new Set<string>();
 
 /** Assign a stagger slot to each not-yet-revealed id (in screen order), marking
  *  every id revealed so it never animates again this session. Capped at
- *  MAX_REVEAL concurrent animators; overflow ids are marked seen but get no slot. */
+ *  MAX_REVEAL concurrent animators; overflow ids are marked seen but get no slot.
+ *  CAT-2: planned per-tab on that tab's first mount (a tab shows only its own
+ *  card set, so ≤MAX_REVEAL concurrent animators are ever on screen at once). */
 function planReveals(newIds: readonly string[]): Map<string, number> {
   const plan = new Map<string, number>();
   let slot = 0;
@@ -78,12 +91,17 @@ export default function CatalogScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(makeStyles);
-  const palette = usePalette();
   const catalog = useCatalogStore(catalogSelectors.catalog);
   const loadCatalog = useCatalogStore((state) => state.loadCatalog);
   // B-M11 / CAT-1: what the latest run first-achieved (combos) and first-saw
   // (items) — drives the "new" accent and the one-time reveal. In-memory only.
   const lastRunDiscovery = useCatalogStore((state) => state.lastRunDiscovery);
+
+  // Optional `?tab=combos` deep link (mirrors how-to-play's `?page=N`): a real
+  // affordance so the Combos tab is reachable without a tap — used for
+  // per-tab verification, inert in normal use (defaults to the Items tab).
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<CatalogTab>(params.tab === 'combos' ? 'combos' : 'items');
 
   useEffect(() => {
     void loadCatalog().catch(() => undefined);
@@ -106,18 +124,6 @@ export default function CatalogScreen() {
     [catalog, newlyAchievedComboIds, newlyDiscoveredItemIds],
   );
 
-  // Plan the reveal ONCE on mount. In the only path that produces a reveal
-  // (finishing a run, then opening the album in the same session), the store
-  // already holds the merged catalog synchronously, so `view` carries the new
-  // ids at first render — no flicker. A cold start has a null `lastRunDiscovery`,
-  // so there is nothing to reveal and the plan is empty.
-  const [revealPlan] = useState(() =>
-    planReveals([
-      ...view.items.filter((i) => i.isNew).map((i) => i.id),
-      ...view.combos.filter((c) => c.isNew).map((c) => c.comboId),
-    ]),
-  );
-
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <TopBar title="Catalog" backLabel="‹ Menu" onBack={() => router.dismissTo('/')} />
@@ -126,40 +132,169 @@ export default function CatalogScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + layout.screenBottomGap }]}
         showsVerticalScrollIndicator={false}
       >
-        <Panel style={styles.summary}>
-          <View style={styles.completionRow}>
-            <CompletionNumber pct={view.completionPct} />
-            <AppText variant="label" color={palette.inkFaint}>COLLECTED</AppText>
-          </View>
-          <View style={styles.progressTrack}>
-            <ProgressFill pct={view.completionPct} />
-          </View>
-          <View style={styles.statsGrid}>
-            <Stat label="Runs" value={String(catalog.stats.runsPlayed)} />
-            <Stat label="Best day" value={`${catalog.stats.bestDayTotal}c`} />
-            <Stat label="Deepest rent" value={String(catalog.stats.deepestRentSurvived)} />
-            <Stat label="All-time" value={`${catalog.stats.totalCoinsAllTime}c`} />
-          </View>
-        </Panel>
+        <CompletionHeader view={view} stats={catalog.stats} />
 
-        <SectionLabel>{`ITEMS — ${view.itemsDiscovered}/${view.itemsTotal}`}</SectionLabel>
-        <View style={styles.grid}>
-          {view.items.map((item) => (
-            <ItemStamp key={item.id} item={item} revealIndex={revealPlan.get(item.id) ?? null} />
-          ))}
-        </View>
+        <SegmentedTabs
+          tab={tab}
+          onChange={setTab}
+          itemsLabel={`ITEMS ${view.itemsDiscovered}/${view.itemsTotal}`}
+          combosLabel={`COMBOS ${view.combosAchieved}/${view.combosTotal}`}
+        />
 
-        <SectionLabel>{`NAMED COMBOS — ${view.combosAchieved}/${view.combosTotal}`}</SectionLabel>
-        <View style={styles.comboList}>
-          {view.combos.map((combo) => (
-            <ComboStamp
-              key={combo.comboId}
-              combo={combo}
-              revealIndex={revealPlan.get(combo.comboId) ?? null}
-            />
-          ))}
-        </View>
+        {/* Conditional render: only the active tab is mounted, so its reveal
+            plans (and animators) exist only while it is on screen. */}
+        {tab === 'items' ? <ItemsTab view={view} /> : <CombosTab view={view} />}
       </ScrollView>
+    </View>
+  );
+}
+
+/** The persistent completion header — count-up %, fill bar, four best-run stats.
+ *  Stays visible above both tabs. */
+function CompletionHeader({
+  view,
+  stats,
+}: {
+  view: CatalogView;
+  stats: { runsPlayed: number; bestDayTotal: number; deepestRentSurvived: number; totalCoinsAllTime: number };
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  return (
+    <Panel style={styles.summary}>
+      <View style={styles.completionRow}>
+        <CompletionNumber pct={view.completionPct} />
+        <AppText variant="label" color={palette.inkFaint}>COLLECTED</AppText>
+      </View>
+      <View style={styles.progressTrack}>
+        <ProgressFill pct={view.completionPct} />
+      </View>
+      <View style={styles.statsGrid}>
+        <Stat label="Runs" value={String(stats.runsPlayed)} />
+        <Stat label="Best day" value={`${stats.bestDayTotal}c`} />
+        <Stat label="Deepest rent" value={String(stats.deepestRentSurvived)} />
+        <Stat label="All-time" value={`${stats.totalCoinsAllTime}c`} />
+      </View>
+    </Panel>
+  );
+}
+
+/**
+ * The ITEMS / COMBOS segmented control: a parchment track with a cream pill that
+ * slides under the selected label. The pill animates with translateX only (never
+ * scaleX/scaleY — those collapse the view on Fabric); reduced motion snaps it.
+ */
+function SegmentedTabs({
+  tab,
+  onChange,
+  itemsLabel,
+  combosLabel,
+}: {
+  tab: CatalogTab;
+  onChange: (tab: CatalogTab) => void;
+  itemsLabel: string;
+  combosLabel: string;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const reduced = useReducedMotion();
+  const [trackWidth, setTrackWidth] = useState(0);
+  const index = tab === 'items' ? 0 : 1;
+  const half = Math.max(0, (trackWidth - spacing.xs * 2) / 2);
+  const x = useSharedValue(0);
+
+  useEffect(() => {
+    const target = index * half;
+    if (reduced || half === 0) {
+      x.value = target;
+    } else {
+      x.value = withSpring(target, motion.springs.settle);
+    }
+  }, [index, half, reduced, x]);
+
+  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+
+  return (
+    <View style={styles.segment} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
+      {half > 0 ? <Animated.View style={[styles.segmentPill, { width: half }, pillStyle]} /> : null}
+      <Pressable style={styles.segmentBtn} onPress={() => onChange('items')} accessibilityRole="tab">
+        <AppText
+          variant="label"
+          color={index === 0 ? palette.ink : palette.inkFaint}
+          style={styles.segmentLabel}
+        >
+          {itemsLabel}
+        </AppText>
+      </Pressable>
+      <Pressable style={styles.segmentBtn} onPress={() => onChange('combos')} accessibilityRole="tab">
+        <AppText
+          variant="label"
+          color={index === 1 ? palette.ink : palette.inkFaint}
+          style={styles.segmentLabel}
+        >
+          {combosLabel}
+        </AppText>
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * The Items tab: a quiet rarity legend (the "what can be achieved" map), then the
+ * cards grouped into bands rarest-first, each with a per-band discovered/total
+ * count. The one-time reveal is planned here on first mount (see planReveals).
+ */
+function ItemsTab({ view }: { view: CatalogView }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const bands = useMemo(() => catalogBands(view.items), [view.items]);
+  // Reveal plan for THIS tab, computed once on its first mount, in screen order
+  // (rarest band first). Re-mounting on a tab switch replans, but planReveals
+  // no-ops on already-revealed ids, so the reveal never replays.
+  const [revealPlan] = useState(() =>
+    planReveals(bands.flatMap((b) => b.items).filter((i) => i.isNew).map((i) => i.id)),
+  );
+
+  const legend = bands.map((b) => `${b.name} ${b.discovered}/${b.total}`).join('  ·  ');
+
+  return (
+    <>
+      <View style={styles.legend}>
+        <AppText variant="label" color={palette.inkFaint} style={styles.legendText}>
+          {legend}
+        </AppText>
+      </View>
+
+      {bands.map((band) => (
+        <View key={band.tier} style={styles.band}>
+          <SectionLabel>{`${band.name} — ${band.discovered}/${band.total}`}</SectionLabel>
+          <View style={styles.grid}>
+            {band.items.map((item) => (
+              <ItemStamp key={item.id} item={item} revealIndex={revealPlan.get(item.id) ?? null} />
+            ))}
+          </View>
+        </View>
+      ))}
+    </>
+  );
+}
+
+/** The Combos tab: the Medallion rows, each achieved row carrying its earn-count
+ *  context. Its reveal is planned on this tab's first mount. */
+function CombosTab({ view }: { view: CatalogView }) {
+  const styles = useThemedStyles(makeStyles);
+  const [revealPlan] = useState(() =>
+    planReveals(view.combos.filter((c) => c.isNew).map((c) => c.comboId)),
+  );
+  return (
+    <View style={styles.comboList}>
+      {view.combos.map((combo) => (
+        <ComboStamp
+          key={combo.comboId}
+          combo={combo}
+          revealIndex={revealPlan.get(combo.comboId) ?? null}
+        />
+      ))}
     </View>
   );
 }
@@ -256,8 +391,25 @@ function ItemStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: n
   return <MysteryStamp />;
 }
 
-/** A discovered, owned collectible: springs on press, and plays the gold reveal
- *  if it was first found since the last catalog visit. */
+/** The rarity material bed for a DISCOVERED card, by tier (CAT-2). COMMON keeps
+ *  the CAT-1 gold-edge card; FINE/RARE/HEIRLOOM add warmth, a heavier frame, an
+ *  inset hairline, and (heirloom) a crowned seal. */
+function bandBed(tier: CatalogItemRow['tier'], styles: ReturnType<typeof makeStyles>) {
+  switch (tier) {
+    case 4:
+      return styles.stampHeirloom;
+    case 3:
+      return styles.stampRare;
+    case 2:
+      return styles.stampFine;
+    default:
+      return styles.stampFound;
+  }
+}
+
+/** A discovered, owned collectible: springs on press, wears its rarity band's
+ *  material framing, and plays the gold reveal if it was first found since the
+ *  last catalog visit. */
 function FoundStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: number | null }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -280,7 +432,7 @@ function FoundStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: 
 
   return (
     <AnimatedPressable
-      style={[styles.stamp, styles.stampFound, cardStyle]}
+      style={[styles.stamp, bandBed(item.tier, styles), cardStyle]}
       onPressIn={() => {
         if (!reduced) press.value = withTiming(0.95, { duration: motion.durations.tick });
       }}
@@ -300,13 +452,22 @@ function FoundStamp({ item, revealIndex }: { item: CatalogItemRow; revealIndex: 
       <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.stampName}>
         {item.name}
       </AppText>
+      {/* Brass double border for RARE and HEIRLOOM (inset hairline). */}
+      {item.tier >= 3 ? <View pointerEvents="none" style={styles.stampInnerRing} /> : null}
+      {/* HEIRLOOM crowned seal. */}
+      {item.tier === 4 ? (
+        <View pointerEvents="none" style={styles.stampCrown}>
+          <MaterialCommunityIcons name="crown" size={11} color={palette.goldDeep} />
+        </View>
+      ) : null}
       {active ? <Animated.View pointerEvents="none" style={[styles.revealRing, ringStyle]} /> : null}
     </AnimatedPressable>
   );
 }
 
 /** An undiscovered "?" — a covered collectible on warm parchment (an invitation),
- *  with an embossed carved "?" instead of a flat dark hole. */
+ *  with an embossed carved "?" instead of a flat dark hole. Kept uniform across
+ *  rarity bands so mystery reads the same everywhere. */
 function MysteryStamp() {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
@@ -389,7 +550,12 @@ function ComboStamp({ combo, revealIndex }: { combo: CatalogComboRow; revealInde
           {combo.achieved ? combo.name : 'Undiscovered combo'}
         </AppText>
         {combo.achieved ? (
-          <AppText variant="body" color={palette.accentTeal} style={styles.comboCount}>×{combo.count}</AppText>
+          <>
+            <AppText variant="body" color={palette.accentTeal} style={styles.comboCount}>×{combo.count}</AppText>
+            <AppText variant="label" color={palette.inkFaint} style={styles.comboContext}>
+              {`Achieved ${combo.count} ${combo.count === 1 ? 'time' : 'times'}`}
+            </AppText>
+          </>
         ) : (
           <AppText variant="body" color={palette.inkFaint} style={styles.comboHint}>Arrange to discover</AppText>
         )}

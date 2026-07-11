@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { highContrastPalette, layout, palette, radii, shadows, spacing, type Palette } from '@/ui/tokens';
+import { borders, highContrastPalette, layout, palette, radii, shadows, spacing, type Palette } from '@/ui/tokens';
 
 import { makeStyles } from './catalog.styles';
 
@@ -28,6 +28,30 @@ function expected(p: Palette) {
     stat: { alignItems: 'center', flex: 1 },
     statLabel: { fontSize: 10 },
 
+    segment: {
+      backgroundColor: p.parchment,
+      borderRadius: radii.pill,
+      flexDirection: 'row',
+      padding: spacing.xs,
+      position: 'relative',
+    },
+    segmentPill: {
+      backgroundColor: p.creamBright,
+      borderRadius: radii.pill,
+      bottom: spacing.xs,
+      left: spacing.xs,
+      position: 'absolute',
+      top: spacing.xs,
+      ...shadows.float,
+    },
+    segmentBtn: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 44, zIndex: 1 },
+    segmentLabel: { letterSpacing: 0.6 },
+
+    legend: { paddingHorizontal: spacing.sm },
+    legendText: { lineHeight: 18, textAlign: 'center' },
+
+    band: { gap: spacing.sm },
+
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     stamp: {
       alignItems: 'center',
@@ -41,6 +65,48 @@ function expected(p: Palette) {
       backgroundColor: p.creamBright,
       borderColor: p.goldDeep,
       ...shadows.card,
+    },
+    stampFine: {
+      backgroundColor: `${p.sunlight}59`,
+      borderColor: p.goldDeep,
+      borderWidth: borders.regular,
+      ...shadows.card,
+    },
+    stampRare: {
+      backgroundColor: p.creamBright,
+      borderColor: p.goldDeep,
+      borderWidth: borders.strong,
+      ...shadows.card,
+    },
+    stampHeirloom: {
+      backgroundColor: `${p.sunlight}8C`,
+      borderColor: p.goldDeep,
+      borderWidth: borders.strong,
+      ...shadows.lifted,
+    },
+    stampInnerRing: {
+      borderColor: p.coinGold,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      bottom: spacing.xxs,
+      left: spacing.xxs,
+      position: 'absolute',
+      right: spacing.xxs,
+      top: spacing.xxs,
+    },
+    stampCrown: {
+      alignItems: 'center',
+      backgroundColor: p.creamBright,
+      borderColor: p.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: 1.5,
+      height: 20,
+      justifyContent: 'center',
+      position: 'absolute',
+      right: spacing.xxs,
+      top: spacing.xxs,
+      width: 20,
+      zIndex: 2,
     },
     stampLocked: { backgroundColor: p.parchment, borderColor: p.parchmentEdge, opacity: 0.85 },
     stampArt: {
@@ -120,6 +186,7 @@ function expected(p: Palette) {
     comboName: { fontSize: 15 },
     comboCount: { fontSize: 13, fontWeight: '700' },
     comboHint: { fontSize: 12 },
+    comboContext: { fontSize: 11, letterSpacing: 0 },
   };
 }
 

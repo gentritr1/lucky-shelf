@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { layout, radii, shadows, spacing, type Palette } from '@/ui/tokens';
+import { borders, layout, radii, shadows, spacing, type Palette } from '@/ui/tokens';
 
 /**
  * Catalog sheet as a B-M9 themed factory. Colors read from the passed `palette`.
@@ -28,6 +28,34 @@ export function makeStyles(palette: Palette) {
     stat: { alignItems: 'center', flex: 1 },
     statLabel: { fontSize: 10 },
 
+    // CAT-2 segmented tabs — a parchment track with a cream selected pill that
+    // slides (translateX only — no scaleX/scaleY) between ITEMS and COMBOS.
+    segment: {
+      backgroundColor: palette.parchment,
+      borderRadius: radii.pill,
+      flexDirection: 'row',
+      padding: spacing.xs,
+      position: 'relative',
+    },
+    segmentPill: {
+      backgroundColor: palette.creamBright,
+      borderRadius: radii.pill,
+      bottom: spacing.xs,
+      left: spacing.xs,
+      position: 'absolute',
+      top: spacing.xs,
+      ...shadows.float,
+    },
+    segmentBtn: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 44, zIndex: 1 },
+    segmentLabel: { letterSpacing: 0.6 },
+
+    // CAT-2 rarity legend — one quiet dot-separated line, no card, no box.
+    legend: { paddingHorizontal: spacing.sm },
+    legendText: { lineHeight: 18, textAlign: 'center' },
+
+    // CAT-2 band group: a SectionLabel + its rarity grid, kept tight.
+    band: { gap: spacing.sm },
+
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     stamp: {
       alignItems: 'center',
@@ -44,6 +72,61 @@ export function makeStyles(palette: Palette) {
       backgroundColor: palette.creamBright,
       borderColor: palette.goldDeep,
       ...shadows.card,
+    },
+    // CAT-2 rarity material — applied to DISCOVERED cards only (undiscovered and
+    // locked cards keep their uniform bed so mystery reads the same across the
+    // wall). The band climbs paper → brass → gold as the tier rises. COMMON keeps
+    // `stampFound` above; FINE/RARE/HEIRLOOM add presence below.
+    // FINE (tier 2): a warm sunlight wash over the owned card — richer than
+    // COMMON's plain cream, still restrained.
+    stampFine: {
+      backgroundColor: `${palette.sunlight}59`,
+      borderColor: palette.goldDeep,
+      borderWidth: borders.regular,
+      ...shadows.card,
+    },
+    // RARE (tier 3): a heavier goldDeep frame + an inset coinGold hairline
+    // (`stampInnerRing`) reads as a brass double border on the bright cream bed.
+    stampRare: {
+      backgroundColor: palette.creamBright,
+      borderColor: palette.goldDeep,
+      borderWidth: borders.strong,
+      ...shadows.card,
+    },
+    // HEIRLOOM (tier 4): the full prestige card — a gold-tinted bed, the strong
+    // frame + inset hairline, a crowned seal, and a lifted shadow so it sits proud.
+    stampHeirloom: {
+      backgroundColor: `${palette.sunlight}8C`,
+      borderColor: palette.goldDeep,
+      borderWidth: borders.strong,
+      ...shadows.lifted,
+    },
+    // The inset hairline that reads as a second, finer frame on RARE/HEIRLOOM.
+    stampInnerRing: {
+      borderColor: palette.coinGold,
+      borderRadius: radii.sm,
+      borderWidth: 1,
+      bottom: spacing.xxs,
+      left: spacing.xxs,
+      position: 'absolute',
+      right: spacing.xxs,
+      top: spacing.xxs,
+    },
+    // HEIRLOOM crown seal — a small tinted disc in the top-right corner, echoing
+    // TagIcon's icon-in-a-ring language (glyph color set at the call site).
+    stampCrown: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: 1.5,
+      height: 20,
+      justifyContent: 'center',
+      position: 'absolute',
+      right: spacing.xxs,
+      top: spacing.xxs,
+      width: 20,
+      zIndex: 2,
     },
     // Locked/undiscovered bed. Raised from 0.7 → 0.85 so it reads "worth getting"
     // rather than "denied" (CAT-1).
@@ -137,5 +220,7 @@ export function makeStyles(palette: Palette) {
     comboName: { fontSize: 15 },
     comboCount: { fontSize: 13, fontWeight: '700' },
     comboHint: { fontSize: 12 },
+    // CAT-2 earn-count context under an achieved combo ("achieved 3 times").
+    comboContext: { fontSize: 11, letterSpacing: 0 },
   });
 }

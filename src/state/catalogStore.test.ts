@@ -4,7 +4,13 @@ import { emptyCatalog, type GameState } from '../contracts';
 import { loadCombos, loadItemTable } from '../items';
 import { createCatalogPersistence } from '../persistence/catalog';
 import { createRun } from '../sim';
-import { buildCatalogView, createCatalogStore, nextUnlockTeaserView } from './catalogStore';
+import {
+  buildCatalogView,
+  catalogBands,
+  createCatalogStore,
+  nextUnlockTeaserView,
+  RARITY_BANDS,
+} from './catalogStore';
 
 function memoryStorage(seed?: Record<string, string>) {
   const map = new Map<string, string>(Object.entries(seed ?? {}));
@@ -160,6 +166,51 @@ describe('buildCatalogView — B-M11 "new" combo accent', () => {
     expect(fireSale?.isNew).toBe(true);
     // Every OTHER combo stays unaccented — the badge is not a blanket "achieved".
     expect(flagged.combos.filter((c) => c.comboId !== 'fire-sale').every((c) => c.isNew === false)).toBe(true);
+  });
+});
+
+describe('buildCatalogView — CAT-2 rarity bands', () => {
+  it('exposes each item def tier on its row (pure derive, no persistence)', () => {
+    const view = buildCatalogView(freshCatalog(), table, combos);
+    // Every row carries a 1–4 tier straight from the item def.
+    expect(view.items.every((i) => [1, 2, 3, 4].includes(i.tier))).toBe(true);
+    // Sanity against the frozen table distribution (14/12/11/4 = 41).
+    const dist: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (const i of view.items) dist[i.tier] += 1;
+    expect(dist).toEqual({ 1: 14, 2: 12, 3: 11, 4: 4 });
+  });
+
+  it('groups rows into rarest-first bands with correct per-band totals', () => {
+    const view = buildCatalogView(freshCatalog(), table, combos);
+    const bands = catalogBands(view.items);
+    // Rarest leads: HEIRLOOM → RARE → FINE → COMMON.
+    expect(bands.map((b) => b.name)).toEqual(['HEIRLOOM', 'RARE', 'FINE', 'COMMON']);
+    expect(bands.map((b) => b.total)).toEqual([4, 11, 12, 14]);
+    // Every item lands in exactly one band; nothing dropped or duplicated.
+    expect(bands.reduce((n, b) => n + b.items.length, 0)).toBe(view.items.length);
+    // Band order matches the RARITY_BANDS declaration order.
+    expect(bands.map((b) => b.tier)).toEqual(RARITY_BANDS.map((b) => b.tier));
+  });
+
+  it('counts discovered per band from live discovery state', () => {
+    const catalog = freshCatalog();
+    // maneki-neko is a tier-4 HEIRLOOM (frozen table).
+    catalog.discoveredItemIds.push('maneki-neko');
+    const bands = catalogBands(buildCatalogView(catalog, table, combos).items);
+    const heirloom = bands.find((b) => b.name === 'HEIRLOOM');
+    expect(heirloom?.discovered).toBe(1);
+    expect(heirloom?.total).toBe(4);
+    // A band with no discoveries reports zero, not undefined.
+    expect(bands.find((b) => b.name === 'COMMON')?.discovered).toBe(0);
+  });
+
+  it('preserves the buildCatalogView row order within each band (stable)', () => {
+    const view = buildCatalogView(freshCatalog(), table, combos);
+    const bands = catalogBands(view.items);
+    for (const band of bands) {
+      const bandIdsInViewOrder = view.items.filter((i) => i.tier === band.tier).map((i) => i.id);
+      expect(band.items.map((i) => i.id)).toEqual(bandIdsInViewOrder);
+    }
   });
 });
 

@@ -320,6 +320,54 @@ export function buildCatalogView(
   };
 }
 
+// --- View model: rarity bands (CAT-2 prestige grouping). ---
+
+/**
+ * CAT-2: the four rarity bands the catalog groups items into, keyed by the item
+ * def's `tier` (1–4). Ordered RAREST-FIRST so aspiration leads the wall — an
+ * empty HEIRLOOM row up top reads as "there is something worth chasing". These
+ * are UI display names over the existing `tier` field; no persisted shape, no
+ * new save data — a pure re-presentation of `buildCatalogView().items`.
+ */
+export const RARITY_BANDS = [
+  { tier: 4, name: 'HEIRLOOM' },
+  { tier: 3, name: 'RARE' },
+  { tier: 2, name: 'FINE' },
+  { tier: 1, name: 'COMMON' },
+] as const satisfies readonly { tier: 1 | 2 | 3 | 4; name: string }[];
+
+export interface CatalogBand {
+  tier: 1 | 2 | 3 | 4;
+  /** The band's display name ("HEIRLOOM"…). */
+  name: string;
+  /** The band's rows, in the same stable table order `buildCatalogView` emits. */
+  items: CatalogItemRow[];
+  /** How many of this band the player has discovered. */
+  discovered: number;
+  /** How many items exist in this band total. */
+  total: number;
+}
+
+/**
+ * Group catalog item rows into rarity bands, rarest-first, dropping empty bands.
+ * Pure derive over `view.items` — the `tier` on each row already came from the
+ * item def (no persistence touched). Within a band, rows keep the order
+ * `buildCatalogView` produced (stable filter), so discovered/undiscovered/locked
+ * cards interleave exactly as they do today, just partitioned by rarity.
+ */
+export function catalogBands(items: readonly CatalogItemRow[]): CatalogBand[] {
+  return RARITY_BANDS.map(({ tier, name }) => {
+    const bandItems = items.filter((row) => row.tier === tier);
+    return {
+      tier,
+      name,
+      items: bandItems,
+      discovered: bandItems.filter((row) => row.discovered).length,
+      total: bandItems.length,
+    };
+  }).filter((band) => band.total > 0);
+}
+
 // --- View model: the run-summary "next unlock" teaser (Part 3). ---
 
 export interface NextUnlockRow {
