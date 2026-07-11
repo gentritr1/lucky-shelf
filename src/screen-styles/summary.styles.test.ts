@@ -62,7 +62,7 @@ function expected(p: Palette) {
     },
     bestRight: {
       alignItems: 'flex-end',
-      gap: spacing.xxs,
+      gap: spacing.xs,
     },
     bestCaption: {
       color: p.inkFaint,

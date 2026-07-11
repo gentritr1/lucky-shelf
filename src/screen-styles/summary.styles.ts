@@ -60,7 +60,7 @@ export function makeStyles(palette: Palette) {
     },
     bestRight: {
       alignItems: 'flex-end',
-      gap: spacing.xxs,
+      gap: spacing.xs,
     },
     bestCaption: {
       color: palette.inkFaint,

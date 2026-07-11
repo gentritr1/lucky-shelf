@@ -244,9 +244,16 @@ function BestRow({ row }: { row: PersonalBestRow }) {
         )}
         {row.isRecord ? (
           <RecordAccent />
+        ) : row.thisRun === row.best ? (
+          // Tied the all-time best — celebrate it, don't repeat the number.
+          <AppText variant="label" color={palette.tealDark} style={styles.bestCaption}>
+            ✓ Your best
+          </AppText>
         ) : (
+          // Below the record: name it "Record" (not "Best" — the row label is
+          // already "Best day"/etc.) so the two don't read as the same word.
           <AppText variant="label" color={palette.inkFaint} style={styles.bestCaption}>
-            Best {row.best}
+            Record {row.best}
             {unit}
           </AppText>
         )}
