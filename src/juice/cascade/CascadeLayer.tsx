@@ -477,11 +477,11 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
     }
   }, [transformed, reduced, pop]);
 
-  // "Receive" squash-and-stretch (Fable plan #2): each time this slot's total
-  // GROWS — a coin just landed — the sprite compresses and springs back, so the
-  // combo reads as one object paying another. Delayed by the coin's flight so it
-  // fires on arrival, not departure. Skips the initial base (undefined→value)
-  // and reduced motion (R-28 — the number tick alone carries it).
+  // "Receive" bump (Fable plan #2): each time this slot's total GROWS — a coin
+  // just landed — the sprite swells and springs back, so the combo reads as one
+  // object paying another. Delayed by the coin's flight so it fires on arrival,
+  // not departure. Skips the initial base (undefined→value) and reduced motion
+  // (R-28 — the number tick alone carries it).
   const impact = useSharedValue(0);
   const prevTotal = useRef(slotTotal);
   useEffect(() => {
@@ -521,15 +521,16 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
   }, [vanished, reduced, puff]);
 
   const style = useAnimatedStyle(() => {
-    // pop (transform) + puff (vanish swell) are uniform; impact adds a brief
-    // non-uniform squash (wider + shorter) that springs back to 1.
+    // Single uniform `scale` ONLY — separate scaleX/scaleY transforms collapse the
+    // view on the New Architecture (Fabric, newArchEnabled), which blanked every
+    // cascade sprite. So the "receive" impact is a uniform bump (grow, spring back)
+    // rather than a non-uniform squash; pop + puff (vanish swell) also fold in here.
     const base = (1 + pop.value * 0.12) * (1 + puff.value * 0.35);
     const activeLift = withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap });
     return {
       opacity: 1 - puff.value,
       transform: [
-        { scaleX: base * (1 + impact.value * 0.09) },
-        { scaleY: base * (1 - impact.value * 0.11) },
+        { scale: base * (1 + impact.value * 0.12) },
         { translateY: activeLift - motion.cascade.hopY * hop.value },
       ],
     };
