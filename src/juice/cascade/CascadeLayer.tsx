@@ -12,7 +12,7 @@ import Animated, {
 
 import type { DailyTargetResult, GameState, ItemInstance, ScoringTrace, Slot } from '@/contracts';
 import { toSlotKey } from '@/contracts';
-import { arrowPalette, motion, palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
+import { arrowPalette, borders, motion, palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
 import { CoinCounter, WoodButton } from '@/ui';
 import { ItemSprite } from '../ItemSprite';
@@ -464,6 +464,11 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
   const glyph = glyphFor(transformed ? transformed.toItem : item.itemId);
   const active = frame.openSlot === key;
   const slotTotal = frame.slots[key];
+  // Combo membership (Fable plan #4): index in reading order for the hop stagger.
+  const memberIndex = frame.combo
+    ? frame.combo.slots.findIndex((s) => s.row === row && s.col === col)
+    : -1;
+  const isMember = memberIndex >= 0;
 
   const pop = useSharedValue(0);
   useEffect(() => {
@@ -489,6 +494,21 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
     );
   }, [slotTotal, reduced, impact]);
 
+  // Combo "take a bow" (Fable plan #4): when this item is named in a combo, it
+  // hops once, staggered by its reading-order index, so the members celebrate on
+  // the shelf. Reduced motion shows a static gold ring instead (below), no hop.
+  const hop = useSharedValue(0);
+  useEffect(() => {
+    if (!isMember || reduced) {
+      hop.value = 0;
+      return;
+    }
+    hop.value = withDelay(
+      memberIndex * motion.cascade.hopStaggerMs,
+      withSequence(withTiming(1, { duration: 90 }), withSpring(0, motion.springs.settle)),
+    );
+  }, [isMember, memberIndex, reduced, hop]);
+
   // vanish = a puff, not a plain fade: the sprite swells as it dissolves (R-38
   // fixture path, motion-spec §4 "300ms puff before dayTotal").
   const puff = useSharedValue(0);
@@ -504,12 +524,13 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
     // pop (transform) + puff (vanish swell) are uniform; impact adds a brief
     // non-uniform squash (wider + shorter) that springs back to 1.
     const base = (1 + pop.value * 0.12) * (1 + puff.value * 0.35);
+    const activeLift = withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap });
     return {
       opacity: 1 - puff.value,
       transform: [
         { scaleX: base * (1 + impact.value * 0.09) },
         { scaleY: base * (1 - impact.value * 0.11) },
-        { translateY: withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap }) },
+        { translateY: activeLift - motion.cascade.hopY * hop.value },
       ],
     };
   });
@@ -520,6 +541,9 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
         styles.item,
         { left: x, top: y, width: layout.slotSize, height: layout.slotSize },
         active && styles.itemActive,
+        // Reduced motion keeps the members identifiable with a static gold ring
+        // for the banner's lifetime instead of the hop (R-28).
+        isMember && reduced && styles.itemMember,
         style,
       ]}
     >
@@ -793,6 +817,11 @@ const styles = StyleSheet.create({
   },
   itemActive: {
     zIndex: 3,
+  },
+  itemMember: {
+    borderColor: palette.goldDeep,
+    borderRadius: radii.md,
+    borderWidth: borders.regular,
   },
   tag: {
     alignItems: 'center',

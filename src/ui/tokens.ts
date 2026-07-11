@@ -372,6 +372,10 @@ export const motion = {
   // motion snaps the coin onto the target (R-28) — no flight.
   cascade: {
     tokenArcFraction: 0.16, // peak lift = fraction × source→target length
+    // Combo "members take a bow" (Fable plan #4): when a combo is NAMED, its
+    // member items hop once in reading order — a little curtain-call on the shelf.
+    hopY: 5, // peak lift of a member hop, px
+    hopStaggerMs: 45, // delay between successive members (reading order)
   },
 } as const;
 
