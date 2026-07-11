@@ -14,7 +14,7 @@ import { useCallback, useEffect } from 'react';
 import { AppText, GearIcon, WoodButton, layout, usePalette, useReducedMotion, useThemedStyles } from '@/ui';
 import { Entrance, primeAudio, setMusicTrack, spriteFor } from '@/juice';
 
-import { makeStyles } from './index.styles';
+import { makeStyles } from '@/screen-styles/index.styles';
 import { useRunStore } from '../state/store';
 import { routeForGameState } from '../state/phaseRouting';
 import { dailySeedFor, dailySelectors, todayDateString, useDailyStore } from '../state/dailyStore';

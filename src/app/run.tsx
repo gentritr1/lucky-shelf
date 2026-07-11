@@ -21,7 +21,7 @@ import {
 } from '@/ui';
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
 
-import { makeStyles } from './run.styles';
+import { makeStyles } from '@/screen-styles/run.styles';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
 import {
   arrangeAffordanceView,

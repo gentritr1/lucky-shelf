@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText, WoodButton, layout, usePalette, useThemedStyles } from '@/ui';
 import { spriteFor } from '@/juice';
 
-import { makeStyles } from './share.styles';
+import { makeStyles } from '@/screen-styles/share.styles';
 import { receiptCardView, runSelectors, useRunStore } from '../state/store';
 import { buildCatalogView, catalogSelectors, useCatalogStore } from '../state/catalogStore';
 import { dailySelectors, isDailySeed, useDailyStore } from '../state/dailyStore';
