@@ -12,7 +12,11 @@ import { usePrefs } from '@/ui/prefs';
  *   • MUSIC — one looping bed at a time (`title` / `main` / `rentWeek`), gated
  *     by `usePrefs().musicEnabled`. Switching beds crossfades so the golden-hour
  *     loop and the rent-week variant trade places without a hard cut.
- *   • SFX — one-shot cues (the cascade payout sting), gated by `sfxEnabled`.
+ *   • SFX — the one-shot cascade payout sting + combo-discovery jingle. These are
+ *     MELODIC flourishes that layer over the bed, so they read as "music" to the
+ *     player — they're silenced when EITHER `sfxEnabled` OR `musicEnabled` is off
+ *     (turning music off must not leave a jingle playing on combos). A future
+ *     non-melodic cue would gate on `sfxEnabled` alone.
  *
  * Autoplay reality (web + iOS): the very first `play()` can be blocked until a
  * user gesture. Every screen re-asserts its bed on focus, and the title screen
@@ -223,10 +227,12 @@ function ensureStingPlayer(): AudioPlayer {
   return stingPlayer;
 }
 
-/** One-shot cascade payout flourish. No-op when SFX are muted. */
+/** One-shot cascade payout flourish. A melodic sting, so it stays silent when
+ *  EITHER Sound effects OR Music is off (music-off must silence combo audio). */
 export function playCascadeSting(): void {
   ensureAudioMode();
-  if (!usePrefs.getState().sfxEnabled) return;
+  const prefs = usePrefs.getState();
+  if (!prefs.sfxEnabled || !prefs.musicEnabled) return;
   const player = ensureStingPlayer();
   player.volume = STING_VOLUME;
   // Rewind then play so back-to-back cascades always hear the full flourish.
@@ -252,12 +258,14 @@ function ensureDiscoveryPlayer(): AudioPlayer {
 
 /**
  * B-M11: the one-shot combo-discovery jingle — the short warm sting on a
- * FIRST-EVER combo. Same SFX channel + `sfxEnabled` gate as the payout sting
- * (no-op when muted); its own player so a discovery and a payout can overlap.
+ * FIRST-EVER combo. A melodic flourish like the payout sting, so silent when
+ * EITHER Sound effects OR Music is off; its own player so a discovery and a
+ * payout can overlap.
  */
 export function playDiscoveryJingle(): void {
   ensureAudioMode();
-  if (!usePrefs.getState().sfxEnabled) return;
+  const prefs = usePrefs.getState();
+  if (!prefs.sfxEnabled || !prefs.musicEnabled) return;
   const player = ensureDiscoveryPlayer();
   player.volume = DISCOVERY_VOLUME;
   void player
