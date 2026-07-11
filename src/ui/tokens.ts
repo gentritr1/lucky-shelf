@@ -331,9 +331,13 @@ export const motion = {
     snap: 140, // grab lift, chip changes
     settle: 220, // drop settle, panel entrance
     drift: 320, // rubber-band return, layout shifts
-    cascadeStep: 260, // one trace event at 1x speed (motion-spec §4)
+    cascadeStep: 380, // one trace event at 1x speed. Was 260 — raised twice for
+    // legibility (2026-07-11 feel-gate: the linked ruleFires read as a fast frenzy,
+    // no time to follow each cause→effect beat). 2× still halves it (190ms) for
+    // speed-runners.
     countUp: 120, // per-slot number tick on itemBase/ruleFire/itemTotal
-    arrowDraw: 180, // ruleFire source→target arrow draw
+    tokenTravel: 280, // ruleFire coin flight source→target; a calm, followable lob
+    // that lands inside the 380ms dwell then HOLDS on the target (140ms at 2×).
     auraSweep: 240, // rowAura glow sweep left→right (then persists per R-9)
     morph: 300, // transform / vanish after totals, before dayTotal
     banner: 600, // named-combo banner moment
@@ -358,6 +362,14 @@ export const motion = {
   // dwell in the cascade player; reduced motion drops it entirely (cadence
   // unchanged, R-28). A multiplier, not a duration — it scales `cascadeStep`.
   discoverySlowBeat: 1.2,
+  // Cascade ruleFire "coin travel" (Fable plan #1): a chunky gold coin lobs from
+  // the source slot to the target instead of a drawn line (the line read as a
+  // fast "green line" and lingered — removed entirely, 2026-07-11 feel-gate). The
+  // arc is a fraction of the source→target distance (perpendicular lift). Reduced
+  // motion snaps the coin onto the target (R-28) — no flight.
+  cascade: {
+    tokenArcFraction: 0.16, // peak lift = fraction × source→target length
+  },
 } as const;
 
 // ---------------------------------------------------------------------------

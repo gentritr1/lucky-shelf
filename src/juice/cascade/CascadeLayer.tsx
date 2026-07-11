@@ -243,6 +243,7 @@ export function CascadeLayer({
                     to={slotCenter(layout, currentEvent.targetSlot.row, currentEvent.targetSlot.col)}
                     color={arrowColor(currentEvent.sourceSlot, cols)}
                     reduced={reduced}
+                    speed={player.speed}
                   />
                 )
               : null}

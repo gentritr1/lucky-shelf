@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -148,12 +148,11 @@ const styles = StyleSheet.create({
   amount: {
     ...typeScale.coin,
     color: palette.ink,
-    // Optically center the Baloo2 digit against the coin dot (shared helper).
+    // Optically center the Baloo2 digit against the coin dot. The shared helper
+    // already lands the numeral against the dot; keep its full value (no extra
+    // override — a second `transform` REPLACES the helper's rather than adding,
+    // which is what silently halved the nudge and left the digit sitting high).
     ...baloo2IconNudge(typeScale.coin.fontSize),
-    // Device feel-gate (2026-07-08): the shared helper's +2 sat the digit a hair
-    // low against the 18px dot in the pill; trim to +1 so the numeral reads
-    // dead-centre. Pill-only — the slam keeps the helper's value.
-    ...(Platform.OS === 'ios' ? { transform: [{ translateY: 1 }] } : null),
   },
   amountSlam: {
     ...typeScale.display,
