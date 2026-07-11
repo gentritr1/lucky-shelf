@@ -47,14 +47,20 @@ data exists. The sections below remain as historical/implementation reference.
   to spare"; render order already matched the one-story spine. 291/291 + tsc re-run by Fable.
 - **1.5 Discovery jingle — BLOCKED EXTERNAL:** available audio tools are speech-only; asset
   must be sourced (see RELEASE-PLAN Gate 1.5 for the sound spec + swap point).
-- **1.3 Flip + ON-path pin — NEXT, with a known design blocker:** flag helpers are
-  `CONST || env==='1'` (env can only force ON). Post-flip, `withBalanceFlagConfig`'s
-  `baseline` would silently measure the all-ON economy and every delete-env-to-disable test
-  breaks. The flip therefore starts with two-way env semantics ('0' forces OFF) across the 9
-  helpers + harness, THEN the const flip + determinism-pin update (M0 goldens/fixed states
-  survive: engine reads the per-run `loopV2` snapshot). Do it on a branch; merge = after the
-  Gate 2 device pass. Note: graduation splits daily-shelf comparability across app versions
-  (inherent to any balance change; acceptable).
+- **1.3 Flip + pins — DONE on branch `graduation-flip` (`49ad41c`), NOT merged.** Merge gate =
+  the Gate 2 device pass. Sequence that landed: (a) two-way env semantics on main (`df1423b`,
+  '0' forces OFF; harness pins absent keys '0' — byte-identical, 291/291 + pin re-run); (b) the
+  8-flag const flip on the branch. The flip exposed THREE ambient-read save-safety leaks
+  (caught by the m0-wine-dine-combo golden): synergy + signature scoring and the signature
+  offer-pool filter would have leaked into v1 saves — all three now gate on the run's
+  `state.loopV2` snapshot. Tests migrated to `testkit.withFlagWorld` (every flag-sensitive
+  suite pins its full 9-key world explicitly). **Two determinism pins now:** frozen v1
+  `8d48e1c5a6ad14c9` (re-verified under an explicit all-OFF world) + graduating
+  `4d5b9f57ba63b916` (shipping defaults). Branch verification: 292/292, tsc clean, fixtures
+  valid, no-env fuzz = exact graduating set, balance:assert green with numbers identical to
+  the pre-flip env-forced run. Accepted quirk: a day-1 pre-action v1 save sees the supplier
+  choice post-update (build steering's createRun gate is ambient by design). Graduation splits
+  daily-shelf comparability across app versions (inherent; acceptable).
 
 ## Historical detail by owner (superseded as a roadmap by RELEASE-PLAN.md)
 
