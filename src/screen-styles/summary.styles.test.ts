@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { highContrastPalette, layout, palette, radii, spacing, type Palette } from '@/ui/tokens';
+import { borders, highContrastPalette, layout, palette, radii, spacing, type Palette } from '@/ui/tokens';
 
 import { makeStyles } from './summary.styles';
 
 /**
- * B-M9 byte-identity proof for the run-summary sheet. `expected(p)` is an
- * independent transcription of the original static sheet, parametrized by palette.
- * Base palette = default prefs → byte-identical; high-contrast palette → every
- * themed prop threads the argument.
+ * B-M9 palette-threading proof for the run-summary sheet. `expected(p)` is an
+ * independent transcription of the SUM-1 restructured sheet, parametrized by
+ * palette, so every color-bearing prop must thread the argument (no static color
+ * leak) under both the base and high-contrast palettes. This transcription is
+ * intentionally re-derived from the SUM-1 layout — the pre-SUM-1 "byte-identical
+ * to the original loose stack" baseline no longer applies.
  */
 function expected(p: Palette) {
   return {
@@ -34,35 +36,61 @@ function expected(p: Palette) {
     },
     body: {
       flexGrow: 1,
-      gap: spacing.md,
-      justifyContent: 'center',
-      paddingVertical: spacing.sm,
+      gap: layout.sectionGap,
+      justifyContent: 'flex-start',
+      paddingVertical: spacing.lg,
+    },
+    hero: {
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    heroDay: {
+      marginTop: spacing.xxs,
     },
     seed: {
       letterSpacing: 1,
+      marginTop: spacing.xs,
     },
     recap: {
       fontWeight: '700',
+      marginTop: spacing.sm,
     },
     nearMiss: {
       fontWeight: '700',
+      marginTop: spacing.sm,
     },
     streak: {
       fontWeight: '700',
+      marginTop: spacing.xs,
     },
-    stats: {
-      gap: spacing.md,
-      marginTop: spacing.sm,
+    statsCard: {
+      gap: spacing.sm,
     },
     statRow: {
-      alignItems: 'center',
+      alignItems: 'flex-start',
       flexDirection: 'row',
       justifyContent: 'space-between',
-      minHeight: spacing.giant,
     },
-    bestRight: {
-      alignItems: 'flex-end',
-      gap: spacing.xs,
+    statLabelSlot: {
+      flex: 1,
+      justifyContent: 'center',
+      minHeight: spacing.huge,
+      paddingRight: spacing.md,
+    },
+    statValueCol: {
+      alignItems: 'stretch',
+    },
+    valueSlot: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      minHeight: spacing.huge,
+    },
+    captionSlot: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      minHeight: spacing.lg,
     },
     bestCaption: {
       color: p.inkFaint,
@@ -71,12 +99,23 @@ function expected(p: Palette) {
       color: p.goldDeep,
     },
     teaser: {
-      alignItems: 'center',
-      backgroundColor: p.parchment,
+      alignItems: 'stretch',
+      backgroundColor: p.creamBright,
+      borderColor: p.parchmentEdge,
       borderRadius: radii.md,
+      borderWidth: borders.hairline,
+      flexDirection: 'row',
+      overflow: 'hidden',
+    },
+    teaserAccent: {
+      backgroundColor: p.goldDeep,
+      width: spacing.xs,
+    },
+    teaserInner: {
+      alignItems: 'center',
+      flex: 1,
       flexDirection: 'row',
       gap: spacing.md,
-      marginTop: spacing.sm,
       padding: spacing.md,
     },
     teaserThumb: { height: 40, tintColor: p.inkFaint, width: 40 },

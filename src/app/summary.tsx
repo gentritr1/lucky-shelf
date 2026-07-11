@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import Animated, {
 import {
   AppText,
   CoinCounter,
+  Panel,
   WoodButton,
   buildAccents,
   layout,
@@ -40,6 +41,16 @@ import { dailySelectors, isDailySeed, useDailyStore } from '../state/dailyStore'
 import { seedLabel } from '../state/seedLabel';
 
 const overshoot = Easing.bezier(...motion.easings.overshoot);
+const outEasing = Easing.bezier(...motion.easings.out);
+
+// --- Staged-reveal cadence (SUM-1). The hero is left unwrapped so expo-router's
+// screen-mount animation owns its entrance (blanket within-screen entrances get
+// masked/doubled — past scar); the stagger begins at the stats card and walks
+// down the rows, then the teaser, giving the payoff moment a sense of ceremony.
+const CARD_DELAY = 120; // stats card surface settles after the hero
+const ROW_BASE = 210; // first stat row
+const ROW_STEP = 70; // per-row cascade delay
+const rowDelay = (i: number): number => ROW_BASE + i * ROW_STEP;
 
 function plural(n: number, unit: string): string {
   return `${n} ${unit}${n === 1 ? '' : 's'}`;
@@ -121,68 +132,76 @@ export default function RunSummaryScreen() {
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        <AppText variant="label" color={palette.rentEmber} align="center">
-          RENT MISSED
-        </AppText>
-        <AppText variant="display" color={palette.ink} align="center">
-          Day {gameState.day}
-        </AppText>
-
-        {isDaily ? (
-          <AppText variant="label" color={palette.inkFaint} align="center" style={styles.seed}>
-            Seed · {seedLabel(gameState.seed)}
+        <View style={styles.hero}>
+          <AppText variant="label" color={palette.rentEmber} align="center">
+            RENT MISSED
           </AppText>
-        ) : null}
-
-        {build ? (
-          <AppText
-            variant="body"
-            align="center"
-            color={buildAccents[build.tag] ?? palette.goldDeep}
-            style={styles.recap}
-          >
-            {(tagEmoji[build.tag] ?? '🏷️') + ' '}
-            {build.tag.charAt(0).toUpperCase() + build.tag.slice(1)} build · {plural(combosThisRun, 'combo')}
+          <AppText variant="display" color={palette.ink} align="center" style={styles.heroDay}>
+            Day {gameState.day}
           </AppText>
-        ) : null}
 
-        {nearMiss ? (
-          <AppText variant="body" align="center" color={palette.emberDark} style={styles.nearMiss}>
-            Closest rent payment: {plural(nearMiss.coinsToSpare, 'coin')} to spare
-          </AppText>
-        ) : null}
-
-        {isDaily && streakCount >= 2 ? (
-          <AppText variant="body" align="center" color={palette.goldDeep} style={styles.streak}>
-            🔥 {streakCount}-day daily streak
-          </AppText>
-        ) : null}
-
-        <View style={styles.stats}>
-          <View style={styles.statRow}>
-            <AppText variant="body" color={palette.inkSoft}>
-              Coins earned
+          {isDaily ? (
+            <AppText variant="label" color={palette.inkFaint} align="center" style={styles.seed}>
+              Seed · {seedLabel(gameState.seed)}
             </AppText>
-            <CoinCounter coins={gameState.runStats.totalCoinsEarned} />
-          </View>
+          ) : null}
 
-          {bests.map((row) => (
-            <BestRow key={row.key} row={row} />
-          ))}
+          {build ? (
+            <AppText
+              variant="body"
+              align="center"
+              color={buildAccents[build.tag] ?? palette.goldDeep}
+              style={styles.recap}
+            >
+              {(tagEmoji[build.tag] ?? '🏷️') + ' '}
+              {build.tag.charAt(0).toUpperCase() + build.tag.slice(1)} build · {plural(combosThisRun, 'combo')}
+            </AppText>
+          ) : null}
 
-          {build ? null : (
-            <View style={styles.statRow}>
-              <AppText variant="body" color={palette.inkSoft}>
-                Combos this run
-              </AppText>
-              <AppText variant="stat" color={palette.ink}>
-                {combosThisRun}
-              </AppText>
-            </View>
-          )}
+          {nearMiss ? (
+            <AppText variant="body" align="center" color={palette.emberDark} style={styles.nearMiss}>
+              Closest rent payment: {plural(nearMiss.coinsToSpare, 'coin')} to spare
+            </AppText>
+          ) : null}
+
+          {isDaily && streakCount >= 2 ? (
+            <AppText variant="body" align="center" color={palette.goldDeep} style={styles.streak}>
+              🔥 {streakCount}-day daily streak
+            </AppText>
+          ) : null}
         </View>
 
-        {nextUnlock ? <NextUnlockTeaser row={nextUnlock} /> : null}
+        <Reveal delay={CARD_DELAY}>
+          <Panel style={styles.statsCard}>
+            <Reveal delay={rowDelay(0)}>
+              <StatRow label="Coins earned">
+                <CoinCounter coins={gameState.runStats.totalCoinsEarned} />
+              </StatRow>
+            </Reveal>
+
+            {bests.map((row, i) => (
+              <Reveal key={row.key} delay={rowDelay(i + 1)}>
+                <BestRow row={row} recordDelay={rowDelay(i + 1) + motion.durations.settle} />
+              </Reveal>
+            ))}
+
+            {build ? null : (
+              <Reveal delay={rowDelay(bests.length + 1)}>
+                <StatRow label="Combos this run">
+                  <AppText variant="stat" color={palette.ink}>
+                    {combosThisRun}
+                  </AppText>
+                </StatRow>
+              </Reveal>
+            )}
+          </Panel>
+        </Reveal>
+
+        {nextUnlock ? (
+          <Reveal delay={rowDelay(bests.length + 2)}>
+            <NextUnlockTeaser row={nextUnlock} />
+          </Reveal>
+        ) : null}
       </ScrollView>
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
@@ -197,75 +216,137 @@ export default function RunSummaryScreen() {
   );
 }
 
+/** Within-screen staged-reveal wrapper (SUM-1): fades + lifts its child into
+ *  place after `delay`. Single `translateY` transform (no scaleX/scaleY split —
+ *  Fabric collapse scar) and a reduced-motion snap to final state. */
+function Reveal({ delay, children }: { delay: number; children: ReactNode }) {
+  const reduced = useReducedMotion();
+  const progress = useSharedValue(reduced ? 1 : 0);
+
+  useEffect(() => {
+    if (reduced) {
+      progress.value = 1;
+      return;
+    }
+    progress.value = 0;
+    progress.value = withDelay(delay, withTiming(1, { duration: motion.durations.settle, easing: outEasing }));
+  }, [reduced, delay, progress]);
+
+  // `progress.value` is a plain number here (never a with*() return), so the
+  // arithmetic is legal — the hard rule bans arithmetic on animation objects only.
+  const anim = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * 10 }],
+  }));
+
+  return <Animated.View style={anim}>{children}</Animated.View>;
+}
+
+/** One stats-card row: label left, value right on the card's inner right edge,
+ *  with a fixed-height caption slot beneath the value when the row has one.
+ *  The shared right edge (valueSlot) carries the alignment; reserving the slot
+ *  on caption-less rows made the card too tall to fit the unlock teaser above
+ *  the fold (SUM-1 review), so empty slots are not rendered. */
+function StatRow({
+  label,
+  children,
+  caption,
+}: {
+  label: string;
+  children: ReactNode;
+  caption?: ReactNode;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  return (
+    <View style={styles.statRow}>
+      <View style={styles.statLabelSlot}>
+        <AppText variant="body" color={palette.inkSoft}>
+          {label}
+        </AppText>
+      </View>
+      <View style={styles.statValueCol}>
+        <View style={styles.valueSlot}>{children}</View>
+        {caption ? <View style={styles.captionSlot}>{caption}</View> : null}
+      </View>
+    </View>
+  );
+}
+
 /** The quiet "one more run" prompt (B-M5 Part 3): a silhouette thumb + unlock
- *  hint for the nearest locked item. Warm, not a popup — no CTA, no coins. */
+ *  hint for the nearest locked item. SUM-1 gives it a gold accent bar so it
+ *  reads as a "coming up next" info strip, not a disabled parchment button. */
 function NextUnlockTeaser({ row }: { row: NextUnlockRow }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const sprite = spriteFor(row.itemId);
   return (
     <View style={styles.teaser}>
-      {sprite ? (
-        <Image source={sprite} style={styles.teaserThumb} resizeMode="contain" />
-      ) : (
-        <View style={styles.teaserThumbBox} />
-      )}
-      <View style={styles.teaserText}>
-        <AppText variant="label" color={palette.inkFaint}>
-          NEXT UNLOCK
-        </AppText>
-        <AppText variant="body" color={palette.inkSoft}>
-          {row.hint}
-        </AppText>
+      <View style={styles.teaserAccent} />
+      <View style={styles.teaserInner}>
+        {sprite ? (
+          <Image source={sprite} style={styles.teaserThumb} resizeMode="contain" />
+        ) : (
+          <View style={styles.teaserThumbBox} />
+        )}
+        <View style={styles.teaserText}>
+          <AppText variant="label" color={palette.inkFaint}>
+            NEXT UNLOCK
+          </AppText>
+          <AppText variant="body" color={palette.inkSoft}>
+            {row.hint}
+          </AppText>
+        </View>
       </View>
     </View>
   );
 }
 
 /** One personal-best row: this run's value on the right with either a celebratory
- *  "New record!" accent or the standing best beneath it. */
-function BestRow({ row }: { row: PersonalBestRow }) {
+ *  "New record!" accent or the standing best in the caption slot beneath it. */
+function BestRow({ row, recordDelay }: { row: PersonalBestRow; recordDelay: number }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const unit = row.kind === 'days' ? 'd' : '';
-  return (
-    <View style={styles.statRow}>
-      <AppText variant="body" color={palette.inkSoft}>
-        {row.label}
+
+  const value =
+    row.kind === 'coin' ? (
+      <CoinCounter coins={row.thisRun} />
+    ) : (
+      <AppText variant="stat" color={palette.ink}>
+        {row.thisRun}
+        {unit}
       </AppText>
-      <View style={styles.bestRight}>
-        {row.kind === 'coin' ? (
-          <CoinCounter coins={row.thisRun} />
-        ) : (
-          <AppText variant="stat" color={palette.ink}>
-            {row.thisRun}
-            {unit}
-          </AppText>
-        )}
-        {row.isRecord ? (
-          <RecordAccent />
-        ) : row.thisRun === row.best ? (
-          // Tied the all-time best — celebrate it, don't repeat the number.
-          <AppText variant="label" color={palette.tealDark} style={styles.bestCaption}>
-            ✓ Your best
-          </AppText>
-        ) : (
-          // Below the record: name it "Record" (not "Best" — the row label is
-          // already "Best day"/etc.) so the two don't read as the same word.
-          <AppText variant="label" color={palette.inkFaint} style={styles.bestCaption}>
-            Record {row.best}
-            {unit}
-          </AppText>
-        )}
-      </View>
-    </View>
+    );
+
+  const caption = row.isRecord ? (
+    <RecordAccent delay={recordDelay} />
+  ) : row.thisRun === row.best ? (
+    // Tied the all-time best — celebrate it, don't repeat the number.
+    <AppText variant="label" color={palette.tealDark} style={styles.bestCaption}>
+      ✓ Your best
+    </AppText>
+  ) : (
+    // Below the record: name it "Record" (not "Best" — the row label is already
+    // "Best day"/etc.) so the two don't read as the same word.
+    <AppText variant="label" color={palette.inkFaint} style={styles.bestCaption}>
+      Record {row.best}
+      {unit}
+    </AppText>
+  );
+
+  return (
+    <StatRow label={row.label} caption={caption}>
+      {value}
+    </StatRow>
   );
 }
 
 /** The "New record!" flourish — light gold text with a star, no box, so it reads
  *  as a celebratory caption rather than a second stacked pill. Pops in with an
- *  overshoot spring; snaps flat under reduced motion (prefs). */
-function RecordAccent() {
+ *  overshoot spring AFTER its row has slid in (the finale beat of the stagger);
+ *  snaps flat under reduced motion (prefs). */
+function RecordAccent({ delay }: { delay: number }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const reduced = useReducedMotion();
@@ -278,13 +359,13 @@ function RecordAccent() {
     }
     progress.value = 0;
     progress.value = withDelay(
-      motion.durations.snap,
+      delay,
       withSequence(
         withTiming(1.12, { duration: 160, easing: overshoot }),
         withTiming(1, { duration: 200, easing: overshoot }),
       ),
     );
-  }, [reduced, progress]);
+  }, [reduced, delay, progress]);
 
   const anim = useAnimatedStyle(() => ({
     opacity: Math.min(1, progress.value * 1.6),
