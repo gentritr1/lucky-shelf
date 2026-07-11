@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  ScrollView,
   Text,
   View,
   useWindowDimensions,
@@ -42,6 +43,9 @@ type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 interface Page {
   key: string;
   title: string;
+  /** Short small-caps name for the section rail chip (HTP-2). Kept to ≤6 chars so
+   *  the full set reads on one line at iPhone-SE width; the rail scrolls if not. */
+  chip: string;
   render: (styles: Styles, palette: ReturnType<typeof usePalette>) => React.ReactNode;
 }
 
@@ -80,6 +84,43 @@ export default function HowToPlayScreen() {
   const listRef = useRef<FlatList<Page>>(null);
   const [active, setActive] = useState(initialPage);
 
+  // Rail auto-scroll (HTP-2): the rail is the map, so the active chip must stay
+  // visible even when the chip set overflows the track (RENT/TWISTS sit
+  // off-right on phone widths). Chips are variable-width inside a horizontal
+  // ScrollView, so each records its x/width via onLayout into a ref map, and the
+  // rail scrollTo's the active chip behind a small left margin whenever `active`
+  // changes. The mount case (deep link to a late page) is handled inside the
+  // onLayout callback itself: layout lands after the first effect run, so the
+  // effect alone would no-op before the map has the active chip's frame.
+  const railRef = useRef<ScrollView>(null);
+  const chipLayouts = useRef(new Map<number, { x: number; width: number }>());
+  const railPositioned = useRef(false);
+
+  const scrollRailToChip = useCallback((index: number, animated: boolean) => {
+    const chip = chipLayouts.current.get(index);
+    if (!chip) return;
+    // Clamp to >= 0; the right edge is clamped natively by the ScrollView.
+    railRef.current?.scrollTo({ x: Math.max(0, chip.x - spacing.xl), animated });
+  }, []);
+
+  const onChipLayout = useCallback(
+    (index: number, x: number, chipWidth: number) => {
+      chipLayouts.current.set(index, { x, width: chipWidth });
+      // Mount positioning: snap (never animated) once the initially-active
+      // chip's own frame arrives, then hand off to the `active` effect below.
+      if (!railPositioned.current && index === active) {
+        railPositioned.current = true;
+        scrollRailToChip(index, false);
+      }
+    },
+    [active, scrollRailToChip],
+  );
+
+  useEffect(() => {
+    if (!railPositioned.current) return; // mount handled by onChipLayout
+    scrollRailToChip(active, !reduced); // reduced motion jumps without animation
+  }, [active, reduced, scrollRailToChip]);
+
   const onMomentumEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       if (width <= 0) return;
@@ -89,15 +130,25 @@ export default function HowToPlayScreen() {
     [width, pages.length],
   );
 
+  // Jump the pager to a page and sync the active marker (rail chip tap + Next).
+  // Same scrollToIndex call the deep link and Next button use; animated unless
+  // reduced motion, which snaps (getItemLayout below makes the jump reliable).
+  const goToPage = useCallback(
+    (index: number) => {
+      const target = clampIndex(index, pages.length);
+      listRef.current?.scrollToIndex({ index: target, animated: !reduced });
+      setActive(target);
+    },
+    [pages.length, reduced],
+  );
+
   const onPrimary = useCallback(() => {
     if (active >= pages.length - 1) {
       router.dismissTo('/');
       return;
     }
-    const next = active + 1;
-    listRef.current?.scrollToIndex({ index: next, animated: !reduced });
-    setActive(next);
-  }, [active, pages.length, reduced, router]);
+    goToPage(active + 1);
+  }, [active, pages.length, goToPage, router]);
 
   const getItemLayout = useCallback(
     (_: ArrayLike<Page> | null | undefined, index: number) => ({
@@ -143,6 +194,32 @@ export default function HowToPlayScreen() {
           )
         }
       />
+
+      {/* Section rail (HTP-2): the "map" — tap to jump to any section so the
+          screen doubles as a rules reference. The active chip follows `active`,
+          the same state the dots read and `onMomentumEnd` updates on swipe, so
+          rail and dots always agree without a second scroll listener. */}
+      <ScrollView
+        ref={railRef}
+        style={styles.rail}
+        contentContainerStyle={styles.railContent}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        accessibilityRole="tablist"
+      >
+        {pages.map((page, index) => (
+          <SectionChip
+            key={page.key}
+            label={page.chip}
+            active={index === active}
+            reduced={reduced}
+            styles={styles}
+            palette={palette}
+            onPress={() => goToPage(index)}
+            onChipLayout={(x, chipWidth) => onChipLayout(index, x, chipWidth)}
+          />
+        ))}
+      </ScrollView>
 
       <FlatList
         ref={listRef}
@@ -230,6 +307,61 @@ function Dot({ active, reduced, styles }: { active: boolean; reduced: boolean; s
   return <Animated.View style={[styles.dot, active && styles.dotActive, animStyle]} />;
 }
 
+/**
+ * A section-rail chip. The cream selection pill fades in under the label when the
+ * chip is active (opacity only — separate scaleX/scaleY collapse views on Fabric;
+ * a per-chip fade also needs no track-width measurement, which a scroll rail can't
+ * give). Reduced motion snaps the pill on/off. Label color snaps (as the catalog
+ * segmented control does) — ink when active, quiet inkFaint when not.
+ */
+function SectionChip({
+  label,
+  active,
+  reduced,
+  styles,
+  palette,
+  onPress,
+  onChipLayout,
+}: {
+  label: string;
+  active: boolean;
+  reduced: boolean;
+  styles: Styles;
+  palette: ReturnType<typeof usePalette>;
+  onPress: () => void;
+  /** Reports the chip's frame (x/width within the rail's content) for the
+   *  keep-active-chip-visible auto-scroll. */
+  onChipLayout: (x: number, width: number) => void;
+}) {
+  const on = useSharedValue(active ? 1 : 0);
+
+  useEffect(() => {
+    if (reduced) {
+      on.value = active ? 1 : 0;
+      return;
+    }
+    on.value = withTiming(active ? 1 : 0, { duration: motion.durations.snap });
+  }, [active, reduced, on]);
+
+  const pillStyle = useAnimatedStyle(() => ({ opacity: on.value }));
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onLayout={(e) => onChipLayout(e.nativeEvent.layout.x, e.nativeEvent.layout.width)}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      hitSlop={{ top: 8, bottom: 8 }}
+      style={styles.chip}
+    >
+      <Animated.View pointerEvents="none" style={[styles.chipPill, pillStyle]} />
+      <AppText variant="label" color={active ? palette.ink : palette.inkFaint} style={styles.chipLabel}>
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
+
 function clampIndex(value: number, length: number): number {
   if (!Number.isFinite(value) || value < 0) return 0;
   return Math.min(Math.max(0, Math.trunc(value)), Math.max(0, length - 1));
@@ -249,6 +381,7 @@ function buildPages(
     {
       key: 'loop',
       title: 'The Daily Loop',
+      chip: 'LOOP',
       render: (styles, palette) => (
         <>
           <View style={styles.stage}>
@@ -272,6 +405,7 @@ function buildPages(
     {
       key: 'items',
       title: 'Items Pay Coins',
+      chip: 'ITEMS',
       render: (styles, palette) => (
         <>
           <View style={styles.stage}>
@@ -291,6 +425,7 @@ function buildPages(
     {
       key: 'neighbors',
       title: 'Neighbors Help Neighbors',
+      chip: 'RULES',
       render: (styles, palette) => (
         <>
           <View style={styles.stage}>
@@ -321,6 +456,7 @@ function buildPages(
       // (same-trade sets), shown only when that flag is on.
       key: 'multipliers',
       title: 'Multipliers',
+      chip: 'GLOW',
       render: (styles, palette) => (
         <>
           <View style={styles.stage}>
@@ -369,6 +505,7 @@ function buildPages(
     {
       key: 'combos',
       title: 'Named Combos',
+      chip: 'COMBOS',
       render: (styles, palette) => (
         <>
           <View style={styles.stage}>
@@ -390,6 +527,7 @@ function buildPages(
     {
       key: 'rent',
       title: 'Rent Comes Due',
+      chip: 'RENT',
       render: (styles, palette) => (
         <>
           <View style={styles.stage}>
@@ -412,6 +550,7 @@ function buildPages(
     pages.push({
       key: 'twists',
       title: "The Day's Twists",
+      chip: 'TWISTS',
       render: (styles, palette) => (
         <>
           <View style={styles.stage}>

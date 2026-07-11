@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { borders, layout, radii, spacing, type Palette } from '@/ui/tokens';
+import { borders, layout, radii, shadows, spacing, type Palette } from '@/ui/tokens';
 
 /**
  * How-to-Play sheet (ONB-1) as a B-M9 themed factory. All colors read from the
@@ -253,6 +253,53 @@ export function makeStyles(palette: Palette) {
     twistMult: {
       color: palette.goldDeep,
       fontWeight: '900',
+    },
+
+    // --- Section rail (HTP-2): a tappable map of the pages above the pager, so
+    // How to Play doubles as a rules reference (jump straight to any section, no
+    // six-page swipe). A parchment track echoing the catalog's segmented control;
+    // the active chip wears a creamBright pill, inactive chips are quiet ink text.
+    // A horizontal ScrollView so the full set never has to fit one SE-width line —
+    // `railContent.flexGrow` centres the chips when they fit, lets them scroll
+    // when they don't.
+    rail: {
+      backgroundColor: palette.parchment,
+      borderRadius: radii.pill,
+      flexGrow: 0,
+      marginBottom: spacing.xs,
+    },
+    railContent: {
+      alignItems: 'center',
+      flexGrow: 1,
+      gap: spacing.xxs,
+      justifyContent: 'center',
+      padding: spacing.xs,
+    },
+    chip: {
+      alignItems: 'center',
+      borderRadius: radii.pill,
+      justifyContent: 'center',
+      minHeight: 34,
+      overflow: 'hidden',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    // The active chip's cream pill — an absolute fill faded in under the label
+    // (opacity animated; separate scaleX/scaleY collapse the view on Fabric, and
+    // a per-chip fade needs no track-width measurement a scroll rail can't give).
+    // Mirrors the catalog segmented control's selected pill (creamBright + float).
+    chipPill: {
+      backgroundColor: palette.creamBright,
+      borderRadius: radii.pill,
+      bottom: 0,
+      left: 0,
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      ...shadows.float,
+    },
+    chipLabel: {
+      letterSpacing: 0.6,
     },
 
     // --- Page dots. ---
