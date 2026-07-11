@@ -73,6 +73,15 @@ function expected(p: Palette) {
     grow: {
       flex: 1,
     },
+    helpLink: {
+      alignItems: 'center',
+      alignSelf: 'center',
+      backgroundColor: p.plate,
+      borderRadius: radii.pill,
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
   };
 }
 

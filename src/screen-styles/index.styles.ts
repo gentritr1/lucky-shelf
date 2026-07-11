@@ -78,5 +78,16 @@ export function makeStyles(palette: Palette) {
     grow: {
       flex: 1,
     },
+    // Onboarding entry — a compact plate-backed link below the primary actions
+    // so it reads over the room art without crowding the New Run button above.
+    helpLink: {
+      alignItems: 'center',
+      alignSelf: 'center',
+      backgroundColor: palette.plate,
+      borderRadius: radii.pill,
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
   });
 }

@@ -150,6 +150,15 @@ export default function TitleScreen() {
             <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
           </View>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="How to Play"
+          hitSlop={8}
+          onPress={() => router.push('/how-to-play')}
+          style={styles.helpLink}
+        >
+          <AppText variant="label" color={palette.tealDark}>How to Play</AppText>
+        </Pressable>
       </Entrance>
     </View>
   );
