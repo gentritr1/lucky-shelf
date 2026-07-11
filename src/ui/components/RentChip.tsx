@@ -9,8 +9,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { borders, palette, radii, spacing } from '../tokens';
+import { borders, radii, spacing } from '../tokens';
 import { useReducedMotion } from '../prefs';
+import { useThemedStyles } from '../useThemedStyles';
+import { makeStyles } from './RentChip.styles';
 import { AppText } from './AppText';
 
 interface RentChipProps {
@@ -26,8 +28,9 @@ interface RentChipProps {
  * the periphery, not just read. Still in reduced-motion mode.
  */
 export function RentChip({ amount, dueInDays }: RentChipProps) {
-  const tone = dueInDays <= 1 ? styles.alarm : dueInDays === 2 ? styles.warm : styles.calm;
-  const toneText = dueInDays <= 1 ? styles.alarmText : dueInDays === 2 ? styles.warmText : styles.calmText;
+  const themed = useThemedStyles(makeStyles);
+  const tone = dueInDays <= 1 ? themed.alarm : dueInDays === 2 ? themed.warm : themed.calm;
+  const toneText = dueInDays <= 1 ? themed.alarmText : dueInDays === 2 ? themed.warmText : themed.calmText;
   const dayWord = dueInDays === 1 ? 'day' : 'days';
 
   const reduced = useReducedMotion();
@@ -69,22 +72,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  calm: {
-    backgroundColor: palette.parchment,
-    borderColor: palette.parchmentEdge,
-  },
-  warm: {
-    backgroundColor: palette.sunlight,
-    borderColor: palette.goldDeep,
-  },
-  alarm: {
-    backgroundColor: palette.rentEmber,
-    borderColor: palette.emberDark,
-  },
   due: {
     fontSize: 13,
   },
-  calmText: { color: palette.inkSoft },
-  warmText: { color: palette.ink },
-  alarmText: { color: palette.creamBright },
 });

@@ -8,8 +8,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { borders, fonts, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { borders, motion, shadows, spacing } from '../tokens';
 import { useReducedMotion } from '../prefs';
+import { useThemedStyles } from '../useThemedStyles';
+import { makeStyles } from './CoinCounter.styles';
 
 interface CoinCounterProps {
   coins: number;
@@ -38,6 +40,7 @@ export function CoinCounter({
   variant = 'pill',
 }: CoinCounterProps) {
   const reduced = useReducedMotion();
+  const themed = useThemedStyles(makeStyles);
   const display = useCountUp(coins, { animate: animate && !reduced, from });
 
   const punch = useSharedValue(1);
@@ -63,9 +66,9 @@ export function CoinCounter({
   const isSlam = variant === 'slam';
 
   return (
-    <Animated.View style={[styles.pill, isSlam && styles.pillSlam, punchStyle]}>
-      <View style={[styles.coin, isSlam && styles.coinSlam]} />
-      <Text style={[styles.amount, isSlam && styles.amountSlam]}>{display}</Text>
+    <Animated.View style={[themed.pill, isSlam && styles.pillSlam, punchStyle]}>
+      <View style={[themed.coin, isSlam && styles.coinSlam]} />
+      <Text style={[themed.amount, isSlam && themed.amountSlam]}>{display}</Text>
     </Animated.View>
   );
 }
@@ -113,19 +116,6 @@ function useCountUp(
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: palette.creamBright,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.pill,
-    borderWidth: borders.regular,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    ...shadows.float,
-  },
   pillSlam: {
     borderWidth: borders.strong,
     gap: spacing.md,
@@ -133,33 +123,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     ...shadows.lifted,
   },
-  coin: {
-    backgroundColor: palette.coinGold,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.pill,
-    borderWidth: borders.strong,
-    height: 18,
-    width: 18,
-  },
   coinSlam: {
     height: 28,
     width: 28,
-  },
-  amount: {
-    // System-font coin role (TYPO-1): SF/Roboto center against the coin dot with
-    // no translateY nudge — its glyphs sit centered in a constrained line box.
-    ...typeScale.coin,
-    color: palette.ink,
-  },
-  amountSlam: {
-    // The larger dayTotal "slam" figure — its own system-font style (not Baloo2's
-    // display role). Tabular numerals so the count-up doesn't jitter; centers
-    // against the bigger coin dot without a nudge.
-    fontFamily: fonts.ui,
-    fontSize: 34,
-    lineHeight: 42,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-    color: palette.ink,
   },
 });
