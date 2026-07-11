@@ -463,6 +463,7 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
   const vanished = Boolean(frame.vanished[key]);
   const glyph = glyphFor(transformed ? transformed.toItem : item.itemId);
   const active = frame.openSlot === key;
+  const slotTotal = frame.slots[key];
 
   const pop = useSharedValue(0);
   useEffect(() => {
@@ -470,6 +471,23 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
       pop.value = reduced ? 0 : withSequence(withTiming(1, { duration: 130 }), withTiming(0, { duration: 200 }));
     }
   }, [transformed, reduced, pop]);
+
+  // "Receive" squash-and-stretch (Fable plan #2): each time this slot's total
+  // GROWS — a coin just landed — the sprite compresses and springs back, so the
+  // combo reads as one object paying another. Delayed by the coin's flight so it
+  // fires on arrival, not departure. Skips the initial base (undefined→value)
+  // and reduced motion (R-28 — the number tick alone carries it).
+  const impact = useSharedValue(0);
+  const prevTotal = useRef(slotTotal);
+  useEffect(() => {
+    const grew = prevTotal.current !== undefined && slotTotal !== undefined && slotTotal > prevTotal.current;
+    prevTotal.current = slotTotal;
+    if (!grew || reduced) return;
+    impact.value = withDelay(
+      motion.durations.tokenTravel,
+      withSequence(withTiming(1, { duration: 90 }), withSpring(0, motion.springs.impact)),
+    );
+  }, [slotTotal, reduced, impact]);
 
   // vanish = a puff, not a plain fade: the sprite swells as it dissolves (R-38
   // fixture path, motion-spec §4 "300ms puff before dayTotal").
@@ -482,13 +500,19 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
     }
   }, [vanished, reduced, puff]);
 
-  const style = useAnimatedStyle(() => ({
-    opacity: 1 - puff.value,
-    transform: [
-      { scale: (1 + pop.value * 0.12) * (1 + puff.value * 0.35) },
-      { translateY: withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap }) },
-    ],
-  }));
+  const style = useAnimatedStyle(() => {
+    // pop (transform) + puff (vanish swell) are uniform; impact adds a brief
+    // non-uniform squash (wider + shorter) that springs back to 1.
+    const base = (1 + pop.value * 0.12) * (1 + puff.value * 0.35);
+    return {
+      opacity: 1 - puff.value,
+      transform: [
+        { scaleX: base * (1 + impact.value * 0.09) },
+        { scaleY: base * (1 - impact.value * 0.11) },
+        { translateY: withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap }) },
+      ],
+    };
+  });
 
   return (
     <Animated.View

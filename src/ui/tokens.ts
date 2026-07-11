@@ -356,6 +356,9 @@ export const motion = {
     grab: { damping: 18, stiffness: 220, mass: 0.9 },
     settle: { damping: 14, stiffness: 260, mass: 1 },
     neighborPart: { damping: 20, stiffness: 300, mass: 0.8 },
+    // Cascade "receive" squash — a scored item absorbs the landing coin and
+    // springs back (Fable plan #2, completes give→travel→receive).
+    impact: { damping: 12, stiffness: 320, mass: 0.7 },
   },
   // B-M11: a first-EVER combo discovery lingers on its cascade step by this
   // factor (a brief slow-beat of warm recognition). Applied only to that step's
