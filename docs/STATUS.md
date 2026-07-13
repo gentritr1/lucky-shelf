@@ -15,18 +15,27 @@ The end-to-end audit and research packet is
   its save state correctly; all four Daily Shop rows fit complete rule prose plus tags without clipping;
   the apex cascade caption and full receipt pass normal, 130% text, high-contrast, and reduced-motion QA;
   the inline shelf inspector fits exact rule prose, slot, value, movement hint, and a 44pt close target.
-- **Gate 1.2 is reopened:** like-for-like paired 80-run build swing is above Fable's approved
-  **[1.3×, 2.0×]** band in both unlock cohorts: starter **2.635× greedy / 2.713× combo**; full
-  **2.248× / 2.416×**. Per-seed paired medians are also reported, rather than hiding variance behind
-  a ratio of medians. No economy numbers were changed; Fable must rule on the retune.
+- **Gate 1.2 REOPENED then CLOSED (2026-07-13, Fable):** the corrected like-for-like gate failed all
+  four ceiling arms (2.248–2.713× vs approved **[1.3×, 2.0×]**). Fable ruled the retune (brief
+  `lane-a/economy-retune-gate12-brief.md`), Opus 4.8 implemented, Fable independently re-ran every
+  acceptance command: **TAG_SYNERGY_LADDER trimmed 1.2/1.4/1.6/1.8 → 1.15/1.22/1.26/1.30** (only
+  lever needed), `GOAL_LADDER_TARGETS` re-derived + validated out-of-sample (all days 0.685–0.796,
+  band [0.65, 0.85]). All four arms now **1.616–1.92×**, run-length medians 27d, v1 pin untouched,
+  graduating pin → `1adfc85f256b8512`, 373/373 green. Evidence:
+  [`review-packets/GATE12-economy-retune-2026-07-13.md`](review-packets/GATE12-economy-retune-2026-07-13.md).
+  Side-finding: graduating starter-cohort FLOOR first-rent survival now reads **43.8%** — inside the
+  aspirational [40, 70] band for the first time (report-only).
 
 The release feature freeze still stands. External-alpha prep deliberately adds no custom telemetry or
 third-party crash SDK: local saves are on-device, while TestFlight supplies sessions, crashes,
 screenshots, and comments. Privacy policy hosting, feedback email, signing roles, and external-tester
 submission remain human-owned. Physical VoiceOver/onboarding validation and the dedicated
 discovery-jingle asset remain Lane B/human work described in the packet.
-Supplier choice timing and the economy retune remain Fable decisions. Payout, placement-settle, and
-rent-consequence cue timing is now event-aligned in code.
+Both open Fable decisions are now ruled (2026-07-13): the economy retune landed (Gate 1.2 above), and
+the ten-archetype opening supplier pick stays **unchanged, evidence-gated** — alpha must measure
+hesitation; a curated-trio fallback is pre-committed in
+`review-packets/FABLE-RULING-2026-07-13-supplier-opening.md` but must not ship without that evidence.
+Payout, placement-settle, and rent-consequence cue timing is now event-aligned in code.
 
 _Last updated 2026-07-10 (Fable session). `main` = round-6 head, pushed to origin, tree clean, all green (289 tests)._
 

@@ -77,16 +77,17 @@ export function startingCoins(): number {
  */
 export const GOAL_LADDER_ENABLED = true;
 export const GOAL_LADDER_ENV_VAR = 'GOAL_LADDER_ENABLED';
-// Gate-1 retune (2026-07-10): the 2026-07-08 table was tuned against `allDepth`,
-// which lacks shelf expansion / unlock ladder / day-2 starter — under the real
-// `graduating` config it measured 0.95–0.99 hit on every day past 1 (band:
-// 0.65–0.85). Derived from pooled ceiling-bot p25 day totals by
-// `scripts/goal-tune.ts --config graduating --runs 400 --seed graduation-0710`
-// (smoothed monotone; extended to 12 entries — the day-9 expansion tier and
-// days 11–12 need their own steps). Scar rule: any retune must name its
+// Gate-1.2 retune (2026-07-13): the TAG_SYNERGY_LADDER trim (build-swing gate,
+// A-M9) lowered graduating ceiling-bot day yields ~26–31%, so the 2026-07-10
+// table (18…172) measured 0.38–0.81 hit — under-band on the back half. Re-derived
+// from pooled ceiling-bot p25 day totals by
+// `scripts/goal-tune.ts --config graduating --runs 400 --seed gate12-retune-0713`
+// and validated out-of-sample on `--seed gate12-retune-0713-v2` (every day, both
+// ceiling strategies, hit rate in [0.65, 0.85]). Day 8 raised 94→96 to keep the
+// ladder monotone non-decreasing. Scar rule: any yield change must name its
 // measurement script and re-verify with the exact flag set that ships together.
 export const GOAL_LADDER_TARGETS: readonly number[] = [
-  18, 44, 68, 92, 106, 112, 114, 116, 148, 152, 166, 172,
+  19, 41, 61, 75, 86, 94, 96, 96, 112, 116, 129, 136,
 ];
 export const GOAL_LADDER_REWARD_KIND = 'freeReroll' as const;
 
@@ -184,11 +185,19 @@ export const DEMAND_TAG_POOL: readonly string[] = [
 export const TAG_SYNERGY_ENABLED = true;
 export const TAG_SYNERGY_ENV_VAR = 'TAG_SYNERGY_ENABLED';
 export const TAG_SYNERGY_ELIGIBLE_TAGS = DEMAND_TAG_POOL;
+// Gate-1.2 build-swing retune (A-M9, 2026-07-13): the original 1.2/1.4/1.6/1.8 rungs
+// pushed like-for-like graduating/baseline ceiling swing to 2.25–2.71× (band [1.3, 2.0]).
+// This is the primary lever (broadest — a steered shelf collects a rung on nearly every
+// item, compounding with spotlight ×3 and signature rules). Trimmed top-weighted (the
+// high rungs, where the combo bot's focused stacks live, were flattened hardest) to bring
+// all four arms to 1.62–1.92× (~28% earnings cut) without dropping any below 1.3×. Measured
+// by `scripts/balance.ts --runs 80 --config baselineStarter,baselineFull,graduating,
+// graduatingFull --policy ceiling-greedy,ceiling-combo --assert-bands` (deterministic).
 export const TAG_SYNERGY_LADDER: readonly { minCount: number; mult: number }[] = [
-  { minCount: 3, mult: 1.2 },
-  { minCount: 4, mult: 1.4 },
-  { minCount: 5, mult: 1.6 },
-  { minCount: 6, mult: 1.8 },
+  { minCount: 3, mult: 1.15 },
+  { minCount: 4, mult: 1.22 },
+  { minCount: 5, mult: 1.26 },
+  { minCount: 6, mult: 1.3 },
 ];
 
 export function tagSynergyEnabled(): boolean {
