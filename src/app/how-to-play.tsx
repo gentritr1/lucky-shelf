@@ -445,7 +445,7 @@ function buildPages(
     },
     {
       key: 'neighbors',
-      title: 'Neighbors Help Neighbors',
+      title: 'Placement Matters',
       chip: 'RULES',
       render: (styles, palette) => (
         <>
@@ -464,7 +464,7 @@ function buildPages(
             </View>
           </View>
           <Body styles={styles} palette={palette} lines={[
-            'Where you place an item matters. Some items pay their neighbors.',
+            'Where you place an item matters. Some items pay the items next to them.',
             'Set up left, right, up and down to chain bonuses across the shelf.',
           ]} />
         </>

@@ -67,6 +67,9 @@ function expected(p: Palette) {
       top: 0,
       zIndex: 10,
     },
+    cascadeRentLine: {
+      alignItems: 'center',
+    },
     hint: {
       fontSize: 13,
       textAlign: 'center',

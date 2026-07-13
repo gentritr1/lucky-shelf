@@ -84,7 +84,9 @@ export function makeStyles(palette: Palette) {
       flexDirection: 'row',
       gap: spacing.md,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      // Matches the info stack's internal gap (spacing.xs) so the tag chips sit
+      // centered in their band — equal whitespace above and below (B-M13).
+      paddingVertical: spacing.xs,
       ...shadows.card,
     },
     shopThumb: {
@@ -102,12 +104,35 @@ export function makeStyles(palette: Palette) {
     shopThumbGlyph: {
       fontSize: 28,
     },
+    // Tappable half of an offer row (thumb + info) — the Buy button stays a
+    // separate sibling so expanding the rules never fires a purchase (B-M13).
+    shopTap: {
+      alignItems: 'center',
+      flex: 1,
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
     shopInfo: {
       flex: 1,
-      gap: spacing.xxs,
+      // One uniform token for the whole name → rule → tags stack (B-M13 rhythm).
+      gap: spacing.xs,
     },
     shopName: {
+      flexShrink: 1,
       fontSize: 15,
+      // Hug the 15px Baloo2 glyph so its tall default line box (heading's 24)
+      // doesn't inflate the gap down to the rule line (B-M13). `fontSize` here
+      // already opts this label out of text-scaling, so a fixed lineHeight is
+      // consistent (won't clip at 130%).
+      lineHeight: 19,
+    },
+    // Expand/collapse chevron pinned to the right of the name row; flips to point
+    // up in the expanded state so the affordance reads.
+    shopChevron: {
+      marginLeft: 'auto',
+    },
+    shopChevronOpen: {
+      transform: [{ rotate: '180deg' }],
     },
     shopTags: {
       flexDirection: 'row',

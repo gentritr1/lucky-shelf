@@ -38,7 +38,7 @@ describe('describeItemRules — every catalog item yields real sentences', () =>
   it('emits one sentence per rule, in rule order', () => {
     // Antique Register carries two rules (adjacentTo deal, onSell).
     expect(describeItemRules(itemById('antique-register'))).toEqual([
-      'Earns +5 beside a deal item',
+      'Earns +5 next to a deal item',
       'Pays +10 extra when you sell it',
     ]);
   });
@@ -47,31 +47,31 @@ describe('describeItemRules — every catalog item yields real sentences', () =>
 describe('describeItemRules — representative snapshots', () => {
   it('reads the sim semantics, not the rule name', () => {
     expect(describeItemRules(itemById('wine-bottle'))).toEqual([
-      'Earns +3 for each cheese item nearby',
+      'Earns +3 for each cheese item next to it',
     ]);
     expect(describeItemRules(itemById('cheese-wheel'))).toEqual([
       'Gains +1 in value each day (up to 6)',
     ]);
     expect(describeItemRules(itemById('coupon-stack'))).toEqual([
       'Loses 1 in value each day (down to 0)',
-      'Vanishes after 1 day, giving each neighbor +5 as it goes',
+      'Vanishes after 1 day, giving each item next to it +5 as it goes',
     ]);
     expect(describeItemRules(itemById('honey-jar'))).toEqual([
-      'Gives each neighbor +4 and keeps them stuck in place',
+      'Gives each item next to it +4 and keeps them stuck in place',
     ]);
     expect(describeItemRules(itemById('ice-box'))).toEqual([
-      'Multiplies each perishable item neighbor ×1.5 and keeps them fresh',
+      'Multiplies each perishable item next to it ×1.5 and keeps them fresh',
     ]);
     expect(describeItemRules(itemById('maneki-neko'))).toEqual(['Multiplies its whole row ×1.5']);
     expect(describeItemRules(itemById('shop-cat'))).toEqual([
       'Blocks its own slot, but multiplies its whole row ×1.5',
     ]);
     expect(describeItemRules(itemById('fishbowl'))).toEqual([
-      'Earns +6 when it has no neighbors',
+      'Earns +6 with nothing next to it',
     ]);
     expect(describeItemRules(itemById('antique-clock'))).toEqual([
       'Waits and scores last, after everything else',
-      'Scores ×2 when every neighbor is worth at least 5',
+      'Scores ×2 when everything next to it is worth at least 5',
     ]);
     expect(describeItemRules(itemById('vintage-radio'))).toEqual([
       'Makes the leftmost item in its row score twice',
@@ -80,7 +80,7 @@ describe('describeItemRules — representative snapshots', () => {
       'Copies the value of the item to its left',
     ]);
     expect(describeItemRules(itemById('lucky-bamboo'))).toEqual([
-      'Every 3 days, upgrades one neighbor into its better version',
+      'Every 3 days, upgrades one item next to it into its better version',
     ]);
     expect(describeItemRules(itemById('window-display'))).toEqual([
       'Multiplies your most valuable other item ×3',
@@ -104,7 +104,7 @@ describe('describeItemRules — representative snapshots', () => {
       'Multiplies its whole column ×1.25',
     ]);
     expect(describeItemRules(itemById('candle'))).toEqual([
-      'Earns +3 beside an antique item',
+      'Earns +3 next to an antique item',
     ]);
   });
 
@@ -116,7 +116,7 @@ describe('describeItemRules — representative snapshots', () => {
       delta: { flat: 2 },
     };
     expect(describeItemRules(defWithRule(rule), { itemName: (id) => table.get(id)?.name ?? id })).toEqual([
-      'Earns +2 beside a Wine Bottle',
+      'Earns +2 next to a Wine Bottle',
     ]);
   });
 });

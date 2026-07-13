@@ -23,7 +23,7 @@ const COPY: Record<ContextualStep, { label: string; body: string }> = {
   },
   place: {
     label: 'NEXT · PLACE YOUR ITEM',
-    body: 'Put it anywhere for now. Later, tap it to reread its rule and move linked neighbors together.',
+    body: 'Put it anywhere for now. Later, tap it to reread its rule and move linked items together.',
   },
   open: {
     label: 'NEXT · WATCH CAUSE AND EFFECT',

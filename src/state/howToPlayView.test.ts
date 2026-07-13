@@ -22,6 +22,7 @@ const flatTerms = (groups: GlossaryGroup[]): string[] =>
 
 const ALWAYS_ON = [
   'Trade',
+  'Next to',
   'Named Combo',
   'Rent',
   'Day Total',

@@ -201,10 +201,16 @@ export default function RunHudScreen() {
         <CoinCounter coins={hudState.coins} />
       </View>
 
-      <View style={styles.statusRow}>
-        <RentChip amount={hudState.rent.amount} dueInDays={hudState.rent.dueInDays} />
-        <MovesPips remaining={hudState.moves.freeRemaining} />
-      </View>
+      {/* R-40 clip fix (B-M13): the cascade overlay draws its own shelf HIGHER
+          than this row, so leaving the status row here left the RentChip
+          half-covered behind the scrim. It's hidden while the cascade is up; the
+          rent context is re-rendered fully inside the overlay instead. */}
+      {cascadeMount ? null : (
+        <View style={styles.statusRow}>
+          <RentChip amount={hudState.rent.amount} dueInDays={hudState.rent.dueInDays} />
+          <MovesPips remaining={hudState.moves.freeRemaining} />
+        </View>
+      )}
 
       {!cascadeMount && (build || order || target) ? (
         <BuildSignpost build={build} order={order} target={target} />
@@ -282,6 +288,12 @@ export default function RunHudScreen() {
             { paddingTop: insets.top + spacing.huge, paddingBottom: insets.bottom + layout.screenBottomGap },
           ]}
         >
+          {/* Rent context lives INSIDE the overlay in a stable spot so the day's
+              payout can be read against the rent it owes — a deliberate,
+              complete line, never a half-clipped HUD chip behind the scrim. */}
+          <View style={styles.cascadeRentLine}>
+            <RentChip amount={hudState.rent.amount} dueInDays={hudState.rent.dueInDays} />
+          </View>
           <CascadeLayer
             gameState={cascadeMount.gameState}
             trace={cascadeMount.trace}
@@ -312,7 +324,7 @@ function ShelfInspector({
     ? `Row ${view.slot.row + 1}, column ${view.slot.col + 1}`
     : 'Delivery item';
   const movementHint = view.item.state.sticky
-    ? 'Stuck in place. Its rule can still affect nearby items.'
+    ? 'Stuck in place. Its rule can still affect items next to it.'
     : 'Drag it, or tap the item and then an empty slot.';
 
   return (
@@ -515,7 +527,7 @@ function onboardingRunHint(
 ): string | null {
   if (!loaded) return null;
   if (step === 'place' && gameState.heldItem) {
-    return 'First placement: put it anywhere for now. Later, tap items to reread rules and move linked neighbors together.';
+    return 'First placement: put it anywhere for now. Later, tap items to reread rules and move linked items together.';
   }
   if (step === 'open' && !gameState.heldItem) {
     return 'Now Open Shop. Follow each cause in the caption; the complete scoring receipt stays available afterward.';

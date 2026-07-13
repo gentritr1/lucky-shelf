@@ -15,7 +15,6 @@ import Animated, {
 import {
   AppText,
   CoinCounter,
-  Panel,
   TagIcon,
   WoodButton,
   buildAccents,
@@ -48,10 +47,13 @@ const outEasing = Easing.bezier(...motion.easings.out);
 // screen-mount animation owns its entrance (blanket within-screen entrances get
 // masked/doubled — past scar); the stagger begins at the stats card and walks
 // down the rows, then the teaser, giving the payoff moment a sense of ceremony.
-const CARD_DELAY = 120; // stats card surface settles after the hero
 const ROW_BASE = 210; // first stat row
 const ROW_STEP = 70; // per-row cascade delay
 const rowDelay = (i: number): number => ROW_BASE + i * ROW_STEP;
+
+// Deckle teeth: a generous fixed count clipped to the paper width (overflow
+// hidden), so the serration fills the edge at any screen width / text scale.
+const DECKLE_TEETH = 36;
 
 function plural(n: number, unit: string): string {
   return `${n} ${unit}${n === 1 ? '' : 's'}`;
@@ -133,51 +135,60 @@ export default function RunSummaryScreen() {
         contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <AppText variant="label" color={palette.rentEmber} align="center">
-            RENT MISSED
-          </AppText>
-          <AppText variant="display" color={palette.ink} align="center" style={styles.heroDay}>
-            Day {gameState.day}
-          </AppText>
+        {/* The run's story as a paper receipt: store header, the outcome, then the
+            ledger of coins/bests, and a sign-off. Exact same data + order as the
+            SUM-1 stats block — the paper is chrome, not new stats. Left unwrapped
+            (like the old hero) so expo-router's screen-mount owns its entrance;
+            the ledger rows keep their own staggered reveal. */}
+        <ReceiptPaper styles={styles}>
+          <ReceiptHeader styles={styles} palette={palette} />
 
-          {isDaily ? (
-            <AppText variant="label" color={palette.inkFaint} align="center" style={styles.seed}>
-              Seed · {seedLabel(gameState.seed)}
+          <View style={styles.outcome}>
+            <AppText variant="label" color={palette.rentEmber} align="center">
+              RENT MISSED
             </AppText>
-          ) : null}
-
-          {build ? (
-            <View style={styles.recapRow}>
-              <TagIcon tag={build.tag} size={16} color={buildAccents[build.tag] ?? palette.goldDeep} />
-              <AppText
-                variant="body"
-                color={buildAccents[build.tag] ?? palette.goldDeep}
-                style={styles.recap}
-              >
-                {build.tag.charAt(0).toUpperCase() + build.tag.slice(1)} build · {plural(combosThisRun, 'combo')}
-              </AppText>
-            </View>
-          ) : null}
-
-          {nearMiss ? (
-            <AppText variant="body" align="center" color={palette.emberDark} style={styles.nearMiss}>
-              Closest rent payment: {plural(nearMiss.coinsToSpare, 'coin')} to spare
+            <AppText variant="display" color={palette.ink} align="center" style={styles.heroDay}>
+              Day {gameState.day}
             </AppText>
-          ) : null}
 
-          {isDaily && streakCount >= 2 ? (
-            <View style={styles.streakRow}>
-              <MaterialCommunityIcons name="fire" size={16} color={palette.goldDeep} />
-              <AppText variant="body" color={palette.goldDeep} style={styles.streak}>
-                {streakCount}-day daily streak
+            {isDaily ? (
+              <AppText variant="label" color={palette.inkFaint} align="center" style={styles.seed}>
+                Seed · {seedLabel(gameState.seed)}
               </AppText>
-            </View>
-          ) : null}
-        </View>
+            ) : null}
 
-        <Reveal delay={CARD_DELAY}>
-          <Panel style={styles.statsCard}>
+            {build ? (
+              <View style={styles.recapRow}>
+                <TagIcon tag={build.tag} size={16} color={buildAccents[build.tag] ?? palette.goldDeep} />
+                <AppText
+                  variant="body"
+                  color={buildAccents[build.tag] ?? palette.goldDeep}
+                  style={styles.recap}
+                >
+                  {build.tag.charAt(0).toUpperCase() + build.tag.slice(1)} build · {plural(combosThisRun, 'combo')}
+                </AppText>
+              </View>
+            ) : null}
+
+            {nearMiss ? (
+              <AppText variant="body" align="center" color={palette.emberDark} style={styles.nearMiss}>
+                Closest rent payment: {plural(nearMiss.coinsToSpare, 'coin')} to spare
+              </AppText>
+            ) : null}
+
+            {isDaily && streakCount >= 2 ? (
+              <View style={styles.streakRow}>
+                <MaterialCommunityIcons name="fire" size={16} color={palette.goldDeep} />
+                <AppText variant="body" color={palette.goldDeep} style={styles.streak}>
+                  {streakCount}-day daily streak
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.receiptRule} />
+
+          <View style={styles.ledger}>
             <Reveal delay={rowDelay(0)}>
               <StatRow label="Coins earned">
                 <CoinCounter coins={gameState.runStats.totalCoinsEarned} />
@@ -199,8 +210,12 @@ export default function RunSummaryScreen() {
                 </StatRow>
               </Reveal>
             )}
-          </Panel>
-        </Reveal>
+          </View>
+
+          <AppText variant="body" color={palette.inkFaint} align="center" style={styles.signoff}>
+            Keep building!
+          </AppText>
+        </ReceiptPaper>
 
         {nextUnlock ? (
           <Reveal delay={rowDelay(bests.length + 2)}>
@@ -209,13 +224,31 @@ export default function RunSummaryScreen() {
         ) : null}
       </ScrollView>
 
+      {/* Primary full-width CTA + one secondary row of two equal-width buttons —
+          frees the vertical space the receipt + recap + teaser need to fit on one
+          screen at normal text (B-M13). Same three actions/behaviors as before. */}
       <View style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
-        <WoodButton label={isDaily ? 'Share Card' : 'New Run'} onPress={isDaily ? () => router.push('/share') : newRun} />
-        {isDaily ? <WoodButton label="New Run" variant="secondary" onPress={newRun} /> : null}
-        <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
-        {isDaily ? null : (
-          <WoodButton label="Share Card" variant="secondary" onPress={() => router.push('/share')} />
+        {isDaily ? (
+          <WoodButton label="Share Card" onPress={() => router.push('/share')} />
+        ) : (
+          <WoodButton label="New Run" onPress={newRun} />
         )}
+        <View style={styles.actionRow}>
+          <View style={styles.actionHalf}>
+            {isDaily ? (
+              <WoodButton label="New Run" variant="secondary" onPress={newRun} />
+            ) : (
+              <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
+            )}
+          </View>
+          <View style={styles.actionHalf}>
+            {isDaily ? (
+              <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
+            ) : (
+              <WoodButton label="Share Card" variant="secondary" onPress={() => router.push('/share')} />
+            )}
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -265,15 +298,58 @@ function StatRow({
   const palette = usePalette();
   return (
     <View style={styles.statRow}>
-      <View style={styles.statLabelSlot}>
+      <View style={styles.ledgerLine}>
         <AppText variant="body" color={palette.inkSoft}>
           {label}
         </AppText>
-      </View>
-      <View style={styles.statValueCol}>
+        <View style={styles.leader} />
         <View style={styles.valueSlot}>{children}</View>
-        {caption ? <View style={styles.captionSlot}>{caption}</View> : null}
       </View>
+      {caption ? <View style={styles.captionSlot}>{caption}</View> : null}
+    </View>
+  );
+}
+
+/** The paper receipt shell: creamy paper with rounded top corners and a serrated
+ *  deckle bottom edge (paper-colored downward triangles, clipped to width). No
+ *  SVG/Skia — border-triangle Views only. */
+function ReceiptPaper({
+  styles,
+  children,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  children: ReactNode;
+}) {
+  return (
+    <View style={styles.receiptOuter}>
+      <View style={styles.receiptPaper}>{children}</View>
+      <View style={styles.deckleRow} pointerEvents="none">
+        {Array.from({ length: DECKLE_TEETH }).map((_, i) => (
+          <View key={i} style={styles.deckleTooth} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** General-store header — clover mark, wordmark, and a warm sub-line. Decorative
+ *  chrome only: no data, no dates, nothing the sim doesn't already say. */
+function ReceiptHeader({
+  styles,
+  palette,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  palette: ReturnType<typeof usePalette>;
+}) {
+  return (
+    <View style={styles.receiptHeader}>
+      <MaterialCommunityIcons name="clover" size={18} color={palette.goldDeep} />
+      <AppText variant="label" color={palette.inkSoft} align="center" style={styles.receiptStore}>
+        LUCKY SHELF GENERAL STORE
+      </AppText>
+      <AppText variant="label" color={palette.inkFaint} align="center" style={styles.receiptThanks}>
+        Thanks for stopping by!
+      </AppText>
     </View>
   );
 }

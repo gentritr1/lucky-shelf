@@ -59,7 +59,7 @@ function withEnv<T>(env: Record<string, string | undefined>, fn: () => T): T {
 describe('run store', () => {
   it('exposes exact rule prose for offer decisions without leaking sim internals to screens', () => {
     expect(itemRuleLines(deps.table.get('wine-bottle')!)).toEqual([
-      'Earns +3 for each cheese item nearby',
+      'Earns +3 for each cheese item next to it',
     ]);
     expect(itemRuleLines(deps.table.get('mirror')!)).toEqual([
       'Copies the value of the item to its left',
@@ -75,7 +75,7 @@ describe('run store', () => {
     expect(shelfItemInspectorView(shelfState, shelfItem?.instanceId ?? null)).toMatchObject({
       slot: { row: 1, col: 2 },
       item: { itemId: 'wine-bottle', name: 'Wine Bottle' },
-      ruleLines: ['Earns +3 for each cheese item nearby'],
+      ruleLines: ['Earns +3 for each cheese item next to it'],
     });
 
     const heldItem = shelfState.shelf.slots.find((entry) => entry.item)?.item;

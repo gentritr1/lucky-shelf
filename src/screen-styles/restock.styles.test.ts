@@ -96,7 +96,7 @@ function expected(p: Palette) {
       flexDirection: 'row',
       gap: spacing.md,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.xs,
       ...shadows.card,
     },
     shopThumb: {
@@ -114,12 +114,26 @@ function expected(p: Palette) {
     shopThumbGlyph: {
       fontSize: 28,
     },
+    shopTap: {
+      alignItems: 'center',
+      flex: 1,
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
     shopInfo: {
       flex: 1,
-      gap: spacing.xxs,
+      gap: spacing.xs,
     },
     shopName: {
+      flexShrink: 1,
       fontSize: 15,
+      lineHeight: 19,
+    },
+    shopChevron: {
+      marginLeft: 'auto',
+    },
+    shopChevronOpen: {
+      transform: [{ rotate: '180deg' }],
     },
     shopTags: {
       flexDirection: 'row',
@@ -330,5 +344,21 @@ describe('restock.tsx themed styles', () => {
     expect(s.sellValue).not.toHaveProperty('transform');
     expect(s.sellValue).not.toHaveProperty('includeFontPadding');
     expect(s.sellValue).toEqual({ fontSize: 13, lineHeight: 16 });
+  });
+
+  // B-M13: the collapse/expand affordance. The tappable half (thumb + info) is a
+  // flex row separate from the Buy button, and the chevron pins to the name row's
+  // right edge — so a row tap toggles the rule prose without buying.
+  it('exposes the row-expand affordance styles (tap area + chevron)', () => {
+    const s = makeStyles(palette);
+    expect(s.shopTap).toEqual({
+      alignItems: 'center',
+      flex: 1,
+      flexDirection: 'row',
+      gap: spacing.md,
+    });
+    expect(s.shopChevron).toEqual({ marginLeft: 'auto' });
+    // The name shrinks so the chevron stays visible next to a long name.
+    expect(s.shopName.flexShrink).toBe(1);
   });
 });

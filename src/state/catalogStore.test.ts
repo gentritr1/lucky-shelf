@@ -224,7 +224,7 @@ describe('buildCatalogView — CAT-3 showcase payload (discovered items only)', 
     expect(wine.discovered).toBe(true);
     expect(wine.tags).toEqual(['drink', 'fancy']);
     expect(wine.baseValue).toBe(4);
-    expect(wine.ruleSentences).toEqual(['Earns +3 for each cheese item nearby']);
+    expect(wine.ruleSentences).toEqual(['Earns +3 for each cheese item next to it']);
   });
 
   it('ships NO tags or rule text for an undiscovered id (mystery stays mystery)', () => {

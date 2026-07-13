@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -48,6 +49,9 @@ export default function RestockScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [sellMode, setSellMode] = useState(false);
+  // Daily-shop rule prose is clamped to one line per row; tapping a row expands it
+  // to the full rules. Only one row is open at a time (B-M13).
+  const [expandedOfferId, setExpandedOfferId] = useState<string | null>(null);
   const affordances = useMemo(() => restockAffordanceView(gameState), [gameState]);
 
   // Rent was just paid before restock — back to the calm golden-hour bed.
@@ -230,48 +234,82 @@ export default function RestockScreen() {
             ) : (
               offers.map((offer, index) => {
                 const canBuy = affordances.buyActions.some((action) => action.offerIndex === index);
+                const expanded = expandedOfferId === offer.offerId;
+                const thumb = (
+                  <View style={[styles.shopThumb, offer.blurb ? styles.shopThumbSignature : null]}>
+                    {offer.sprite ? (
+                      <Image source={offer.sprite as number} style={styles.shopThumbImg} resizeMode="contain" />
+                    ) : (
+                      /* decorative glyph icon — raw <Text> exception */
+                      <Text style={styles.shopThumbGlyph}>{offer.glyph}</Text>
+                    )}
+                  </View>
+                );
                 return (
                   <View
                     key={offer.offerId}
                     style={[styles.shopRow, offer.blurb ? styles.shopRowSignature : null]}
                   >
-                    <View style={[styles.shopThumb, offer.blurb ? styles.shopThumbSignature : null]}>
-                      {offer.sprite ? (
-                        <Image source={offer.sprite as number} style={styles.shopThumbImg} resizeMode="contain" />
-                      ) : (
-                        /* decorative glyph icon — raw <Text> exception */
-                        <Text style={styles.shopThumbGlyph}>{offer.glyph}</Text>
-                      )}
-                    </View>
-                    <View style={styles.shopInfo}>
-                      <View style={styles.shopNameRow}>
-                        <AppText variant="heading" color={palette.ink} numberOfLines={1} style={styles.shopName}>{offer.name}</AppText>
-                        {offer.blurb ? (
-                          <View style={styles.signatureBadge}>
-                            {/* bespoke badge (no type role / font family) — raw <Text> exception */}
-                            <Text style={styles.signatureBadgeText}>✦ SIGNATURE</Text>
+                    {offer.blurb ? (
+                      // Signature stock shows its bespoke one-line effect blurb — no
+                      // rules to expand, so this half stays a plain (non-tappable) row.
+                      <View style={styles.shopTap}>
+                        {thumb}
+                        <View style={styles.shopInfo}>
+                          <View style={styles.shopNameRow}>
+                            <AppText variant="heading" color={palette.ink} numberOfLines={1} style={styles.shopName}>{offer.name}</AppText>
+                            <View style={styles.signatureBadge}>
+                              {/* bespoke badge (no type role / font family) — raw <Text> exception */}
+                              <Text style={styles.signatureBadgeText}>✦ SIGNATURE</Text>
+                            </View>
                           </View>
-                        ) : null}
+                          <AppText variant="label" color={palette.emberDark} style={styles.signatureEffect}>{offer.blurb}</AppText>
+                        </View>
                       </View>
-                      {offer.blurb ? (
-                        <AppText variant="label" color={palette.emberDark} style={styles.signatureEffect}>{offer.blurb}</AppText>
-                      ) : (
-                        <>
+                    ) : (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded }}
+                        // VoiceOver reads the FULL rule prose regardless of the visual
+                        // one-line clamp (screen-reader users don't get the truncation).
+                        accessibilityLabel={`${offer.name}. ${offer.ruleLines.join('. ')}. Tap to ${expanded ? 'collapse' : 'expand'} rules.`}
+                        onPress={() =>
+                          setExpandedOfferId((current) => (current === offer.offerId ? null : offer.offerId))
+                        }
+                        style={styles.shopTap}
+                      >
+                        {thumb}
+                        <View style={styles.shopInfo}>
+                          <View style={styles.shopNameRow}>
+                            <AppText variant="heading" color={palette.ink} numberOfLines={1} style={styles.shopName}>{offer.name}</AppText>
+                            <MaterialCommunityIcons
+                              name="chevron-down"
+                              size={16}
+                              color={palette.inkFaint}
+                              style={[styles.shopChevron, expanded && styles.shopChevronOpen]}
+                            />
+                          </View>
                           <View style={styles.shopRules}>
-                            {offer.ruleLines.map((line) => (
-                              <AppText key={line} variant="label" color={palette.inkSoft} style={styles.shopRule}>
-                                {line}
+                            {expanded ? (
+                              offer.ruleLines.map((line) => (
+                                <AppText key={line} variant="label" color={palette.inkSoft} style={styles.shopRule}>
+                                  {line}
+                                </AppText>
+                              ))
+                            ) : (
+                              <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.shopRule}>
+                                {offer.ruleLines[0] ?? ''}
                               </AppText>
-                            ))}
+                            )}
                           </View>
                           <View style={styles.shopTags}>
                             {offer.tags.slice(0, 2).map((tag) => (
                               <TagChip key={tag} label={tag} />
                             ))}
                           </View>
-                        </>
-                      )}
-                    </View>
+                        </View>
+                      </Pressable>
+                    )}
                     <Pressable
                       accessibilityRole="button"
                       disabled={!canBuy}

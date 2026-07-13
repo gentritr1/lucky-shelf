@@ -139,6 +139,11 @@ export function howToPlayGlossary(): GlossaryGroup[] {
       definition:
         'The kind an item is — drink, food, antique and the like; matching trades power your multipliers.',
     },
+    {
+      term: 'Next to',
+      definition:
+        'Touching left, right, above, or below — diagonals don’t count. Many item rules only reach the slots next to them.',
+    },
     ...(build
       ? [
           {

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { borders, highContrastPalette, layout, palette, radii, spacing, type Palette } from '@/ui/tokens';
+import { borders, highContrastPalette, layout, palette, radii, shadows, spacing, type Palette } from '@/ui/tokens';
 
-import { makeStyles } from './summary.styles';
+import { DECKLE_HEIGHT, DECKLE_TOOTH, makeStyles } from './summary.styles';
 
 /**
- * B-M9 palette-threading proof for the run-summary sheet. `expected(p)` is an
- * independent transcription of the SUM-1 restructured sheet, parametrized by
- * palette, so every color-bearing prop must thread the argument (no static color
- * leak) under both the base and high-contrast palettes. This transcription is
- * intentionally re-derived from the SUM-1 layout — the pre-SUM-1 "byte-identical
- * to the original loose stack" baseline no longer applies.
+ * B-M9 palette-threading proof for the run-summary sheet, re-derived for the
+ * B-M13 "Receipt Ledger" restyle: a paper receipt card (rounded top, serrated
+ * deckle bottom), an outcome block, ledger rows with a rule leader, and a sign-off.
+ * `expected(p)` is an independent transcription parametrized by palette so every
+ * color-bearing prop must thread the argument (no static color leak) under both
+ * the base and high-contrast palettes.
  */
 function expected(p: Palette) {
   return {
@@ -36,11 +36,49 @@ function expected(p: Palette) {
     },
     body: {
       flexGrow: 1,
-      gap: layout.sectionGap,
+      gap: spacing.sm,
       justifyContent: 'flex-start',
-      paddingVertical: spacing.lg,
+      paddingVertical: spacing.xs,
     },
-    hero: {
+    receiptOuter: {
+      alignSelf: 'stretch',
+    },
+    receiptPaper: {
+      backgroundColor: p.creamBright,
+      borderTopLeftRadius: radii.lg,
+      borderTopRightRadius: radii.lg,
+      gap: spacing.xs,
+      paddingBottom: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      ...shadows.card,
+    },
+    deckleRow: {
+      flexDirection: 'row',
+      overflow: 'hidden',
+    },
+    deckleTooth: {
+      borderLeftColor: 'transparent',
+      borderLeftWidth: DECKLE_TOOTH / 2,
+      borderRightColor: 'transparent',
+      borderRightWidth: DECKLE_TOOTH / 2,
+      borderTopColor: p.creamBright,
+      borderTopWidth: DECKLE_HEIGHT,
+      height: 0,
+      width: 0,
+    },
+    receiptHeader: {
+      alignItems: 'center',
+      gap: spacing.xxs,
+    },
+    receiptStore: {
+      letterSpacing: 1.5,
+    },
+    receiptThanks: {
+      fontStyle: 'italic',
+      letterSpacing: 0.3,
+    },
+    outcome: {
       alignItems: 'center',
       gap: spacing.xs,
     },
@@ -75,34 +113,38 @@ function expected(p: Palette) {
     streak: {
       fontWeight: '700',
     },
-    statsCard: {
-      gap: spacing.sm,
+    receiptRule: {
+      alignSelf: 'stretch',
+      borderBottomColor: p.parchmentEdge,
+      borderBottomWidth: borders.hairline,
+      marginVertical: spacing.xs,
+    },
+    ledger: {
+      gap: spacing.xs,
     },
     statRow: {
-      alignItems: 'flex-start',
+      gap: spacing.xxs,
+    },
+    ledgerLine: {
+      alignItems: 'flex-end',
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      gap: spacing.sm,
     },
-    statLabelSlot: {
+    leader: {
+      borderBottomColor: p.parchmentEdge,
+      borderBottomWidth: borders.hairline,
       flex: 1,
-      justifyContent: 'center',
-      minHeight: spacing.huge,
-      paddingRight: spacing.md,
-    },
-    statValueCol: {
-      alignItems: 'stretch',
+      marginBottom: spacing.xs,
     },
     valueSlot: {
       alignItems: 'center',
       flexDirection: 'row',
-      justifyContent: 'flex-end',
-      minHeight: spacing.huge,
     },
     captionSlot: {
       alignItems: 'center',
       flexDirection: 'row',
       justifyContent: 'flex-end',
-      minHeight: spacing.lg,
+      minHeight: spacing.md,
     },
     bestCaption: {
       color: p.inkFaint,
@@ -115,6 +157,10 @@ function expected(p: Palette) {
     },
     recordText: {
       color: p.goldDeep,
+    },
+    signoff: {
+      fontStyle: 'italic',
+      marginTop: spacing.sm,
     },
     teaser: {
       alignItems: 'stretch',
@@ -154,6 +200,13 @@ function expected(p: Palette) {
       gap: spacing.md,
       marginTop: 'auto',
     },
+    actionRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    actionHalf: {
+      flex: 1,
+    },
   };
 }
 
@@ -164,5 +217,12 @@ describe('summary.tsx themed styles', () => {
 
   it('threads the palette argument under high contrast (no static leak)', () => {
     expect(makeStyles(highContrastPalette)).toEqual(expected(highContrastPalette));
+  });
+
+  // B-M13: the deckle teeth must be paper-colored (so the serration reads as the
+  // paper's torn edge) and re-theme in high contrast.
+  it('deckle teeth are paper-colored in both palettes', () => {
+    expect(makeStyles(palette).deckleTooth.borderTopColor).toBe(palette.creamBright);
+    expect(makeStyles(highContrastPalette).deckleTooth.borderTopColor).toBe(highContrastPalette.creamBright);
   });
 });

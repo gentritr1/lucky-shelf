@@ -69,6 +69,12 @@ export function makeStyles(palette: Palette) {
       top: 0,
       zIndex: 10,
     },
+    // B-M13: rent context rendered inside the cascade overlay (the HUD status row
+    // is hidden while scoring). Centered so the pill reads as a header above the
+    // cascade rather than a stray left-aligned chip.
+    cascadeRentLine: {
+      alignItems: 'center',
+    },
     hint: {
       fontSize: 13,
       textAlign: 'center',

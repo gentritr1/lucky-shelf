@@ -1,17 +1,25 @@
 import { StyleSheet } from 'react-native';
 
-import { borders, layout, radii, spacing, type Palette } from '@/ui/tokens';
+import { borders, layout, radii, shadows, spacing, type Palette } from '@/ui/tokens';
 
 /**
  * Run-summary sheet as a B-M9 themed factory. Colors read from the passed
  * `palette`. Text renders through `AppText`; the color-bearing entries here are
  * parametrized so the rendered output stays on-theme.
  *
- * SUM-1 structure: three deliberate groups — a centered verdict HERO, a stats
- * CARD (Panel) whose rows share one right-alignment edge with a fixed-height
- * caption slot so no row goes ragged, and a quiet TEASER card (SUM-2: no accent
- * bar) that reads as "coming up next", subordinate to the stats card.
+ * B-M13 "Receipt Ledger": the summary's stats block is now a paper receipt card —
+ * a store header, the run's story as ledger rows (label · rule leader · value),
+ * and an italic sign-off, with a serrated deckle bottom edge (paper-colored
+ * downward triangles). Same DATA and render order as SUM-1 — the paper is chrome,
+ * not new stats. Deckle is border-triangle Views (no SVG/Skia, no new deps); it
+ * re-themes in HC (creamBright) and grows with 130% text (the paper is the
+ * container, not a fixed box).
  */
+
+/** Deckle tooth geometry (module scope so the component can render the right count). */
+export const DECKLE_TOOTH = 14;
+export const DECKLE_HEIGHT = 8;
+
 export function makeStyles(palette: Palette) {
   return StyleSheet.create({
     screen: {
@@ -36,16 +44,58 @@ export function makeStyles(palette: Palette) {
     },
     body: {
       flexGrow: 1,
-      gap: layout.sectionGap,
-      // flex-start (not center): the restructured content — hero + full stats
-      // card + teaser — is tall enough that centering pushed the teaser into the
-      // scroll boundary against the action buttons. Top-anchored + scrollable.
+      gap: spacing.sm,
       justifyContent: 'flex-start',
-      paddingVertical: spacing.lg,
+      paddingVertical: spacing.xs,
     },
 
-    // --- Verdict hero: one centered block with deliberate internal spacing. ---
-    hero: {
+    // --- The paper receipt card. Top corners rounded; the bottom is left square
+    // so the deckle teeth attach flush beneath it. ---
+    receiptOuter: {
+      alignSelf: 'stretch',
+    },
+    receiptPaper: {
+      backgroundColor: palette.creamBright,
+      borderTopLeftRadius: radii.lg,
+      borderTopRightRadius: radii.lg,
+      gap: spacing.xs,
+      paddingBottom: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      ...shadows.card,
+    },
+    // Serrated bottom edge: a clipped row of paper-colored downward triangles.
+    deckleRow: {
+      flexDirection: 'row',
+      overflow: 'hidden',
+    },
+    deckleTooth: {
+      borderLeftColor: 'transparent',
+      borderLeftWidth: DECKLE_TOOTH / 2,
+      borderRightColor: 'transparent',
+      borderRightWidth: DECKLE_TOOTH / 2,
+      borderTopColor: palette.creamBright,
+      borderTopWidth: DECKLE_HEIGHT,
+      height: 0,
+      width: 0,
+    },
+
+    // --- Store header: clover mark + wordmark + a warm sub-line. Decorative
+    // chrome only (no data, no dates). ---
+    receiptHeader: {
+      alignItems: 'center',
+      gap: spacing.xxs,
+    },
+    receiptStore: {
+      letterSpacing: 1.5,
+    },
+    receiptThanks: {
+      fontStyle: 'italic',
+      letterSpacing: 0.3,
+    },
+
+    // --- Outcome block (the old hero, now the receipt's opening story). ---
+    outcome: {
       alignItems: 'center',
       gap: spacing.xs,
     },
@@ -56,7 +106,6 @@ export function makeStyles(palette: Palette) {
       letterSpacing: 1,
       marginTop: spacing.xs,
     },
-    // Build recap: an accent tag icon beside the recap text, centered as one row.
     recapRow: {
       alignItems: 'center',
       flexDirection: 'row',
@@ -67,13 +116,10 @@ export function makeStyles(palette: Palette) {
     recap: {
       fontWeight: '700',
     },
-    // The near-miss is the emotional sting — give it room to breathe below the
-    // recap and above the stats card, so it doesn't butt against either.
     nearMiss: {
       fontWeight: '700',
       marginTop: spacing.sm,
     },
-    // Daily streak: a fire icon beside the streak text, centered as one row.
     streakRow: {
       alignItems: 'center',
       flexDirection: 'row',
@@ -85,61 +131,52 @@ export function makeStyles(palette: Palette) {
       fontWeight: '700',
     },
 
-    // --- Stats card: label left, value right on a shared alignment edge. ---
-    statsCard: {
-      gap: spacing.sm,
+    // A dividing rule between the outcome and the ledger.
+    receiptRule: {
+      alignSelf: 'stretch',
+      borderBottomColor: palette.parchmentEdge,
+      borderBottomWidth: borders.hairline,
+      marginVertical: spacing.xs,
+    },
+
+    // --- Ledger: label left, a rule leader, value right; caption (record/best)
+    // beneath the value. ---
+    ledger: {
+      gap: spacing.xs,
     },
     statRow: {
-      alignItems: 'flex-start',
+      gap: spacing.xxs,
+    },
+    ledgerLine: {
+      alignItems: 'flex-end',
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      gap: spacing.sm,
     },
-    // Label sits vertically centered against the value slot's height so it lines
-    // up with the pill / number, not with the caption beneath.
-    statLabelSlot: {
+    // The dotted/rule leader that carries the eye from label to value; a solid
+    // hairline (renders identically on both platforms, unlike a 1-side dotted
+    // border) sitting on the text baseline.
+    leader: {
+      borderBottomColor: palette.parchmentEdge,
+      borderBottomWidth: borders.hairline,
       flex: 1,
-      justifyContent: 'center',
-      minHeight: spacing.huge,
-      paddingRight: spacing.md,
+      marginBottom: spacing.xs,
     },
-    // Right column. Every child right-aligns; because the row is space-between,
-    // this column's right edge is pinned to the card's inner right edge — so the
-    // value line of EVERY row shares that one alignment edge regardless of shape.
-    // `stretch` (not flex-end): both slots span the column's width so their
-    // internal justifyContent:flex-end right-aligns the value AND the caption to
-    // the SAME right edge — otherwise each slot shrink-wraps and the wider caption
-    // juts out past the narrower value.
-    statValueCol: {
-      alignItems: 'stretch',
-    },
-    // Value line: a row so a CoinCounter pill (whose own alignSelf is flex-start)
-    // is pushed right by justifyContent instead of collapsing left. Fixed height
-    // so a bare number row and a pill row sit at the same vertical rhythm.
     valueSlot: {
       alignItems: 'center',
       flexDirection: 'row',
-      justifyContent: 'flex-end',
-      // huge, not giant: pill rows exceed the min anyway (pill ≈ 38pt), and the
-      // smaller floor lets bare-number rows shrink so the whole card plus the
-      // unlock teaser stays above the fold on the reference device (SUM-1 review).
-      minHeight: spacing.huge,
     },
-    // Caption slot: rendered only when a row HAS a caption (summary.tsx) — the
-    // shared right edge lives in valueSlot, so caption-less rows don't pay the
-    // extra height.
+    // Caption slot beneath the value, right-aligned to the value's edge.
     captionSlot: {
       alignItems: 'center',
       flexDirection: 'row',
       justifyContent: 'flex-end',
-      minHeight: spacing.lg,
+      minHeight: spacing.md,
     },
-    // Small-caps metadata eyebrow (SUM-2): letterspaced so "RECORD · 25" /
-    // "YOUR BEST" read as one deliberate quiet unit, not a stray label + number.
     bestCaption: {
       color: palette.inkFaint,
       letterSpacing: 1,
     },
-    // The celebratory "New record!" — star icon beside the gold text, as one row.
+    // "New record!" — a small star + gold label, a stamp beneath its value.
     recordRow: {
       alignItems: 'center',
       flexDirection: 'row',
@@ -149,8 +186,14 @@ export function makeStyles(palette: Palette) {
       color: palette.goldDeep,
     },
 
+    // Handwritten sign-off at the foot of the receipt.
+    signoff: {
+      fontStyle: 'italic',
+      marginTop: spacing.sm,
+    },
+
     // --- Next-unlock teaser: a quiet full-hairline card (SUM-2), subordinate to
-    // the stats card. No accent bar, no wood tones — clearly not a button. ---
+    // the receipt. No accent bar, no wood tones — clearly not a button. ---
     teaser: {
       alignItems: 'stretch',
       backgroundColor: palette.creamBright,
@@ -167,8 +210,6 @@ export function makeStyles(palette: Palette) {
       gap: spacing.md,
       padding: spacing.md,
     },
-    // Silhouette thumb sits in a soft parchment circle so the locked item reads
-    // as "coming up" without a loud tile.
     teaserThumbCircle: {
       alignItems: 'center',
       backgroundColor: palette.parchment,
@@ -191,6 +232,14 @@ export function makeStyles(palette: Palette) {
     actions: {
       gap: spacing.md,
       marginTop: 'auto',
+    },
+    // Secondary row: two equal-width buttons side by side beneath the primary.
+    actionRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
+    actionHalf: {
+      flex: 1,
     },
   });
 }

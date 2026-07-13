@@ -47,14 +47,14 @@ function describeRule(rule: ItemRule, opts: DescribeOptions | undefined): string
   switch (rule.kind) {
     case 'adjacentTo': {
       const who = withArticle(targetNoun(rule.target, opts));
-      if (rule.delta.flat !== undefined) return `Earns +${rule.delta.flat} beside ${who}`;
-      if (rule.delta.mult !== undefined) return `Scores ×${mult(rule.delta.mult)} beside ${who}`;
+      if (rule.delta.flat !== undefined) return `Earns +${rule.delta.flat} next to ${who}`;
+      if (rule.delta.mult !== undefined) return `Scores ×${mult(rule.delta.mult)} next to ${who}`;
       return null;
     }
     case 'perAdjacent': {
       const who = eachNoun(rule.target, opts);
-      if (rule.delta.flat !== undefined) return `Earns +${rule.delta.flat} for ${who} nearby`;
-      if (rule.delta.mult !== undefined) return `Scores ×${mult(rule.delta.mult)} for ${who} nearby`;
+      if (rule.delta.flat !== undefined) return `Earns +${rule.delta.flat} for ${who} next to it`;
+      if (rule.delta.mult !== undefined) return `Scores ×${mult(rule.delta.mult)} for ${who} next to it`;
       return null;
     }
     case 'copiesNeighbor':
@@ -74,7 +74,7 @@ function describeRule(rule: ItemRule, opts: DescribeOptions | undefined): string
     case 'transformsAdjacent': {
       const who = targetNoun(rule.target, opts);
       const into = opts?.itemName?.(rule.toItemId) ?? rule.toItemId;
-      return `After ${rule.afterDays} days, turns a ${who} neighbor into a ${into}`;
+      return `After ${rule.afterDays} days, turns a ${who} next to it into a ${into}`;
     }
     case 'blocksSlot': {
       const effect = rule.shelfWideEffect;
@@ -93,7 +93,7 @@ function describeRule(rule: ItemRule, opts: DescribeOptions | undefined): string
       return null;
     }
     case 'growsEachDay': {
-      const who = rule.target ? `a ${targetNoun(rule.target, opts)} neighbor` : 'one neighbor';
+      const who = rule.target ? `a ${targetNoun(rule.target, opts)} next to it` : 'one item next to it';
       return `Every ${rule.intervalDays} days, upgrades ${who} into its better version`;
     }
     case 'agesDaily': {
@@ -108,7 +108,7 @@ function describeRule(rule: ItemRule, opts: DescribeOptions | undefined): string
       return 'Holds its value each day';
     }
     case 'grantsAdjacent': {
-      const who = rule.target ? `each ${targetNoun(rule.target, opts)} neighbor` : 'each neighbor';
+      const who = rule.target ? `each ${targetNoun(rule.target, opts)} next to it` : 'each item next to it';
       let sentence =
         rule.delta.mult !== undefined
           ? `Multiplies ${who} ×${mult(rule.delta.mult)}`
@@ -120,12 +120,12 @@ function describeRule(rule: ItemRule, opts: DescribeOptions | undefined): string
       return sentence;
     }
     case 'lonerBonus': {
-      if (rule.delta.flat !== undefined) return `Earns +${rule.delta.flat} when it has no neighbors`;
-      if (rule.delta.mult !== undefined) return `Scores ×${mult(rule.delta.mult)} when it has no neighbors`;
+      if (rule.delta.flat !== undefined) return `Earns +${rule.delta.flat} with nothing next to it`;
+      if (rule.delta.mult !== undefined) return `Scores ×${mult(rule.delta.mult)} with nothing next to it`;
       return null;
     }
     case 'multIfAdjacentMinTotal':
-      return `Scores ×${mult(rule.mult)} when every neighbor is worth at least ${rule.threshold}`;
+      return `Scores ×${mult(rule.mult)} when everything next to it is worth at least ${rule.threshold}`;
     case 'echoLeftmostInRow':
       return 'Makes the leftmost item in its row score twice';
     case 'countdownVanish': {
@@ -134,7 +134,7 @@ function describeRule(rule: ItemRule, opts: DescribeOptions | undefined): string
           ? `×${mult(rule.grantAdjacent.mult)}`
           : `+${rule.grantAdjacent.flat ?? 0}`;
       const days = `${rule.days} ${rule.days === 1 ? 'day' : 'days'}`;
-      return `Vanishes after ${days}, giving each neighbor ${gift} as it goes`;
+      return `Vanishes after ${days}, giving each item next to it ${gift} as it goes`;
     }
     case 'tagFilteredShelfMultiplier':
       return `Multiplies every ${rule.tag} item on the shelf ×${mult(rule.mult)}`;
