@@ -16,7 +16,7 @@ const palette = {
   parchment: '#EFDDBE',
   ink: '#3F2A1D',
   inkSoft: '#5A4534',
-  inkFaint: '#8A745C',
+  inkFaint: '#735B44',
 } as const;
 
 const highContrastPalette = {

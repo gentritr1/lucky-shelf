@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,6 +22,7 @@ import { makeStyles } from '@/screen-styles/restock.styles';
 import { routeForGameState } from '../state/phaseRouting';
 import {
   hasSlotAction,
+  itemRuleLines,
   rerollCost,
   restockAffordanceView,
   runSelectors,
@@ -219,7 +220,11 @@ export default function RestockScreen() {
               )}
             </Pressable>
           </View>
-          <View style={styles.shopList}>
+          <ScrollView
+            contentContainerStyle={styles.shopList}
+            showsVerticalScrollIndicator={false}
+            style={styles.shopScroller}
+          >
             {offers.length === 0 ? (
               <AppText variant="body" color={palette.inkFaint} style={styles.caption}>No offers left — reroll or end the day.</AppText>
             ) : (
@@ -249,13 +254,22 @@ export default function RestockScreen() {
                         ) : null}
                       </View>
                       {offer.blurb ? (
-                        <AppText variant="body" color={palette.emberDark} numberOfLines={2} style={styles.signatureEffect}>{offer.blurb}</AppText>
+                        <AppText variant="label" color={palette.emberDark} style={styles.signatureEffect}>{offer.blurb}</AppText>
                       ) : (
-                        <View style={styles.shopTags}>
-                          {offer.tags.slice(0, 2).map((tag) => (
-                            <TagChip key={tag} label={tag} />
-                          ))}
-                        </View>
+                        <>
+                          <View style={styles.shopRules}>
+                            {offer.ruleLines.map((line) => (
+                              <AppText key={line} variant="label" color={palette.inkSoft} style={styles.shopRule}>
+                                {line}
+                              </AppText>
+                            ))}
+                          </View>
+                          <View style={styles.shopTags}>
+                            {offer.tags.slice(0, 2).map((tag) => (
+                              <TagChip key={tag} label={tag} />
+                            ))}
+                          </View>
+                        </>
                       )}
                     </View>
                     <Pressable
@@ -272,7 +286,7 @@ export default function RestockScreen() {
                 );
               })
             )}
-          </View>
+          </ScrollView>
           <AppText variant="body" color={palette.inkFaint} style={styles.caption}>
             {lastRejectedAction?.message ?? "Buy what you can afford and place it. Rent is due at week's end."}
           </AppText>
@@ -301,6 +315,7 @@ interface RestockOfferCard extends OfferCardData {
   cost: number;
   /** Signature-stock effect line, or null for ordinary items. */
   blurb: string | null;
+  ruleLines: readonly string[];
 }
 
 function offerToCard(offer: DeliveryOffer): RestockOfferCard {
@@ -315,5 +330,6 @@ function offerToCard(offer: DeliveryOffer): RestockOfferCard {
     ...(sprite !== null ? { sprite } : {}),
     tags: offer.item.tags,
     blurb: signatureBlurb(offer.item),
+    ruleLines: itemRuleLines(offer.item),
   };
 }

@@ -1,5 +1,13 @@
 # Fable sign-off queue — loop-redesign v2 (start here when Fable returns)
 
+> **🚨 NEW 2026-07-13 — GATE 1.2 REOPENED.** The old green build-swing gate compared the incomplete
+> `allDepth` world and mixed unlock cohorts. The corrected like-for-like 80-run report fails the
+> approved `[1.3×,2.0×]` ceiling in every ceiling arm: starter **2.635× greedy / 2.713× combo**;
+> full **2.248× / 2.416×**. Per-seed paired medians are 2.587×, 2.539×, 2.181×, and 2.227×
+> respectively (wide p10–p90 distributions are printed by the harness). Fable must choose the retune;
+> do not widen the band. Full evidence and ownership stop line:
+> [gameplay/intuitiveness audit](gameplay-intuitiveness-audit-2026-07-12.md).
+
 > **✅ RESOLVED 2026-07-08 — Fable's authoritative pass is done.** See
 > **[FABLE-RULINGS-2026-07-08.md](FABLE-RULINGS-2026-07-08.md)**: all six phases ruled (five
 > APPROVED; goal-ladder CCR approved but its target table gets REQUEST CHANGES — out of band under

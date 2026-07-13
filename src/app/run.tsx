@@ -9,7 +9,6 @@ import {
   AppText,
   CoinCounter,
   MovesPips,
-  OnboardingHint,
   RentChip,
   SectionLabel,
   WoodButton,
@@ -20,7 +19,7 @@ import {
   usePalette,
   useThemedStyles,
 } from '@/ui';
-import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
+import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, setMusicTrack } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/run.styles';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
@@ -31,12 +30,15 @@ import {
   orderHudView,
   runSelectors,
   sellShelfView,
+  shelfItemInspectorView,
   slotActionFor,
   useRunStore,
   type BuildIdentityView,
   type OrderHudView,
+  type ShelfItemInspectorView,
 } from '../state/store';
 import { useRunStartAchievedCombos } from '../state/catalogStore';
+import { useOnboardingStore, type OnboardingStep } from '../state/onboardingStore';
 
 // Rent runs on a 3-day cycle (RENT_PERIOD_DAYS). The tension bed takes over on
 // the final morning before rent (dueInDays ≤ 1) — the same beat the DuskAmbience
@@ -59,7 +61,17 @@ export default function RunHudScreen() {
   // B-M11: run-start catalog snapshot → the cascade classifies first-ever combos.
   const achievedBeforeRun = useRunStartAchievedCombos();
   const [cascadeMount, setCascadeMount] = useState<CascadeMount | null>(null);
+  const [inspectedInstanceId, setInspectedInstanceId] = useState<string | null>(null);
+  const onboardingStep = useOnboardingStore((state) => state.step);
+  const onboardingLoaded = useOnboardingStore((state) => state.loaded);
+  const loadOnboarding = useOnboardingStore((state) => state.loadOnboarding);
+  const syncOnboardingTo = useOnboardingStore((state) => state.syncTo);
+  const completeOnboarding = useOnboardingStore((state) => state.complete);
   const affordances = useMemo(() => arrangeAffordanceView(gameState), [gameState]);
+  const inspector = useMemo(
+    () => shelfItemInspectorView(gameState, inspectedInstanceId),
+    [gameState, inspectedInstanceId],
+  );
 
   // Music bed follows rent proximity: the golden-hour loop until the last
   // morning, then the sparser rent-week variant. Re-runs on focus and whenever
@@ -76,6 +88,16 @@ export default function RunHudScreen() {
     const route = routeForGameState(gameState);
     if (route !== '/run') router.replace(route);
   }, [cascadeMount, gameState, router]);
+
+  useEffect(() => {
+    void loadOnboarding().catch(() => undefined);
+  }, [loadOnboarding]);
+
+  useEffect(() => {
+    if (!onboardingLoaded || cascadeMount) return;
+    if (gameState.phase !== 'arrange' && gameState.phase !== 'restock') return;
+    void syncOnboardingTo(gameState.heldItem ? 'place' : 'open').catch(() => undefined);
+  }, [cascadeMount, gameState.heldItem, gameState.phase, onboardingLoaded, syncOnboardingTo]);
 
   const dispatchAndSave = (action: Action) => {
     const result = dispatchAction(action);
@@ -108,8 +130,8 @@ export default function RunHudScreen() {
     const result = dispatchAction(primary.action);
     if (!result.accepted) return;
     void result.save.catch(() => undefined);
+    void completeOnboarding().catch(() => undefined);
     setCascadeMount(cascadeMountAfterOpenShop(beforeOpenShop, result.gameState));
-    playCascadeSting();
   };
 
   const continueAfterCascade = () => {
@@ -165,8 +187,8 @@ export default function RunHudScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        scrollEnabled={heldFull}
-        showsVerticalScrollIndicator={heldFull}
+        scrollEnabled={heldFull || Boolean(inspector)}
+        showsVerticalScrollIndicator={heldFull || Boolean(inspector)}
       >
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
@@ -204,8 +226,23 @@ export default function RunHudScreen() {
               onMove={onMove}
               heldItem={gameState.heldItem}
               onPlace={onPlace}
+              onInspect={(item) => setInspectedInstanceId(item.instanceId)}
+              selectedInstanceId={inspectedInstanceId}
             />
-            <AppText variant="body" color={palette.inkFaint} style={styles.hint}>{lastRejectedAction?.message ?? hintFor(gameState)}</AppText>
+            {inspector ? (
+              <ShelfInspector
+                view={inspector}
+                onClose={() => setInspectedInstanceId(null)}
+              />
+            ) : null}
+            <AppText
+              accessibilityLiveRegion="polite"
+              variant="body"
+              color={palette.inkFaint}
+              style={styles.hint}
+            >
+              {lastRejectedAction?.message ?? onboardingRunHint(onboardingLoaded, onboardingStep, gameState) ?? hintFor(gameState)}
+            </AppText>
             {heldFull ? (
               <View style={styles.sellRow}>
                 {sellChoices.map(({ slot, item, price }) => (
@@ -258,8 +295,58 @@ export default function RunHudScreen() {
         </View>
       ) : null}
 
-      {/* first-run coachmark — only during arrange, never over a cascade */}
-      {!cascadeMount && gameState.phase === 'arrange' ? <OnboardingHint /> : null}
+    </View>
+  );
+}
+
+function ShelfInspector({
+  view,
+  onClose,
+}: {
+  view: ShelfItemInspectorView;
+  onClose: () => void;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const location = view.slot
+    ? `Row ${view.slot.row + 1}, column ${view.slot.col + 1}`
+    : 'Delivery item';
+  const movementHint = view.item.state.sticky
+    ? 'Stuck in place. Its rule can still affect nearby items.'
+    : 'Drag it, or tap the item and then an empty slot.';
+
+  return (
+    <View
+      accessibilityLabel={`${view.item.name} details`}
+      style={styles.inspector}
+    >
+      <View style={styles.inspectorHeader}>
+        <View style={styles.inspectorTitleWrap}>
+          <AppText variant="heading" color={palette.ink}>{view.item.name}</AppText>
+          <AppText variant="label" color={palette.inkFaint}>
+            {`${location} · value ${view.item.baseValue}`}
+          </AppText>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close item details"
+          hitSlop={4}
+          onPress={onClose}
+          style={({ pressed }) => [styles.inspectorClose, pressed && styles.inspectorClosePressed]}
+        >
+          <AppText variant="heading" color={palette.tealDark}>×</AppText>
+        </Pressable>
+      </View>
+      <View style={styles.inspectorRules}>
+        {view.ruleLines.map((line) => (
+          <AppText key={line} variant="body" color={palette.ink}>
+            {`• ${line}`}
+          </AppText>
+        ))}
+      </View>
+      <AppText variant="label" color={palette.tealDark} style={styles.inspectorHint}>
+        {movementHint}
+      </AppText>
     </View>
   );
 }
@@ -421,6 +508,21 @@ function hintFor(gameState: GameState): string {
   return '';
 }
 
+function onboardingRunHint(
+  loaded: boolean,
+  step: OnboardingStep,
+  gameState: GameState,
+): string | null {
+  if (!loaded) return null;
+  if (step === 'place' && gameState.heldItem) {
+    return 'First placement: put it anywhere for now. Later, tap items to reread rules and move linked neighbors together.';
+  }
+  if (step === 'open' && !gameState.heldItem) {
+    return 'Now Open Shop. Follow each cause in the caption; the complete scoring receipt stays available afterward.';
+  }
+  return null;
+}
+
 function movementLockedSceneState(gameState: GameState): GameState {
   return {
     ...gameState,
@@ -438,4 +540,3 @@ function movementLockedSceneState(gameState: GameState): GameState {
     },
   };
 }
-

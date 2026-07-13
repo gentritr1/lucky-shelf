@@ -1,5 +1,33 @@
 # STATUS — start here (new thread)
 
+## 2026-07-13 gameplay/intuitiveness audit — Gate 1.2 reopened
+
+The end-to-end audit and research packet is
+[`review-packets/gameplay-intuitiveness-audit-2026-07-12.md`](review-packets/gameplay-intuitiveness-audit-2026-07-12.md).
+
+- Decision-time and shelf-item rule prose, tap/VoiceOver shelf movement, synchronized
+  source→affected-item scoring captions, a reviewable scoring receipt, ordered autosaves,
+  save-failure retry, load-generation protection, truthful Continue state, active-run replacement
+  confirmation, progressive first-run action hints, canonical liveness coverage, and report-only
+  decision-depth proxies are implemented locally on `graduation-flip`.
+- TypeScript is clean; the full serial suite is **373/373** and all seven fixtures validate.
+- Current branch rebuilt and rendered on an iPhone 16 Pro / iOS 18.6 simulator. The title hydrates
+  its save state correctly; all four Daily Shop rows fit complete rule prose plus tags without clipping;
+  the apex cascade caption and full receipt pass normal, 130% text, high-contrast, and reduced-motion QA;
+  the inline shelf inspector fits exact rule prose, slot, value, movement hint, and a 44pt close target.
+- **Gate 1.2 is reopened:** like-for-like paired 80-run build swing is above Fable's approved
+  **[1.3×, 2.0×]** band in both unlock cohorts: starter **2.635× greedy / 2.713× combo**; full
+  **2.248× / 2.416×**. Per-seed paired medians are also reported, rather than hiding variance behind
+  a ratio of medians. No economy numbers were changed; Fable must rule on the retune.
+
+The release feature freeze still stands. External-alpha prep deliberately adds no custom telemetry or
+third-party crash SDK: local saves are on-device, while TestFlight supplies sessions, crashes,
+screenshots, and comments. Privacy policy hosting, feedback email, signing roles, and external-tester
+submission remain human-owned. Physical VoiceOver/onboarding validation and the dedicated
+discovery-jingle asset remain Lane B/human work described in the packet.
+Supplier choice timing and the economy retune remain Fable decisions. Payout, placement-settle, and
+rent-consequence cue timing is now event-aligned in code.
+
 _Last updated 2026-07-10 (Fable session). `main` = round-6 head, pushed to origin, tree clean, all green (289 tests)._
 
 ## Where the project is

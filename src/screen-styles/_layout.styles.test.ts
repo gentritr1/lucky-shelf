@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { highContrastPalette, palette, shadows, type Palette } from '@/ui/tokens';
+import { highContrastPalette, palette, radii, shadows, spacing, type Palette } from '@/ui/tokens';
 
 import { makeStyles } from './_layout.styles';
 
@@ -27,6 +27,36 @@ function expected(p: Palette) {
       overflow: 'hidden',
       width: '100%',
       ...shadows.lifted,
+    },
+    saveBanner: {
+      alignItems: 'center',
+      backgroundColor: p.emberDark,
+      borderRadius: radii.md,
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'space-between',
+      left: spacing.md,
+      minHeight: 44,
+      paddingHorizontal: spacing.md,
+      position: 'absolute',
+      right: spacing.md,
+      zIndex: 20,
+      ...shadows.float,
+    },
+    saveBannerText: {
+      flex: 1,
+    },
+    saveRetry: {
+      alignItems: 'center',
+      backgroundColor: p.creamBright,
+      borderRadius: radii.pill,
+      justifyContent: 'center',
+      minHeight: 44,
+      minWidth: 64,
+      paddingHorizontal: spacing.md,
+    },
+    saveRetryPressed: {
+      opacity: 0.75,
     },
   };
 }

@@ -44,9 +44,11 @@ export function makeStyles(palette: Palette) {
       paddingVertical: spacing.xxs,
     },
     captionPlate: {
+      alignItems: 'center',
       alignSelf: 'center',
       backgroundColor: palette.plate,
       borderRadius: radii.md,
+      gap: spacing.xxs,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
     },
@@ -58,7 +60,11 @@ export function makeStyles(palette: Palette) {
     },
     pickBody: {
       flex: 1,
+    },
+    pickContent: {
+      flexGrow: 1,
       gap: spacing.lg,
+      paddingBottom: spacing.lg,
     },
     offers: {
       flexDirection: 'row',
@@ -74,6 +80,10 @@ export function makeStyles(palette: Palette) {
       gap: spacing.md,
       padding: spacing.lg,
       ...shadows.card,
+    },
+    supplierScroll: {
+      flexGrow: 1,
+      paddingBottom: spacing.lg,
     },
     supplierHint: {
       fontSize: 14,

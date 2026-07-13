@@ -2,13 +2,14 @@ import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
-import { Image, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { usePalette, usePrefs, useThemedStyles } from '@/ui';
+import { AppText, usePalette, usePrefs, useThemedStyles } from '@/ui';
 import { ITEM_SPRITES } from '@/juice';
 import { useCatalogStore } from '../state/catalogStore';
+import { runSelectors, useRunStore } from '../state/store';
 
 import { makeStyles } from '@/screen-styles/_layout.styles';
 
@@ -89,6 +90,7 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: palette.wallCream },
               }}
             />
+            <SaveFailureBanner />
             {/* contentStyle threads usePalette() above so screen backgrounds
                 re-theme with high contrast in step with the screens themselves */}
           </View>
@@ -99,3 +101,33 @@ export default function RootLayout() {
   );
 }
 
+function SaveFailureBanner() {
+  const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const saveStatus = useRunStore(runSelectors.saveStatus);
+  const lastSaveError = useRunStore(runSelectors.lastSaveError);
+  const retrySave = useRunStore((state) => state.retrySave);
+
+  if (saveStatus !== 'failed') return null;
+
+  return (
+    <View
+      accessibilityLiveRegion="assertive"
+      accessibilityLabel={`Progress not saved${lastSaveError ? `: ${lastSaveError}` : ''}`}
+      style={[styles.saveBanner, { top: insets.top + 12 }]}
+    >
+      <AppText variant="label" color={palette.creamBright} style={styles.saveBannerText}>
+        Progress not saved
+      </AppText>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Retry saving progress"
+        onPress={() => void retrySave().catch(() => undefined)}
+        style={({ pressed }) => [styles.saveRetry, pressed && styles.saveRetryPressed]}
+      >
+        <AppText variant="label" color={palette.ink}>Retry</AppText>
+      </Pressable>
+    </View>
+  );
+}

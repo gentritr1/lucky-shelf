@@ -180,3 +180,33 @@ that close it:
   + goldens green; the change is additive-only, so the OFF path is byte-identical by construction.
 
 **STOP — Fable reviews the model; the human owns the look.**
+
+## Visual wiring close-out — 2026-07-13
+
+The previously deferred scoring-screen surface is now implemented on `graduation-flip` as part of
+the whole-game intuitiveness pass:
+
+- `CascadeLayer` builds the already-reviewed receipt once per trace and derives one compact current
+  caption from the player's `stepIndex`. Rule fires render the non-negotiable grammar directly:
+  source item → affected item, then rule delta → new total.
+- The caption is a polite accessibility live region and uses `AppText`, so the project text-scale and
+  high-contrast preferences apply. Reduced motion snaps the reveal rather than animating it.
+- Receipt review is progressive and inline: after `player.done`, “Review scoring receipt” replaces
+  the shelf with a scrollable paper receipt. “Back to shelf” and Collect remain separate 44pt actions.
+  The control does not exist while the cascade is running, so receipt content never competes with the
+  apex spectacle.
+- Added `receipt/caption.ts` + focused tests for rule-fire grammar, silent-item-total persistence,
+  aura/subtotal/combo/transform/vanish/total wording.
+
+Verification:
+
+```text
+Focused receipt/player suites: 5 files, 37 tests passed
+Full serial suite:             53 files, 373 tests passed
+TypeScript:                    clean
+```
+
+iPhone 16 Pro / iOS 18.6 visual QA passed for the apex cascade and its ten-line Wine & Dine receipt
+at default settings, then again with 130% text + high contrast + reduced motion. The receipt scrolls
+without clipping and both completion actions remain reachable. Simulator preferences were restored
+after capture.

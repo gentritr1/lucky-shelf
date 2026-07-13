@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -12,9 +12,10 @@ import Animated, {
 
 import type { DailyTargetResult, GameState, ItemInstance, ScoringTrace, Slot } from '@/contracts';
 import { toSlotKey } from '@/contracts';
+import { loadCombos, loadItemTable } from '@/items';
 import { arrowPalette, borders, motion, palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
-import { CoinCounter, WoodButton } from '@/ui';
+import { AppText, CoinCounter, WoodButton, usePalette } from '@/ui';
 import { ItemSprite } from '../ItemSprite';
 import { glyphFor } from '../glyphs';
 import {
@@ -26,7 +27,14 @@ import {
   type ShelfLayout,
 } from '../layout';
 import { haptic } from '../haptics';
-import { playDiscoveryJingle } from '../audio';
+import { playCascadeSting, playDiscoveryJingle } from '../audio';
+import {
+  receiptCaptionForStep,
+  receiptDepsFromGameState,
+  receiptFromTrace,
+  type ReceiptCaption,
+  type ReceiptLine,
+} from '../receipt';
 import type { CascadeFrame } from './cascadeState';
 import { classifyDiscoveries, slowBeatStepIndices, type DiscoveryMoment } from './discoveryModel';
 import { deltaLabel, isSelfFire } from './popModel';
@@ -40,6 +48,8 @@ const overshoot = Easing.bezier(...motion.easings.overshoot);
 
 /** Warmer on-slot pop scale at the higher tiers (1 = shipped/normal, untouched). */
 const POP_SCALE_BOOST: Record<CascadeTier, number> = { normal: 1, big: 1.15, apex: 1.3 };
+const RECEIPT_ITEM_TABLE = loadItemTable();
+const RECEIPT_COMBOS = loadCombos();
 
 /**
  * The cascade: consumes a ScoringTrace verbatim and animates every coin
@@ -96,7 +106,9 @@ export function CascadeLayer({
   achievedBeforeRun,
 }: CascadeLayerProps) {
   const reduced = useReducedMotion();
+  const livePalette = usePalette();
   const { rows, cols } = gameState.shelf.size;
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   // B-M11 combo discovery — pure classification over the trace. `achievedBeforeRun`
   // is the run-start catalog; combos already discovered on earlier days this run
@@ -120,6 +132,23 @@ export function CascadeLayer({
 
   const player = useCascadePlayer({ events: trace.events, rentDue, autoPlay, slowBeatIndices });
   const { frame, currentEvent, stepIndex } = player;
+  const receiptLines = useMemo(
+    () =>
+      receiptFromTrace(
+        trace,
+        receiptDepsFromGameState(gameState, {
+          table: RECEIPT_ITEM_TABLE,
+          combos: RECEIPT_COMBOS,
+        }),
+      ),
+    [gameState, trace],
+  );
+  const currentCaption = useMemo(
+    () => receiptCaptionForStep(receiptLines, stepIndex),
+    [receiptLines, stepIndex],
+  );
+
+  useEffect(() => setReceiptOpen(false), [trace]);
 
   // The discovery moment for the currently-resolved step (if any).
   const activeMoment = useMemo(
@@ -132,6 +161,13 @@ export function CascadeLayer({
   useEffect(() => {
     if (activeMoment?.kind === 'first-ever') playDiscoveryJingle();
   }, [activeMoment]);
+
+  // The payout flourish belongs to the resolved payout, not the Open Shop
+  // button press. Keeping it on the terminal trace event also makes Skip and
+  // Play again truthful without adding another timer to the cascade.
+  useEffect(() => {
+    if (currentEvent?.kind === 'dayTotal') playCascadeSting();
+  }, [currentEvent]);
 
   // B-M6 spectacle tier — pure function of the trace + the day's goal target.
   // `'normal'` short-circuits every added effect below so ordinary cascades render
@@ -167,15 +203,25 @@ export function CascadeLayer({
 
   const primaryLabel = player.playing ? 'Pause' : player.done ? 'Play again' : 'Play';
   const onPrimary = () => {
-    if (player.playing) player.pause();
-    else if (player.done) player.restart();
-    else player.play();
+    if (player.playing) {
+      player.pause();
+    } else if (player.done) {
+      setReceiptOpen(false);
+      player.restart();
+    } else {
+      player.play();
+    }
   };
 
   return (
     <View style={styles.wrap}>
       <View style={styles.scene} onLayout={onLayout}>
-        {layout ? (
+        {receiptOpen ? (
+          <ReceiptReview
+            height={layout?.frameHeight ?? 260}
+            lines={receiptLines}
+          />
+        ) : layout ? (
           <View style={{ width: layout.frameWidth, height: layout.frameHeight }}>
             <Board layout={layout} />
 
@@ -250,7 +296,7 @@ export function CascadeLayer({
           </View>
         ) : null}
 
-        {frame.combo ? (
+        {!receiptOpen && frame.combo ? (
           <View style={styles.bannerLayer} pointerEvents="none">
             <ComboBanner
               combo={frame.combo}
@@ -264,12 +310,20 @@ export function CascadeLayer({
         {/* B-M11 discovery toast — warm recognition below the combo banner. A
             first-this-run combo gets the plain ink-on-paper chip; a first-ever
             combo adds the "DISCOVERED" stamp motif. Repeats show nothing. */}
-        {activeMoment && activeMoment.kind !== 'repeat' ? (
+        {!receiptOpen && activeMoment && activeMoment.kind !== 'repeat' ? (
           <View style={styles.discoveryLayer} pointerEvents="none">
             <DiscoveryToast key={activeMoment.eventIndex} moment={activeMoment} reduced={reduced} />
           </View>
         ) : null}
       </View>
+
+      {!receiptOpen ? (
+        <CurrentCauseCaption
+          key={currentCaption?.eventIndex ?? -1}
+          caption={currentCaption}
+          reduced={reduced}
+        />
+      ) : null}
 
       <View style={styles.footer}>
         <View style={styles.totalRow}>
@@ -299,7 +353,23 @@ export function CascadeLayer({
             advance affordance owns the beat. Skip jumps to the same done-state,
             so this collect tap is always the one and only way past the cascade. */}
         {player.done ? (
-          <WoodButton label={completeLabel} onPress={() => onComplete?.()} />
+          <View style={styles.doneActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: receiptOpen }}
+              onPress={() => setReceiptOpen((open) => !open)}
+              style={({ pressed }) => [
+                styles.receiptToggle,
+                { borderColor: livePalette.parchmentEdge, backgroundColor: livePalette.creamBright },
+                pressed && styles.receiptTogglePressed,
+              ]}
+            >
+              <AppText variant="label" color={livePalette.tealDark}>
+                {receiptOpen ? 'Back to shelf' : 'Review scoring receipt'}
+              </AppText>
+            </Pressable>
+            <WoodButton label={completeLabel} onPress={() => onComplete?.()} />
+          </View>
         ) : (
           <>
             <SpeedControl speed={player.speed} onSpeed={player.setSpeed} onSkip={player.skip} />
@@ -314,6 +384,109 @@ export function CascadeLayer({
       {spectacle ? (
         <CascadeSpectacle tier={tier} progress={progress} slam={slam} reduced={reduced} />
       ) : null}
+    </View>
+  );
+}
+
+function CurrentCauseCaption({
+  caption,
+  reduced,
+}: {
+  caption: ReceiptCaption | null;
+  reduced: boolean;
+}) {
+  const livePalette = usePalette();
+  const reveal = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    reveal.value = reduced
+      ? 1
+      : withTiming(1, { duration: motion.durations.snap, easing: Easing.bezier(...motion.easings.out) });
+  }, [reduced, reveal]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: reveal.value,
+    transform: [{ translateY: reduced ? 0 : (1 - reveal.value) * 5 }],
+  }));
+
+  return (
+    <Animated.View
+      accessible
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={
+        caption?.accessibilityLabel ?? 'Scoring will explain each payout as it happens.'
+      }
+      style={[
+        styles.causeCaption,
+        { backgroundColor: livePalette.creamBright, borderColor: livePalette.parchmentEdge },
+        animatedStyle,
+      ]}
+    >
+      <AppText variant="label" color={livePalette.tealDark} style={styles.causeCaptionTitle}>
+        {caption?.title ?? 'Follow the payout'}
+      </AppText>
+      <AppText variant="body" color={livePalette.ink} style={styles.causeCaptionBody}>
+        {caption?.explanation ?? 'Each step names what paid, what changed, and the new total.'}
+      </AppText>
+    </Animated.View>
+  );
+}
+
+function ReceiptReview({ height, lines }: { height: number; lines: readonly ReceiptLine[] }) {
+  const livePalette = usePalette();
+  return (
+    <View
+      accessibilityLabel="Complete scoring receipt"
+      style={[
+        styles.receiptPanel,
+        {
+          backgroundColor: livePalette.creamBright,
+          borderColor: livePalette.parchmentEdge,
+          height,
+        },
+      ]}
+    >
+      <View style={styles.receiptHeader}>
+        <AppText variant="heading" color={livePalette.ink}>Scoring receipt</AppText>
+        <AppText variant="label" color={livePalette.inkFaint}>{lines.length} lines</AppText>
+      </View>
+      <ScrollView
+        accessibilityLabel="Scoring receipt lines"
+        contentContainerStyle={styles.receiptContent}
+        showsVerticalScrollIndicator
+      >
+        {lines.map((line, index) => {
+          const total = line.kind === 'total';
+          return (
+            <View
+              accessible
+              accessibilityLabel={`${line.label}${line.amount ? `, ${line.amount}` : ''}`}
+              key={`${line.eventIndex}-${line.kind}-${index}`}
+              style={[
+                styles.receiptLine,
+                line.indent === 1 && styles.receiptLineIndented,
+                total && { borderTopColor: livePalette.goldDeep },
+                total && styles.receiptLineTotal,
+              ]}
+            >
+              <AppText
+                variant="receipt"
+                color={total ? livePalette.ink : livePalette.inkSoft}
+                style={[styles.receiptLineLabel, total && styles.receiptLineTotalText]}
+              >
+                {line.label}
+              </AppText>
+              {line.amount ? (
+                <AppText
+                  variant="receipt"
+                  color={total ? livePalette.goldDeep : livePalette.ink}
+                  style={total ? styles.receiptLineTotalText : undefined}
+                >
+                  {line.amount}
+                </AppText>
+              ) : null}
+            </View>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -765,6 +938,74 @@ const POP_W = 44;
 const POP_H = 26;
 
 const styles = StyleSheet.create({
+  causeCaption: {
+    alignSelf: 'stretch',
+    borderRadius: radii.md,
+    borderWidth: borders.regular,
+    gap: spacing.xxs,
+    minHeight: 62,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  causeCaptionTitle: {
+    letterSpacing: 0.2,
+    textTransform: 'none',
+  },
+  causeCaptionBody: {
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  doneActions: {
+    gap: spacing.sm,
+  },
+  receiptToggle: {
+    alignItems: 'center',
+    borderRadius: radii.md,
+    borderWidth: borders.regular,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+  },
+  receiptTogglePressed: {
+    opacity: 0.72,
+  },
+  receiptPanel: {
+    alignSelf: 'stretch',
+    borderRadius: radii.lg,
+    borderWidth: borders.regular,
+    overflow: 'hidden',
+    padding: spacing.md,
+  },
+  receiptHeader: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: spacing.sm,
+  },
+  receiptContent: {
+    paddingBottom: spacing.sm,
+  },
+  receiptLine: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 24,
+    paddingVertical: spacing.xxs,
+  },
+  receiptLineIndented: {
+    paddingLeft: spacing.md,
+  },
+  receiptLineLabel: {
+    flex: 1,
+  },
+  receiptLineTotal: {
+    borderTopWidth: borders.strong,
+    marginTop: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  receiptLineTotalText: {
+    fontWeight: '700',
+  },
   pop: {
     alignItems: 'center',
     borderRadius: radii.pill,

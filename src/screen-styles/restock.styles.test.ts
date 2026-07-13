@@ -82,6 +82,10 @@ function expected(p: Palette) {
     },
     shopList: {
       gap: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    shopScroller: {
+      flex: 1,
     },
     shopRow: {
       alignItems: 'center',
@@ -121,6 +125,12 @@ function expected(p: Palette) {
       flexDirection: 'row',
       gap: spacing.xxs,
     },
+    shopRule: {
+      letterSpacing: 0,
+    },
+    shopRules: {
+      gap: spacing.xxs,
+    },
     shopRowSignature: {
       backgroundColor: p.sunlight,
       borderColor: p.goldDeep,
@@ -149,8 +159,7 @@ function expected(p: Palette) {
       letterSpacing: 0.4,
     },
     signatureEffect: {
-      fontSize: 11,
-      fontWeight: '700',
+      letterSpacing: 0,
     },
     shopBuy: {
       alignItems: 'center',

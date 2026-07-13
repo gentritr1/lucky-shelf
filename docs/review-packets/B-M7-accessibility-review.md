@@ -229,3 +229,23 @@ it, so sim/state tests are untouched (32 files / 230 tests green).
   device acceptance) — flagged, not claimed done.
 - **App-wide live effect is staged** (§Wiring reality) — the honest headline of this pass.
 - Did not commit (shared, multi-lane tree).
+
+## Shelf access close-out — 2026-07-13
+
+The whole-game intuitiveness pass closed the gameplay-screen gaps that remained outside the original
+preference infrastructure:
+
+- Shelf and delivery-tray items are accessibility buttons with name, location, value, selected state,
+  and explicit inspect/move hints. The free-move HUD now announces the numeric remaining count.
+- Tap or VoiceOver-activate an item to open the exact tested rule prose. Non-sticky items also expose
+  each empty slot as a labeled 44pt button; activating one dispatches the existing `moveItem` or
+  `placeItem` action. Sticky items stay inspectable but never advertise an illegal move.
+- Drag remains the primary tactile path. Tap selection is composed with pan via an exclusive gesture,
+  and no contract, scoring, item-table, or movement-legality rule changed.
+- The inspector uses the runtime palette/AppText path, scrolls with the run screen, and passed iPhone
+  16 Pro layout QA with the selected ring, full rule, slot/value line, movement hint, and close control.
+- The normal `inkFaint` semantic token is now `#735B44`: measured 5.24:1 on `wallCream` and 4.76:1
+  on `parchment` (AA for ordinary text). High-contrast pairs remain 7.59:1–8.80:1 (AAA).
+
+Automated close-out: TypeScript clean; focused state/style run 3 files / 21 tests; full serial suite
+53 files / 373 tests. Physical VoiceOver focus order and activation remain a Gate 2 human check.

@@ -70,6 +70,10 @@ export function makeStyles(palette: Palette) {
     // Daily shop: a robust vertical list of offer rows (thumb | info | buy).
     shopList: {
       gap: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    shopScroller: {
+      flex: 1,
     },
     shopRow: {
       alignItems: 'center',
@@ -109,6 +113,12 @@ export function makeStyles(palette: Palette) {
       flexDirection: 'row',
       gap: spacing.xxs,
     },
+    shopRule: {
+      letterSpacing: 0,
+    },
+    shopRules: {
+      gap: spacing.xxs,
+    },
     shopRowSignature: {
       backgroundColor: palette.sunlight,
       borderColor: palette.goldDeep,
@@ -137,8 +147,7 @@ export function makeStyles(palette: Palette) {
       letterSpacing: 0.4,
     },
     signatureEffect: {
-      fontSize: 11,
-      fontWeight: '700',
+      letterSpacing: 0,
     },
     shopBuy: {
       alignItems: 'center',

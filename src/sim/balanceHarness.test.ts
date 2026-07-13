@@ -2,14 +2,28 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ASPIRATIONAL_TARGET_BANDS,
+  BALANCE_FLAG_ENV_KEYS,
   BALANCE_FLAG_CONFIGS,
   DEFAULT_BALANCE_POLICIES,
   FABLE_BALANCE_TARGET_BANDS,
   assertBalanceBands,
+  balanceFlagConfigByName,
   evaluateBalanceBands,
   runBalanceReport,
+  withBalanceFlagConfig,
   type BalanceTargetBands,
 } from './balanceHarness';
+import {
+  buildSteeringEnabled,
+  day2StarterEnabled,
+  goalLadderEnabled,
+  loopV2Enabled,
+  shelfExpansionEnabled,
+  signatureItemsEnabled,
+  tagSynergyEnabled,
+  unlockLadderEnabled,
+  warmOpeningEnabled,
+} from './economy';
 
 const NO_BANDS: BalanceTargetBands = {
   ceilingMedianRunLengthDays: null,
@@ -20,9 +34,23 @@ const NO_BANDS: BalanceTargetBands = {
   buildSwingTotalCoinsRatio: null,
 };
 
+function readFlagSnapshot() {
+  return {
+    loopV2: loopV2Enabled(),
+    tagSynergy: tagSynergyEnabled(),
+    buildSteering: buildSteeringEnabled(),
+    signatures: signatureItemsEnabled(),
+    goalLadder: goalLadderEnabled(),
+    shelfExpansion: shelfExpansionEnabled(),
+    unlockLadder: unlockLadderEnabled(),
+    day2Starter: day2StarterEnabled(),
+    warmOpening: warmOpeningEnabled(),
+  };
+}
+
 describe('balance harness', () => {
   it('reports floor and ceiling metrics for every balance flag config', () => {
-    const report = runBalanceReport({ runs: 3, seed: 'balance-test', maxActions: 160 });
+    const report = runBalanceReport({ runs: 1, seed: 'balance-test', maxActions: 120 });
 
     expect(report.configs.map((config) => config.config)).toEqual(
       BALANCE_FLAG_CONFIGS.map((config) => config.name),
@@ -31,12 +59,36 @@ describe('balance harness', () => {
       for (const policy of DEFAULT_BALANCE_POLICIES) {
         const policyReport = config.policies[policy];
         expect(policyReport, `${config.config}/${policy}`).toBeDefined();
-        expect(policyReport?.runs).toBe(3);
-        expect(policyReport?.daysSurvived.count).toBe(3);
+        expect(policyReport?.runs).toBe(1);
+        expect(policyReport?.daysSurvived.count).toBe(1);
         expect(Object.keys(policyReport?.surplusByDay ?? {}).length).toBeGreaterThan(0);
       }
     }
+    for (const cohort of ['starter', 'full'] as const) {
+      for (const policy of ['ceiling-greedy', 'ceiling-combo'] as const) {
+        expect(report.buildSwingPairedRatioByCohort[cohort][policy]?.count).toBe(1);
+      }
+    }
   }, 30000);
+
+  it('keeps the compiled shipping defaults aligned with the graduating config', () => {
+    const previous = Object.fromEntries(BALANCE_FLAG_ENV_KEYS.map((key) => [key, process.env[key]]));
+    for (const key of BALANCE_FLAG_ENV_KEYS) delete process.env[key];
+    try {
+      const compiledDefaults = readFlagSnapshot();
+      const graduatingConfig = withBalanceFlagConfig(
+        balanceFlagConfigByName('graduating'),
+        readFlagSnapshot,
+      );
+      expect(compiledDefaults).toEqual(graduatingConfig);
+      expect(compiledDefaults.warmOpening).toBe(false);
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
 
   it('activates the guardrail bands and defers the rest to Fable', () => {
     // Active guardrails (bracket current reality — see balanceHarness.ts).
@@ -73,7 +125,13 @@ describe('balance harness', () => {
     // Run-length is stable across run counts, so assert it on a small real report.
     // (The full-fidelity gate that also checks build swing — which is only stable at
     // the calibrated 80-run/seed "balance" report — is `pnpm balance:assert`.)
-    const report = runBalanceReport({ runs: 6, seed: 'balance', maxActions: 600 });
+    const report = runBalanceReport({
+      runs: 6,
+      seed: 'balance',
+      maxActions: 600,
+      configs: ['baseline', 'graduating'],
+      policies: ['ceiling-greedy', 'ceiling-combo'],
+    });
     const runLengthOnly: BalanceTargetBands = {
       ...NO_BANDS,
       ceilingMedianRunLengthDays: FABLE_BALANCE_TARGET_BANDS.ceilingMedianRunLengthDays,
@@ -86,9 +144,31 @@ describe('balance harness', () => {
       ...NO_BANDS,
       buildSwingTotalCoinsRatio: FABLE_BALANCE_TARGET_BANDS.buildSwingTotalCoinsRatio,
     };
-    const inBand = { ...report, buildSwingTotalCoinsRatio: { floor: 1.5, 'ceiling-greedy': 1.66 } };
+    const inBand = {
+      ...report,
+      buildSwingTotalCoinsRatioByCohort: {
+        starter: { 'ceiling-greedy': 1.5, 'ceiling-combo': 1.6 },
+        full: { 'ceiling-greedy': 1.4, 'ceiling-combo': 1.7 },
+      },
+    };
     expect(evaluateBalanceBands(inBand, swingBand)).toEqual([]);
-    const outOfBand = { ...report, buildSwingTotalCoinsRatio: { floor: 3.0 } };
+    const missingEvidence = {
+      ...inBand,
+      buildSwingTotalCoinsRatioByCohort: {
+        ...inBand.buildSwingTotalCoinsRatioByCohort,
+        full: {},
+      },
+    };
+    expect(evaluateBalanceBands(missingEvidence, swingBand)).toContain(
+      'missing full/ceiling-greedy graduating-vs-baseline swing evidence',
+    );
+    const outOfBand = {
+      ...inBand,
+      buildSwingTotalCoinsRatioByCohort: {
+        ...inBand.buildSwingTotalCoinsRatioByCohort,
+        starter: { 'ceiling-greedy': 3.0, 'ceiling-combo': 1.6 },
+      },
+    };
     expect(evaluateBalanceBands(outOfBand, swingBand).length).toBeGreaterThan(0);
   }, 30000);
 });

@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { ItemInstance, Slot } from '@/contracts';
-import { motion } from '@/ui/tokens';
+import { borders, motion, palette, radii } from '@/ui/tokens';
 import { haptic } from './haptics';
 import { easings } from './motion';
 import { ItemSprite } from './ItemSprite';
@@ -36,6 +36,8 @@ interface DeliveryTrayItemProps {
   reduced: boolean;
   glyph: string;
   onPlace: (slot: Slot) => void;
+  onSelect?: () => void;
+  selected?: boolean;
 }
 
 const IS_WEB = Platform.OS === 'web';
@@ -49,6 +51,8 @@ export function DeliveryTrayItem({
   reduced,
   glyph,
   onPlace,
+  onSelect,
+  selected = false,
 }: DeliveryTrayItemProps) {
   const { hoverIndex, hoverLegal, occupancy } = shared;
   const homeCenterX = homeX + layout.slotSize / 2;
@@ -61,6 +65,11 @@ export function DeliveryTrayItem({
   const rot = useSharedValue(0);
 
   const [active, setActive] = useState(false);
+
+  const finishPlacement = (slot: Slot) => {
+    haptic('placementTick');
+    onPlace(slot);
+  };
 
   const grab = () => {
     'worklet';
@@ -96,9 +105,9 @@ export function DeliveryTrayItem({
     tx.value = reduced
       ? withTiming(dx, { duration: 0 })
       : withSpring(dx, motion.springs.settle, (finished) => {
-          if (finished) runOnJS(onPlace)(slot);
+          if (finished) runOnJS(finishPlacement)(slot);
         });
-    if (reduced) runOnJS(onPlace)(slot);
+    if (reduced) runOnJS(finishPlacement)(slot);
   };
 
   const pan = Gesture.Pan()
@@ -126,9 +135,15 @@ export function DeliveryTrayItem({
       }
       settleOnto(target);
       runOnJS(haptic)('dropSettle');
-      runOnJS(haptic)('placementTick');
     })
     .onFinalize(release);
+
+  const select = () => onSelect?.();
+  const tap = Gesture.Tap().onEnd((_event, success) => {
+    'worklet';
+    if (success) runOnJS(select)();
+  });
+  const gesture = Gesture.Exclusive(pan, tap);
 
   const style = useAnimatedStyle(() => ({
     transform: [
@@ -142,8 +157,15 @@ export function DeliveryTrayItem({
 
   return (
     <Animated.View
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name}, delivery item, value ${item.baseValue}`}
+      accessibilityHint="Double tap to inspect and choose this item, then activate an empty slot to place it."
+      accessibilityState={{ selected }}
+      onAccessibilityTap={select}
       style={[
         styles.item,
+        selected && styles.selected,
         {
           left: homeX,
           top: homeY,
@@ -155,7 +177,7 @@ export function DeliveryTrayItem({
         style,
       ]}
     >
-      <GestureDetector gesture={pan}>
+      <GestureDetector gesture={gesture}>
         <Animated.View style={styles.hit} testID={`tray-item-${item.itemId}`}>
           <ItemSprite item={item} glyph={glyph} size={layout.slotSize} />
         </Animated.View>
@@ -167,6 +189,11 @@ export function DeliveryTrayItem({
 const styles = StyleSheet.create({
   item: {
     position: 'absolute',
+  },
+  selected: {
+    borderColor: palette.tealDark,
+    borderRadius: radii.md,
+    borderWidth: borders.strong,
   },
   hit: {
     alignItems: 'center',

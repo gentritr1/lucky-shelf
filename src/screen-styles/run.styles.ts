@@ -73,6 +73,42 @@ export function makeStyles(palette: Palette) {
       fontSize: 13,
       textAlign: 'center',
     },
+    inspector: {
+      alignSelf: 'stretch',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    inspectorHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+    },
+    inspectorTitleWrap: {
+      flex: 1,
+      gap: 2,
+    },
+    inspectorClose: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderRadius: radii.pill,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
+    },
+    inspectorClosePressed: {
+      opacity: 0.72,
+    },
+    inspectorRules: {
+      gap: spacing.xs,
+    },
+    inspectorHint: {
+      letterSpacing: 0.2,
+    },
     sellRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',

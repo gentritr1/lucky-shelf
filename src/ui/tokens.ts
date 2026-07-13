@@ -37,7 +37,7 @@ export const palette = {
   // ink
   ink: '#3F2A1D',
   inkSoft: '#5A4534',
-  inkFaint: '#8A745C',
+  inkFaint: '#735B44', // quiet secondary copy; still AA on wallCream/parchment
 
   // accents
   tealDark: '#2F6E62',
@@ -403,6 +403,9 @@ export const motion = {
     // member items hop once in reading order — a little curtain-call on the shelf.
     hopY: 5, // peak lift of a member hop, px
     hopStaggerMs: 45, // delay between successive members (reading order)
+    // Day total lands first; rent follows as its own consequence rather than a
+    // second heavy impact on the exact same frame.
+    rentThudDelayMs: 220,
   },
 } as const;
 

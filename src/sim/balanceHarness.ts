@@ -2,7 +2,7 @@ import type { Action, GameState } from '../contracts';
 import { loadCombos, loadItemTable } from '../items';
 
 import { playRun, type StrategyName } from './bots';
-import { createRun, dispatch, type EngineDeps } from './engine';
+import { createRun, dispatch, type CreateRunOptions, type EngineDeps } from './engine';
 import {
   BUILD_STEERING_ENV_VAR,
   DAY2_STARTER_ENV_VAR,
@@ -15,6 +15,7 @@ import {
   WARM_OPENING_ENV_VAR,
 } from './economy';
 import { uiAffordances } from './uiAffordances';
+import { allUnlockableItemIds, alwaysUnlockedItemIds } from './unlocks';
 
 export const BALANCE_FLAG_ENV_KEYS = [
   BUILD_STEERING_ENV_VAR,
@@ -31,10 +32,24 @@ export const BALANCE_FLAG_ENV_KEYS = [
 export interface BalanceFlagConfig {
   name: string;
   env: Partial<Record<(typeof BALANCE_FLAG_ENV_KEYS)[number], '1'>>;
+  /** Explicit offer-pool cohort for like-for-like depth comparisons. */
+  unlockCohort?: BalanceUnlockCohort;
 }
+
+export type BalanceUnlockCohort = 'starter' | 'full';
 
 export const BALANCE_FLAG_CONFIGS = [
   { name: 'baseline', env: {} },
+  {
+    name: 'baselineStarter',
+    env: { [UNLOCK_LADDER_ENV_VAR]: '1' },
+    unlockCohort: 'starter',
+  },
+  {
+    name: 'baselineFull',
+    env: { [UNLOCK_LADDER_ENV_VAR]: '1' },
+    unlockCohort: 'full',
+  },
   { name: 'baselineWarmOpening', env: { [WARM_OPENING_ENV_VAR]: '1' } },
   { name: 'buildSteering', env: { [BUILD_STEERING_ENV_VAR]: '1' } },
   {
@@ -127,6 +142,21 @@ export const BALANCE_FLAG_CONFIGS = [
       [UNLOCK_LADDER_ENV_VAR]: '1',
       [DAY2_STARTER_ENV_VAR]: '1',
     },
+    unlockCohort: 'starter',
+  },
+  {
+    name: 'graduatingFull',
+    env: {
+      [LOOP_V2_ENV_VAR]: '1',
+      [SIGNATURE_ITEMS_ENV_VAR]: '1',
+      [TAG_SYNERGY_ENV_VAR]: '1',
+      [BUILD_STEERING_ENV_VAR]: '1',
+      [GOAL_LADDER_ENV_VAR]: '1',
+      [SHELF_EXPANSION_ENV_VAR]: '1',
+      [UNLOCK_LADDER_ENV_VAR]: '1',
+      [DAY2_STARTER_ENV_VAR]: '1',
+    },
+    unlockCohort: 'full',
   },
 ] as const satisfies readonly BalanceFlagConfig[];
 
@@ -199,7 +229,18 @@ export interface BalanceReport {
   seed: string;
   maxActions: number;
   configs: BalanceConfigReport[];
+  /** Worst cohort ratio per policy, retained as a compact headline. */
   buildSwingTotalCoinsRatio: Partial<Record<BalancePolicyName, number>>;
+  /** Like-for-like v1→graduating ratios for fresh and fully-unlocked pools. */
+  buildSwingTotalCoinsRatioByCohort: Record<
+    BalanceUnlockCohort,
+    Partial<Record<BalancePolicyName, number>>
+  >;
+  /** Distribution of per-seed graduating/baseline ratios; report-only evidence. */
+  buildSwingPairedRatioByCohort: Record<
+    BalanceUnlockCohort,
+    Partial<Record<BalancePolicyName, NumericSummary>>
+  >;
 }
 
 export interface RangeTarget {
@@ -330,8 +371,13 @@ function daySample(state: GameState): BalanceDaySample {
   };
 }
 
-function measureFloorRun(seed: string, deps: EngineDeps, maxActions: number): RunMeasurement {
-  let state = createRun(seed, deps);
+function measureFloorRun(
+  seed: string,
+  deps: EngineDeps,
+  maxActions: number,
+  createRunOptions: CreateRunOptions,
+): RunMeasurement {
+  let state = createRun(seed, deps, createRunOptions);
   const samples: BalanceDaySample[] = [];
   for (let step = 0; step < maxActions && state.phase !== 'gameOver'; step += 1) {
     const actions = uiAffordances(state);
@@ -365,9 +411,10 @@ function measureBotRun(
   strategy: StrategyName,
   deps: EngineDeps,
   maxActions: number,
+  createRunOptions: CreateRunOptions,
 ): RunMeasurement {
-  const run = playRun(seed, strategy, deps, maxActions);
-  let replay = createRun(seed, deps);
+  const run = playRun(seed, strategy, deps, maxActions, { createRunOptions });
+  let replay = createRun(seed, deps, createRunOptions);
   const samples: BalanceDaySample[] = [];
   for (const action of run.actions) {
     if (action.type === 'openShop') samples.push(daySample(replay));
@@ -387,11 +434,23 @@ function measureRun(
   policy: BalancePolicyName,
   deps: EngineDeps,
   maxActions: number,
+  createRunOptions: CreateRunOptions,
 ): RunMeasurement {
   const strategy = strategyForPolicy(policy);
   return strategy === 'ui-floor'
-    ? measureFloorRun(seed, deps, maxActions)
-    : measureBotRun(seed, strategy, deps, maxActions);
+    ? measureFloorRun(seed, deps, maxActions, createRunOptions)
+    : measureBotRun(seed, strategy, deps, maxActions, createRunOptions);
+}
+
+function createRunOptionsForConfig(config: BalanceFlagConfig): CreateRunOptions {
+  switch (config.unlockCohort) {
+    case 'starter':
+      return { unlockedItemIds: alwaysUnlockedItemIds() };
+    case 'full':
+      return { unlockedItemIds: allUnlockableItemIds() };
+    default:
+      return {};
+  }
 }
 
 function quantile(sorted: readonly number[], q: number): number {
@@ -472,14 +531,20 @@ function nearDeath(samples: readonly BalanceDaySample[]): boolean {
   );
 }
 
+interface BuiltPolicyReport {
+  report: BalancePolicyReport;
+  totalCoinsEarnedByRun: number[];
+}
+
 function buildPolicyReport(
-  config: BalanceFlagConfigName,
+  config: BalanceFlagConfig,
   policy: BalancePolicyName,
   deps: EngineDeps,
   runs: number,
   seed: string,
   maxActions: number,
-): BalancePolicyReport {
+): BuiltPolicyReport {
+  const createRunOptions = createRunOptionsForConfig(config);
   const daysSurvived: number[] = [];
   const deepestRentSurvived: number[] = [];
   const totalCoinsEarned: number[] = [];
@@ -490,7 +555,16 @@ function buildPolicyReport(
   let nearDeaths = 0;
 
   for (let index = 0; index < runs; index += 1) {
-    const run = measureRun(`${seed}-${config}-${policy}-${index}`, policy, deps, maxActions);
+    // Keep seeds paired across configurations so baseline-vs-depth comparisons
+    // measure the flag world, not two different random samples. The policy stays
+    // in the seed because each policy is summarized independently.
+    const run = measureRun(
+      `${seed}-${policy}-${index}`,
+      policy,
+      deps,
+      maxActions,
+      createRunOptions,
+    );
     daysSurvived.push(run.daysSurvived);
     deepestRentSurvived.push(run.deepestRentSurvived);
     totalCoinsEarned.push(run.totalCoinsEarned);
@@ -502,33 +576,90 @@ function buildPolicyReport(
   }
 
   return {
-    policy,
-    strategy: strategyForPolicy(policy),
-    runs,
-    daysSurvived: summarize(daysSurvived),
-    survivalDistribution: sortedDistribution(survivalDistribution),
-    deepestRentSurvived: summarize(deepestRentSurvived),
-    totalCoinsEarned: summarize(totalCoinsEarned),
-    gameOverRate: Number((gameOvers / runs).toFixed(3)),
-    firstRentSurvivalRate: Number((firstRentSurvivals / runs).toFixed(3)),
-    nearDeathRunRate: Number((nearDeaths / runs).toFixed(3)),
-    surplusByDay: summarizeDays(allSamples),
+    report: {
+      policy,
+      strategy: strategyForPolicy(policy),
+      runs,
+      daysSurvived: summarize(daysSurvived),
+      survivalDistribution: sortedDistribution(survivalDistribution),
+      deepestRentSurvived: summarize(deepestRentSurvived),
+      totalCoinsEarned: summarize(totalCoinsEarned),
+      gameOverRate: Number((gameOvers / runs).toFixed(3)),
+      firstRentSurvivalRate: Number((firstRentSurvivals / runs).toFixed(3)),
+      nearDeathRunRate: Number((nearDeaths / runs).toFixed(3)),
+      surplusByDay: summarizeDays(allSamples),
+    },
+    totalCoinsEarnedByRun: totalCoinsEarned,
   };
 }
 
-function computeBuildSwing(
+const BUILD_SWING_CONFIG_PAIRS = {
+  starter: { baseline: 'baselineStarter', graduating: 'graduating' },
+  full: { baseline: 'baselineFull', graduating: 'graduatingFull' },
+} as const satisfies Record<
+  BalanceUnlockCohort,
+  { baseline: BalanceFlagConfigName; graduating: BalanceFlagConfigName }
+>;
+
+function computeBuildSwingByCohort(
   configs: readonly BalanceConfigReport[],
-): Partial<Record<BalancePolicyName, number>> {
-  const baseline = configs.find((config) => config.config === 'baseline');
-  const allDepth = configs.find((config) => config.config === 'allDepth');
-  if (!baseline || !allDepth) return {};
-  const ratios: Partial<Record<BalancePolicyName, number>> = {};
-  for (const policy of DEFAULT_BALANCE_POLICIES) {
-    const base = baseline.policies[policy]?.totalCoinsEarned.median ?? 0;
-    const depth = allDepth.policies[policy]?.totalCoinsEarned.median ?? 0;
-    if (base > 0) ratios[policy] = Number((depth / base).toFixed(3));
+): BalanceReport['buildSwingTotalCoinsRatioByCohort'] {
+  const result: BalanceReport['buildSwingTotalCoinsRatioByCohort'] = {
+    starter: {},
+    full: {},
+  };
+  for (const cohort of Object.keys(BUILD_SWING_CONFIG_PAIRS) as BalanceUnlockCohort[]) {
+    const pair = BUILD_SWING_CONFIG_PAIRS[cohort];
+    const baseline = configs.find((config) => config.config === pair.baseline);
+    const graduating = configs.find((config) => config.config === pair.graduating);
+    if (!baseline || !graduating) continue;
+    for (const policy of DEFAULT_BALANCE_POLICIES) {
+      const base = baseline.policies[policy]?.totalCoinsEarned.median ?? 0;
+      const depth = graduating.policies[policy]?.totalCoinsEarned.median ?? 0;
+      if (base > 0 && depth > 0) result[cohort][policy] = Number((depth / base).toFixed(3));
+    }
   }
-  return ratios;
+  return result;
+}
+
+function worstBuildSwing(
+  byCohort: BalanceReport['buildSwingTotalCoinsRatioByCohort'],
+): Partial<Record<BalancePolicyName, number>> {
+  const result: Partial<Record<BalancePolicyName, number>> = {};
+  for (const policy of DEFAULT_BALANCE_POLICIES) {
+    const values = (Object.keys(byCohort) as BalanceUnlockCohort[])
+      .map((cohort) => byCohort[cohort][policy])
+      .filter((value): value is number => value !== undefined);
+    if (values.length > 0) result[policy] = Math.max(...values);
+  }
+  return result;
+}
+
+function buildSwingSampleKey(
+  config: BalanceFlagConfigName,
+  policy: BalancePolicyName,
+): string {
+  return `${config}/${policy}`;
+}
+
+function computePairedBuildSwingByCohort(
+  samples: ReadonlyMap<string, readonly number[]>,
+): BalanceReport['buildSwingPairedRatioByCohort'] {
+  const result: BalanceReport['buildSwingPairedRatioByCohort'] = { starter: {}, full: {} };
+  for (const cohort of Object.keys(BUILD_SWING_CONFIG_PAIRS) as BalanceUnlockCohort[]) {
+    const pair = BUILD_SWING_CONFIG_PAIRS[cohort];
+    for (const policy of DEFAULT_BALANCE_POLICIES) {
+      const baseline = samples.get(buildSwingSampleKey(pair.baseline, policy));
+      const graduating = samples.get(buildSwingSampleKey(pair.graduating, policy));
+      if (!baseline || !graduating || baseline.length !== graduating.length) continue;
+      const pairedRatios = baseline.flatMap((base, index) => {
+        const depth = graduating[index];
+        return base > 0 && depth !== undefined ? [Number((depth / base).toFixed(3))] : [];
+      });
+      if (pairedRatios.length > 0) result[cohort][policy] = summarize(pairedRatios);
+    }
+  }
+  return result;
 }
 
 export function runBalanceReport(options: BalanceOptions = {}): BalanceReport {
@@ -538,6 +669,7 @@ export function runBalanceReport(options: BalanceOptions = {}): BalanceReport {
   const deps = options.deps ?? defaultDeps();
   const configNames = options.configs ?? BALANCE_FLAG_CONFIGS.map((config) => config.name);
   const policies = options.policies ?? DEFAULT_BALANCE_POLICIES;
+  const totalCoinsEarnedSamples = new Map<string, readonly number[]>();
 
   const configs = configNames.map((configName) => {
     const config = balanceFlagConfigByName(configName);
@@ -548,18 +680,26 @@ export function runBalanceReport(options: BalanceOptions = {}): BalanceReport {
         'ceiling-combo': undefined,
       };
       for (const policy of policies) {
-        policyReports[policy] = buildPolicyReport(configName, policy, deps, runs, seed, maxActions);
+        const built = buildPolicyReport(config, policy, deps, runs, seed, maxActions);
+        policyReports[policy] = built.report;
+        totalCoinsEarnedSamples.set(
+          buildSwingSampleKey(configName, policy),
+          built.totalCoinsEarnedByRun,
+        );
       }
       return { config: configName, policies: policyReports };
     });
   });
 
+  const buildSwingTotalCoinsRatioByCohort = computeBuildSwingByCohort(configs);
   return {
     runsPerPolicy: runs,
     seed,
     maxActions,
     configs,
-    buildSwingTotalCoinsRatio: computeBuildSwing(configs),
+    buildSwingTotalCoinsRatio: worstBuildSwing(buildSwingTotalCoinsRatioByCohort),
+    buildSwingTotalCoinsRatioByCohort,
+    buildSwingPairedRatioByCohort: computePairedBuildSwingByCohort(totalCoinsEarnedSamples),
   };
 }
 
@@ -656,12 +796,17 @@ export function evaluateBalanceBands(
   }
 
   if (targets.buildSwingTotalCoinsRatio) {
-    for (const [policy, ratio] of Object.entries(report.buildSwingTotalCoinsRatio)) {
-      if (!inRange(ratio, targets.buildSwingTotalCoinsRatio)) {
-        violations.push(
-          `${policy} allDepth/baseline total-coins swing ${ratio} outside ` +
-            `[${targets.buildSwingTotalCoinsRatio.min}, ${targets.buildSwingTotalCoinsRatio.max}]`,
-        );
+    for (const cohort of ['starter', 'full'] as const) {
+      for (const policy of ['ceiling-greedy', 'ceiling-combo'] as const) {
+        const ratio = report.buildSwingTotalCoinsRatioByCohort[cohort][policy];
+        if (ratio === undefined) {
+          violations.push(`missing ${cohort}/${policy} graduating-vs-baseline swing evidence`);
+        } else if (!inRange(ratio, targets.buildSwingTotalCoinsRatio)) {
+          violations.push(
+            `${cohort}/${policy} graduating/baseline total-coins swing ${ratio} outside ` +
+              `[${targets.buildSwingTotalCoinsRatio.min}, ${targets.buildSwingTotalCoinsRatio.max}]`,
+          );
+        }
       }
     }
   }

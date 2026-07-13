@@ -22,7 +22,12 @@ export function MovesPips({ remaining, total = 3 }: MovesPipsProps) {
   const themed = useThemedStyles(makeStyles);
   const clamped = Math.max(0, Math.min(remaining, total));
   return (
-    <View style={styles.wrap}>
+    <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={`${clamped} free ${clamped === 1 ? 'move' : 'moves'} remaining`}
+      style={styles.wrap}
+    >
       <View style={styles.pips}>
         {Array.from({ length: total }, (_, index) => (
           <View key={index} style={[styles.pip, index < clamped ? themed.pipFilled : themed.pipSpent]} />

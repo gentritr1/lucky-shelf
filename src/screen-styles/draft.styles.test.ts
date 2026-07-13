@@ -46,9 +46,11 @@ function expected(p: Palette) {
       paddingVertical: spacing.xxs,
     },
     captionPlate: {
+      alignItems: 'center',
       alignSelf: 'center',
       backgroundColor: p.plate,
       borderRadius: radii.md,
+      gap: spacing.xxs,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
     },
@@ -60,7 +62,11 @@ function expected(p: Palette) {
     },
     pickBody: {
       flex: 1,
+    },
+    pickContent: {
+      flexGrow: 1,
       gap: spacing.lg,
+      paddingBottom: spacing.lg,
     },
     offers: {
       flexDirection: 'row',
@@ -74,6 +80,10 @@ function expected(p: Palette) {
       gap: spacing.md,
       padding: spacing.lg,
       ...shadows.card,
+    },
+    supplierScroll: {
+      flexGrow: 1,
+      paddingBottom: spacing.lg,
     },
     supplierHint: {
       fontSize: 14,

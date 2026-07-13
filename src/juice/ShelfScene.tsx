@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -62,9 +62,24 @@ interface ShelfSceneProps {
   onPlace?: (slot: Slot) => void;
   /** PROTOTYPE (Front Window): the day's spotlight slot, highlighted as the storefront window. */
   spotlight?: Slot | null;
+  /** Tap/VoiceOver inspector hook. Slot is null for the delivery tray item. */
+  onInspect?: (item: ItemInstance, slot: Slot | null) => void;
+  /** Controlled inspector selection; null also cancels tap-to-place mode. */
+  selectedInstanceId?: string | null;
 }
 
-export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace, spotlight }: ShelfSceneProps) {
+type TapSelection = { kind: 'shelf'; index: number } | { kind: 'held' } | null;
+
+export function ShelfScene({
+  gameState,
+  glyphs,
+  onMove,
+  heldItem,
+  onPlace,
+  spotlight,
+  onInspect,
+  selectedInstanceId,
+}: ShelfSceneProps) {
   const reduced = useReducedMotion();
   const skia = useSkiaReady();
   const { rows, cols } = gameState.shelf.size;
@@ -79,9 +94,14 @@ export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace, spotl
   // Board = the mutable placement map (UI-only, not game rules). Seeded from the
   // contract shelf; drag commits move an instance from one index to an empty one.
   const [board, setBoard] = useState<(ItemInstance | null)[]>(() => seedBoard(gameState, rows, cols));
+  const [tapSelection, setTapSelection] = useState<TapSelection>(null);
   useEffect(() => {
     setBoard(seedBoard(gameState, rows, cols));
+    setTapSelection(null);
   }, [gameState, rows, cols]);
+  useEffect(() => {
+    if (selectedInstanceId === null) setTapSelection(null);
+  }, [selectedInstanceId]);
 
   const grabbedIndex = useSharedValue(-1);
   const hoverIndex = useSharedValue(-1);
@@ -129,6 +149,35 @@ export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace, spotl
     [cols, onMove],
   );
 
+  const selectShelfItem = useCallback(
+    (item: ItemInstance, index: number) => {
+      const slot = { row: Math.floor(index / cols), col: index % cols };
+      onInspect?.(item, slot);
+      setTapSelection(item.state.sticky || !onMove ? null : { kind: 'shelf', index });
+    },
+    [cols, onInspect, onMove],
+  );
+
+  const selectHeldItem = useCallback(() => {
+    if (!heldItem) return;
+    onInspect?.(heldItem, null);
+    setTapSelection(onPlace ? { kind: 'held' } : null);
+  }, [heldItem, onInspect, onPlace]);
+
+  const commitTapPlacement = useCallback(
+    (toIndex: number) => {
+      if (!tapSelection || board[toIndex]) return;
+      const slot = { row: Math.floor(toIndex / cols), col: toIndex % cols };
+      if (tapSelection.kind === 'held') {
+        onPlace?.(slot);
+      } else {
+        commitMove(tapSelection.index, toIndex);
+      }
+      setTapSelection(null);
+    },
+    [board, cols, commitMove, onPlace, tapSelection],
+  );
+
   const trayZone = layout && showTray
     ? TRAY_GAP + TRAY_LABEL_HEIGHT + TRAY_LABEL_GAP + layout.slotSize + spacing.md
     : 0;
@@ -172,9 +221,25 @@ export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace, spotl
                 reduced={reduced}
                 glyph={glyphs[item.itemId] ?? '📦'}
                 onCommitMove={commitMove}
+                onSelect={() => selectShelfItem(item, index)}
+                selected={selectedInstanceId === item.instanceId}
               />
             ) : null,
           )}
+
+          {tapSelection
+            ? board.map((item, index) =>
+                item ? null : (
+                  <TapSlotTarget
+                    key={`tap-target-${index}`}
+                    index={index}
+                    layout={layout}
+                    placingHeldItem={tapSelection.kind === 'held'}
+                    onPress={() => commitTapPlacement(index)}
+                  />
+                ),
+              )
+            : null}
 
           {showTray && heldItem && onPlace ? (
             <>
@@ -204,12 +269,45 @@ export function ShelfScene({ gameState, glyphs, onMove, heldItem, onPlace, spotl
                 reduced={reduced}
                 glyph={glyphs[heldItem.itemId] ?? '📦'}
                 onPlace={onPlace}
+                onSelect={selectHeldItem}
+                selected={selectedInstanceId === heldItem.instanceId}
               />
             </>
           ) : null}
         </View>
       ) : null}
     </View>
+  );
+}
+
+function TapSlotTarget({
+  index,
+  layout,
+  placingHeldItem,
+  onPress,
+}: {
+  index: number;
+  layout: ShelfLayout;
+  placingHeldItem: boolean;
+  onPress: () => void;
+}) {
+  const row = Math.floor(index / layout.cols);
+  const col = index % layout.cols;
+  const { x, y } = slotTopLeft(layout, row, col);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Empty slot, row ${row + 1}, column ${col + 1}`}
+      accessibilityHint={placingHeldItem ? 'Places the delivery item here.' : 'Moves the selected item here.'}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.tapTarget,
+        { left: x, top: y, width: layout.slotSize, height: layout.slotSize },
+        pressed && styles.tapTargetPressed,
+      ]}
+    >
+      <Text style={styles.tapTargetMark}>✓</Text>
+    </Pressable>
   );
 }
 
@@ -380,6 +478,25 @@ const styles = StyleSheet.create({
   glow: {
     position: 'absolute',
     borderRadius: radii.sm,
+  },
+  tapTarget: {
+    alignItems: 'center',
+    backgroundColor: palette.slotLegal,
+    borderColor: palette.tealDark,
+    borderRadius: radii.sm,
+    borderWidth: borders.strong,
+    justifyContent: 'center',
+    opacity: 0.72,
+    position: 'absolute',
+    zIndex: 12,
+  },
+  tapTargetPressed: {
+    opacity: 1,
+  },
+  tapTargetMark: {
+    color: palette.tealDark,
+    fontSize: 28,
+    fontWeight: '900',
   },
   // Redundant ✓/✕ shape cue for legal/illegal drops (B-M7). Own overlay, centred,
   // both glyphs stacked so they cross-fade in place on the same legal signal.

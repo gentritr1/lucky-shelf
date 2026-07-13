@@ -1,6 +1,11 @@
 import { loadCombos, loadItemTable } from '../src/items';
 import { playRun, type StrategyName } from '../src/sim/bots';
 import {
+  decisionDepthSample,
+  summarizeDecisionDepth,
+  type DecisionDepthSample,
+} from '../src/sim/decisionDepth';
+import {
   BUILD_STEER_BIAS,
   buildSteeringEnabled,
   day2StarterEnabled,
@@ -231,6 +236,7 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
   const goalDayTotalByDay = new Map<string, number[]>();
   const finalDominantEligibleTagCounts: number[] = [];
   const finalSupplierTagCounts: number[] = [];
+  const decisionDepthSamples: DecisionDepthSample[] = [];
   let gameOvers = 0;
   let comboRuns = 0;
   let signatureRuns = 0;
@@ -247,6 +253,7 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
 
   for (let index = 0; index < args.runs; index += 1) {
     const run = playRun(`${args.seed}-${strategy}-${index}`, strategy, deps, args.maxActions);
+    decisionDepthSamples.push(decisionDepthSample(run));
     const stats = run.finalState.runStats;
     scoredDays += run.metrics.scoredDays;
     orderMetDays += run.metrics.orderMetDays;
@@ -382,6 +389,7 @@ function fuzzStrategy(strategy: StrategyName, args: FuzzArgs): Record<string, un
     ),
     finalSupplierTagCount: summarize(finalSupplierTagCounts),
     supplierTagCountByDay: summarizeDayMetrics(supplierTagCountByDay),
+    decisionDepthProxies: summarizeDecisionDepth(decisionDepthSamples),
   };
 }
 

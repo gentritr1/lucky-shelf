@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -15,7 +15,7 @@ import { AppText, GearIcon, WoodButton, layout, usePalette, useReducedMotion, us
 import { Entrance, primeAudio, setMusicTrack, spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/index.styles';
-import { useRunStore } from '../state/store';
+import { runSelectors, useRunStore } from '../state/store';
 import { routeForGameState } from '../state/phaseRouting';
 import { dailySeedFor, dailySelectors, todayDateString, useDailyStore } from '../state/dailyStore';
 
@@ -31,6 +31,9 @@ export default function TitleScreen() {
   const palette = usePalette();
   const startNewRun = useRunStore((state) => state.startNewRun);
   const continueRun = useRunStore((state) => state.continueRun);
+  const gameState = useRunStore(runSelectors.gameState);
+  const loadStatus = useRunStore(runSelectors.loadStatus);
+  const lastLoadError = useRunStore(runSelectors.lastLoadError);
   const loadDaily = useDailyStore((state) => state.loadDaily);
   const playedToday = useDailyStore(dailySelectors.playedToday);
   const streakCount = useDailyStore(dailySelectors.streakCount);
@@ -59,34 +62,67 @@ export default function TitleScreen() {
     void loadDaily().catch(() => undefined);
   }, [loadDaily]);
 
+  useEffect(() => {
+    if (loadStatus === 'idle') void continueRun().catch(() => undefined);
+  }, [continueRun, loadStatus]);
+
   // Storybook title bed. Re-asserted on focus so it resumes when returning from
   // a run; the button handlers below `primeAudio()` to satisfy autoplay policy
   // if it was blocked on cold load.
   useFocusEffect(useCallback(() => setMusicTrack('title'), []));
 
-  const onNewRun = () => {
+  const hasResumableRun = loadStatus === 'loaded' && gameState.phase !== 'gameOver';
+  const checkingSave = loadStatus === 'idle' || loadStatus === 'loading';
+  const saveCheckFailed = loadStatus === 'failed';
+  const confirmRunReplacement = (start: () => void) => {
+    if (!hasResumableRun) {
+      start();
+      return;
+    }
+    Alert.alert(
+      'Replace your current run?',
+      'Starting another shelf will replace the run shown under Continue.',
+      [
+        { text: 'Keep Current Run', style: 'cancel' },
+        { text: 'Replace Run', style: 'destructive', onPress: start },
+      ],
+    );
+  };
+
+  const startStandardRun = () => {
     primeAudio();
     const result = startNewRun();
     void result.save.catch(() => undefined);
     router.push(routeForGameState(result.gameState));
   };
 
-  const onContinue = () => {
-    primeAudio();
-    void continueRun().then((gameState) => router.push(routeForGameState(gameState)));
+  const onNewRun = () => confirmRunReplacement(startStandardRun);
+
+  const retrySaveCheck = () => {
+    void continueRun().catch(() => undefined);
   };
 
-  const onDaily = () => {
+  const onContinue = () => {
     primeAudio();
-    // Already played today → straight to the share card. Otherwise a fresh
-    // date-seeded run (same offers worldwide, one attempt — enforced on end).
-    if (playedToday) {
-      router.push('/share');
-      return;
-    }
+    router.push(routeForGameState(gameState));
+  };
+
+  const startDailyRun = () => {
+    primeAudio();
     const result = startNewRun(dailySeedFor(todayDateString()));
     void result.save.catch(() => undefined);
     router.push(routeForGameState(result.gameState));
+  };
+
+  const onDaily = () => {
+    // Already played today → straight to the share card. Otherwise a fresh
+    // date-seeded run (same offers worldwide, one attempt — enforced on end).
+    if (playedToday) {
+      primeAudio();
+      router.push('/share');
+      return;
+    }
+    confirmRunReplacement(startDailyRun);
   };
 
   return (
@@ -128,7 +164,30 @@ export default function TitleScreen() {
 
       {/* primary actions live in the bottom reach zone */}
       <Entrance index={1} style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
-        <WoodButton label="New Run" onPress={onNewRun} />
+        <WoodButton
+          label={checkingSave ? 'Checking Save…' : 'New Run'}
+          disabled={checkingSave || saveCheckFailed}
+          onPress={onNewRun}
+        />
+        {loadStatus === 'corrupt' || loadStatus === 'versionMismatch' ? (
+          <View style={styles.runNotice}>
+            <AppText variant="label" color={palette.emberDark}>
+              Your previous run could not be restored. Starting a new run is safe.
+            </AppText>
+          </View>
+        ) : null}
+        {saveCheckFailed ? (
+          <View style={styles.runNotice}>
+            <AppText
+              accessibilityLabel={`Could not check saved progress${lastLoadError ? `: ${lastLoadError}` : ''}`}
+              variant="label"
+              color={palette.emberDark}
+            >
+              Could not check saved progress. Retry before starting another run.
+            </AppText>
+            <WoodButton label="Retry Save Check" variant="secondary" onPress={retrySaveCheck} />
+          </View>
+        ) : null}
         <WoodButton
           label={
             // A live streak (≥2) takes the compact form ("Daily ✓ · Streak 4")
@@ -142,12 +201,15 @@ export default function TitleScreen() {
                 : 'Daily Shelf'
           }
           variant="secondary"
+          disabled={(checkingSave || saveCheckFailed) && !playedToday}
           onPress={onDaily}
         />
         <View style={styles.secondaryRow}>
-          <View style={styles.grow}>
-            <WoodButton label="Continue" variant="secondary" onPress={onContinue} />
-          </View>
+          {hasResumableRun ? (
+            <View style={styles.grow}>
+              <WoodButton label="Continue" variant="secondary" onPress={onContinue} />
+            </View>
+          ) : null}
           <View style={styles.grow}>
             <WoodButton label="Catalog" variant="secondary" onPress={() => router.push('/catalog')} />
           </View>
