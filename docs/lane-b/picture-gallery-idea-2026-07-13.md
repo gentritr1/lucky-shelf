@@ -49,6 +49,14 @@ accents, soft dusk golds. Prompts live in the session log / chat; final picks go
 - **#4 storefront — RE-ROLL for text** (gibberish fascia lettering; optionally soften toward
   gouache — style jump is acceptable as the premium capstone, text is not).
 - Set-level: palette/subjects consistent; formats need unifying (vignette vs full-bleed, borders).
+- **RE-ROLLS DONE (2026-07-13, human-approved style-transfer path):** the two MJ keepers were
+  uploaded to Higgsfield as style anchors (explicit human approval — they are unreleased art) and
+  flux_kontext generated style-matched replacements; four candidates saved as
+  `~/Desktop/lucky-shelf-images/rerolled-counter-cat-{A,B}.png` and `rerolled-storefront-{A,B}.png`,
+  all text-free. Fable recommends **cat A** (cream-vignette format pairs with keeper #1) and
+  **storefront B** (painted-border watercolor format pairs with keeper #3); human picks final.
+  An earlier text-only recraft_v4_1 attempt produced nice standalones but a visibly different,
+  flatter style — kept only as fallback references in the session log.
 
 ## Assembly ceremony (human idea, Fable-shaped): reveal + slide puzzle combined
 

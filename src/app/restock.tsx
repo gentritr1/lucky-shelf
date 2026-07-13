@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -49,9 +48,10 @@ export default function RestockScreen() {
   const lastRejectedAction = useRunStore(runSelectors.lastRejectedAction);
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [sellMode, setSellMode] = useState(false);
-  // Daily-shop rule prose is clamped to one line per row; tapping a row expands it
-  // to the full rules. Only one row is open at a time (B-M13).
-  const [expandedOfferId, setExpandedOfferId] = useState<string | null>(null);
+  // Daily-shop rule prose is clamped to one line per row; tapping a row SELECTS it
+  // (draft.tsx's ring/tint pattern) and a fixed detail card below the list shows the
+  // selected item's full rules + tags. One selection at a time; tapping it deselects.
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const affordances = useMemo(() => restockAffordanceView(gameState), [gameState]);
 
   // Rent was just paid before restock — back to the calm golden-hour bed.
@@ -66,6 +66,18 @@ export default function RestockScreen() {
     () => gameState.currentOffers.map((offer) => offerToCard(offer)),
     [gameState.currentOffers],
   );
+  // The offer whose full rules the detail card shows; null → the card prompts.
+  const selectedShopOffer = useMemo(
+    () => offers.find((offer) => offer.offerId === selectedOfferId) ?? null,
+    [offers, selectedOfferId],
+  );
+  // Reroll/buy regenerates the shop — drop a stale selection so no ghost ring
+  // survives and the detail card falls back to its prompt.
+  useEffect(() => {
+    if (selectedOfferId && !offers.some((offer) => offer.offerId === selectedOfferId)) {
+      setSelectedOfferId(null);
+    }
+  }, [offers, selectedOfferId]);
   const sellShelf = useMemo(
     () => sellShelfView(gameState).filter(({ slot }) => hasSlotAction(affordances.sellActions, slot)),
     [affordances.sellActions, gameState],
@@ -234,7 +246,7 @@ export default function RestockScreen() {
             ) : (
               offers.map((offer, index) => {
                 const canBuy = affordances.buyActions.some((action) => action.offerIndex === index);
-                const expanded = expandedOfferId === offer.offerId;
+                const selected = selectedOfferId === offer.offerId;
                 const thumb = (
                   <View style={[styles.shopThumb, offer.blurb ? styles.shopThumbSignature : null]}>
                     {offer.sprite ? (
@@ -248,11 +260,15 @@ export default function RestockScreen() {
                 return (
                   <View
                     key={offer.offerId}
-                    style={[styles.shopRow, offer.blurb ? styles.shopRowSignature : null]}
+                    style={[
+                      styles.shopRow,
+                      offer.blurb ? styles.shopRowSignature : null,
+                      selected ? styles.shopRowSelected : null,
+                    ]}
                   >
                     {offer.blurb ? (
-                      // Signature stock shows its bespoke one-line effect blurb — no
-                      // rules to expand, so this half stays a plain (non-tappable) row.
+                      // Signature stock shows its bespoke one-line effect blurb — the
+                      // effect IS its full rule, so it stays a plain (non-selectable) row.
                       <View style={styles.shopTap}>
                         {thumb}
                         <View style={styles.shopInfo}>
@@ -269,12 +285,12 @@ export default function RestockScreen() {
                     ) : (
                       <Pressable
                         accessibilityRole="button"
-                        accessibilityState={{ expanded }}
+                        accessibilityState={{ selected }}
                         // VoiceOver reads the FULL rule prose regardless of the visual
                         // one-line clamp (screen-reader users don't get the truncation).
-                        accessibilityLabel={`${offer.name}. ${offer.ruleLines.join('. ')}. Tap to ${expanded ? 'collapse' : 'expand'} rules.`}
+                        accessibilityLabel={`${offer.name}. ${offer.ruleLines.join('. ')}. Tap to ${selected ? 'deselect' : 'see full rules'}.`}
                         onPress={() =>
-                          setExpandedOfferId((current) => (current === offer.offerId ? null : offer.offerId))
+                          setSelectedOfferId((current) => (current === offer.offerId ? null : offer.offerId))
                         }
                         style={styles.shopTap}
                       >
@@ -282,26 +298,10 @@ export default function RestockScreen() {
                         <View style={styles.shopInfo}>
                           <View style={styles.shopNameRow}>
                             <AppText variant="heading" color={palette.ink} numberOfLines={1} style={styles.shopName}>{offer.name}</AppText>
-                            <MaterialCommunityIcons
-                              name="chevron-down"
-                              size={16}
-                              color={palette.inkFaint}
-                              style={[styles.shopChevron, expanded && styles.shopChevronOpen]}
-                            />
                           </View>
-                          <View style={styles.shopRules}>
-                            {expanded ? (
-                              offer.ruleLines.map((line) => (
-                                <AppText key={line} variant="label" color={palette.inkSoft} style={styles.shopRule}>
-                                  {line}
-                                </AppText>
-                              ))
-                            ) : (
-                              <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.shopRule}>
-                                {offer.ruleLines[0] ?? ''}
-                              </AppText>
-                            )}
-                          </View>
+                          <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.shopRule}>
+                            {offer.ruleLines[0] ?? ''}
+                          </AppText>
                           <View style={styles.shopTags}>
                             {offer.tags.slice(0, 2).map((tag) => (
                               <TagChip key={tag} label={tag} />
@@ -325,6 +325,44 @@ export default function RestockScreen() {
               })
             )}
           </ScrollView>
+          {/* Fixed detail card (draft.tsx pattern): the selected item's full rules +
+              tags in one stable spot below the list. Sits below the flex:1 scroller
+              so revealing it never jumps the rows above; polite live region so
+              VoiceOver announces the swap. Content-sized → grows (not clips) at 130%. */}
+          <View style={styles.detailCard} accessibilityLiveRegion="polite">
+            {selectedShopOffer ? (
+              <>
+                {/* Name the item the card describes: at 130% the list scrolls, so the
+                    selected row (and its ring) can be off-screen while this card is
+                    visible — without the name the prose is orphaned. */}
+                <AppText variant="label" color={palette.ink} style={styles.detailName}>
+                  {selectedShopOffer.name}
+                </AppText>
+                <View style={styles.detailRules}>
+                  {selectedShopOffer.ruleLines.length > 0 ? (
+                    selectedShopOffer.ruleLines.map((line) => (
+                      <AppText key={line} variant="label" color={palette.inkSoft} style={styles.detailRule}>
+                        {line}
+                      </AppText>
+                    ))
+                  ) : (
+                    <AppText variant="label" color={palette.inkSoft} style={styles.detailRule}>
+                      No special rules.
+                    </AppText>
+                  )}
+                </View>
+                <View style={styles.detailTags}>
+                  {selectedShopOffer.tags.map((tag) => (
+                    <TagChip key={tag} label={tag} />
+                  ))}
+                </View>
+              </>
+            ) : (
+              <AppText variant="label" color={palette.inkFaint} style={styles.detailPrompt}>
+                Tap an item to see its full rules.
+              </AppText>
+            )}
+          </View>
           <AppText variant="body" color={palette.inkFaint} style={styles.caption}>
             {lastRejectedAction?.message ?? "Buy what you can afford and place it. Rent is due at week's end."}
           </AppText>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  borders,
   fonts,
   highContrastPalette,
   layout,
@@ -129,12 +130,6 @@ function expected(p: Palette) {
       fontSize: 15,
       lineHeight: 19,
     },
-    shopChevron: {
-      marginLeft: 'auto',
-    },
-    shopChevronOpen: {
-      transform: [{ rotate: '180deg' }],
-    },
     shopTags: {
       flexDirection: 'row',
       gap: spacing.xxs,
@@ -142,8 +137,10 @@ function expected(p: Palette) {
     shopRule: {
       letterSpacing: 0,
     },
-    shopRules: {
-      gap: spacing.xxs,
+    shopRowSelected: {
+      borderColor: p.accentTeal,
+      borderWidth: borders.strong + 1,
+      ...shadows.lifted,
     },
     shopRowSignature: {
       backgroundColor: p.sunlight,
@@ -300,6 +297,36 @@ function expected(p: Palette) {
       fontSize: 13,
       lineHeight: 16,
     },
+    detailCard: {
+      backgroundColor: p.creamBright,
+      borderColor: p.parchmentEdge,
+      borderRadius: radii.lg,
+      borderWidth: borders.hairline,
+      gap: spacing.xs,
+      justifyContent: 'center',
+      minHeight: 60,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      ...shadows.card,
+    },
+    detailName: {
+      letterSpacing: 0,
+    },
+    detailRules: {
+      gap: spacing.xxs,
+    },
+    detailRule: {
+      letterSpacing: 0,
+    },
+    detailTags: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xxs,
+    },
+    detailPrompt: {
+      letterSpacing: 0,
+      textAlign: 'center',
+    },
     caption: {
       textAlign: 'center',
     },
@@ -346,10 +373,12 @@ describe('restock.tsx themed styles', () => {
     expect(s.sellValue).toEqual({ fontSize: 13, lineHeight: 16 });
   });
 
-  // B-M13: the collapse/expand affordance. The tappable half (thumb + info) is a
-  // flex row separate from the Buy button, and the chevron pins to the name row's
-  // right edge — so a row tap toggles the rule prose without buying.
-  it('exposes the row-expand affordance styles (tap area + chevron)', () => {
+  // B-M13 (round 3): the accordion was eyeball-rejected and replaced by draft.tsx's
+  // selection pattern. The tappable half (thumb + info) is a flex row separate from
+  // the Buy button — a row tap SELECTS it (no buy). No chevron/expansion styles
+  // survive; the selected ring reuses OfferCard's teal-ring language, and a fixed
+  // detail card below the list holds the full rules.
+  it('exposes the row-select affordance styles (tap area + teal ring + detail card)', () => {
     const s = makeStyles(palette);
     expect(s.shopTap).toEqual({
       alignItems: 'center',
@@ -357,8 +386,21 @@ describe('restock.tsx themed styles', () => {
       flexDirection: 'row',
       gap: spacing.md,
     });
-    expect(s.shopChevron).toEqual({ marginLeft: 'auto' });
-    // The name shrinks so the chevron stays visible next to a long name.
+    // Selection reuses the draft OfferCard.selected language: a thick teal ring + lift.
+    expect(s.shopRowSelected).toEqual({
+      borderColor: palette.accentTeal,
+      borderWidth: borders.strong + 1,
+      ...shadows.lifted,
+    });
+    // The name shrinks so a long name never pushes the row's layout.
     expect(s.shopName.flexShrink).toBe(1);
+    // The fixed detail card is content-sized (a minHeight floor, but NO fixed
+    // height) so it grows instead of clipping at 130% text.
+    expect(s.detailCard.minHeight).toBe(60);
+    expect(s.detailCard).not.toHaveProperty('height');
+    // The accordion chevron/expansion styles are gone.
+    expect(s).not.toHaveProperty('shopChevron');
+    expect(s).not.toHaveProperty('shopChevronOpen');
+    expect(s).not.toHaveProperty('shopRules');
   });
 });
