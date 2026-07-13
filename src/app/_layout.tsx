@@ -6,9 +6,10 @@ import { Image, Pressable, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppText, usePalette, usePrefs, useThemedStyles } from '@/ui';
+import { AppText, pictureGalleryEnabled, usePalette, usePrefs, useThemedStyles } from '@/ui';
 import { ITEM_SPRITES } from '@/juice';
 import { useCatalogStore } from '../state/catalogStore';
+import { useGalleryStore } from '../state/galleryStore';
 import { runSelectors, useRunStore } from '../state/store';
 
 import { makeStyles } from '@/screen-styles/_layout.styles';
@@ -73,6 +74,14 @@ export default function RootLayout() {
   // a later toggle persist instead of being skipped as a pre-hydration default.
   useEffect(() => {
     void usePrefs.getState().loadPrefs().catch(() => undefined);
+  }, []);
+
+  // Hydrate the picture gallery's hung-state (B-M14) — ONLY when the flag is on.
+  // `loadGallery` is itself flag-gated (no-op + no storage touch when off), so
+  // the flag-off boot path never reads or writes the gallery key.
+  useEffect(() => {
+    if (!pictureGalleryEnabled()) return;
+    void useGalleryStore.getState().loadGallery().catch(() => undefined);
   }, []);
 
   // Keep the splash up (return nothing) until the fonts resolve; the native

@@ -23,6 +23,7 @@ import {
   borders,
   layout,
   motion,
+  pictureGalleryEnabled,
   shadows,
   spacing,
   usePalette,
@@ -227,6 +228,10 @@ export default function CatalogScreen() {
       >
         <CompletionHeader view={view} stats={catalog.stats} nextUnlock={nextUnlock} />
 
+        {/* B-M14: the picture gallery entry (flag-gated). Off ⇒ this never
+            renders, so the catalog is byte-identical. */}
+        {pictureGalleryEnabled() ? <GalleryEntryCard onOpen={() => router.push('/gallery')} /> : null}
+
         <SegmentedTabs
           tab={tab}
           onChange={setTab}
@@ -246,6 +251,35 @@ export default function CatalogScreen() {
       <ItemShowcaseModal row={showcaseRow} onClose={() => setShowcaseId(null)} />
       <ComboShowcaseModal row={comboShowcaseRow} onClose={() => setComboShowcaseId(null)} />
     </View>
+  );
+}
+
+/**
+ * B-M14 gallery entry — a warm pressable card that opens The Paintings. Uses the
+ * catalog's own Panel language (parchment bed, gold accent, chevron). Only ever
+ * rendered when PICTURE_GALLERY_ENABLED, so the flag-off catalog is unchanged.
+ */
+function GalleryEntryCard({ onOpen }: { onOpen: () => void }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="The Paintings — open the picture gallery"
+      onPress={onOpen}
+      style={({ pressed }) => [styles.galleryEntry, pressed && styles.galleryEntryPressed]}
+    >
+      <View style={styles.galleryEntryIcon}>
+        <MaterialCommunityIcons name="image-frame" size={22} color={palette.goldDeep} />
+      </View>
+      <View style={styles.galleryEntryText}>
+        <AppText variant="heading" color={palette.ink}>The Paintings</AppText>
+        <AppText variant="body" color={palette.inkSoft} numberOfLines={1}>
+          Collect wider to reveal four paintings
+        </AppText>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={22} color={palette.inkFaint} />
+    </Pressable>
   );
 }
 

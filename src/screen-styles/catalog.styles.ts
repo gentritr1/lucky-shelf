@@ -13,6 +13,30 @@ import { borders, layout, radii, shadows, spacing, type Palette } from '@/ui/tok
 export function makeStyles(palette: Palette) {
   return StyleSheet.create({
     screen: { backgroundColor: palette.wallCream, flex: 1, paddingHorizontal: layout.screenPadX },
+
+    // B-M14 gallery entry card (flag-gated; not rendered when the flag is off).
+    galleryEntry: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.md,
+      borderWidth: borders.hairline,
+      flexDirection: 'row',
+      gap: spacing.md,
+      paddingHorizontal: layout.cardPad,
+      paddingVertical: spacing.md,
+      ...shadows.card,
+    },
+    galleryEntryPressed: { opacity: 0.9 },
+    galleryEntryIcon: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderRadius: radii.sm,
+      height: 40,
+      justifyContent: 'center',
+      width: 40,
+    },
+    galleryEntryText: { flex: 1, gap: spacing.xxs },
     content: { gap: spacing.md, paddingTop: spacing.md },
 
     // PROG-1 "Shelf Growth" card: tighter section gap so the richer card (mini

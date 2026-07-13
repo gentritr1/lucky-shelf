@@ -18,3 +18,4 @@ export { MovesPips } from './components/MovesPips';
 export { TopBar } from './components/TopBar';
 export { OnboardingHint } from './OnboardingHint';
 export { GearIcon, Medallion } from './icons';
+export { PICTURE_GALLERY_ENABLED, PICTURE_GALLERY_ENV_VAR, pictureGalleryEnabled } from './featureFlags';

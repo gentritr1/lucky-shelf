@@ -1,9 +1,9 @@
 # Idea capture — collection picture gallery ("buy items, reveal a painting")
 
-**Status: NOT SCHEDULED — feature freeze until Gate 3 data (RELEASE-PLAN).** Human-proposed
-2026-07-13 during the round-3 device session; Fable design ruling recorded here so the idea is
-build-ready the moment the freeze lifts (or the human explicitly lifts it early). Asset
-generation is external (Midjourney, human-run) and can proceed NOW — art has no code freeze.
+**Status: IN BUILD (B-M14) — freeze explicitly overridden by the human 2026-07-13 ("build the
+gallery").** Implementation brief: [picture-gallery-brief.md](picture-gallery-brief.md), Opus 4.8,
+behind `PICTURE_GALLERY_ENABLED` default OFF; flag flip gated on the human eyeball. Original
+capture: human-proposed 2026-07-13 during the round-3 device session; Fable design ruling below.
 
 ## The idea (human)
 
