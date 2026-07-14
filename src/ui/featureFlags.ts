@@ -14,7 +14,7 @@
 /** B-M14 Picture Gallery. Default OFF: no gallery route access, no Catalog entry,
  *  no gallery persistence read/write — the app is byte-identical when OFF. Flipped
  *  ON in a separate one-line commit after the human eyeball on the ceremony feel. */
-export const PICTURE_GALLERY_ENABLED = false;
+export const PICTURE_GALLERY_ENABLED = true;
 export const PICTURE_GALLERY_ENV_VAR = 'PICTURE_GALLERY_ENABLED';
 
 function flagEnabled(compiledDefault: boolean, envVar: string): boolean {
