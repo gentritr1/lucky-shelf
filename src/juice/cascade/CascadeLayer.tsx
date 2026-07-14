@@ -27,7 +27,7 @@ import {
   type ShelfLayout,
 } from '../layout';
 import { haptic } from '../haptics';
-import { playCascadeSting, playDiscoveryJingle } from '../audio';
+import { playCascadeSting, playDiscoveryJingle, setBedDucked } from '../audio';
 import {
   receiptCaptionForStep,
   receiptDepsFromGameState,
@@ -81,6 +81,13 @@ interface CascadeLayerProps {
   /** Label for that single advance affordance (defaults to a collect-flavored verb). */
   completeLabel?: string;
   /**
+   * B-M16: fires when the terminal dayTotal RESOLVES (play-through, skip, and
+   * each replay — the same moments the payout sting plays). The run HUD uses it
+   * to time the rent-payment beat against the slam. Optional; omitting it
+   * changes nothing.
+   */
+  onDayTotal?: () => void;
+  /**
    * B-M11: the combos achieved all-time BEFORE this run started
    * (`catalog.achievedComboIds` snapshot at run start). Enables combo-discovery
    * moments — a first-ever combo earns a toast + stamp + jingle + slow-beat; a
@@ -103,6 +110,7 @@ export function CascadeLayer({
   targetResult,
   onComplete,
   completeLabel = 'Collect ▸',
+  onDayTotal,
   achievedBeforeRun,
 }: CascadeLayerProps) {
   const reduced = useReducedMotion();
@@ -150,6 +158,15 @@ export function CascadeLayer({
 
   useEffect(() => setReceiptOpen(false), [trace]);
 
+  // Audio duck (2026-07-14, human-approved): while the cascade owns the screen
+  // the music bed drops to its ducked level so payout stings/jingle/captions
+  // read on top; the cleanup swells it back on Collect/route-away. Idempotent
+  // and prefs-gated inside the gateway.
+  useEffect(() => {
+    setBedDucked(true);
+    return () => setBedDucked(false);
+  }, []);
+
   // The discovery moment for the currently-resolved step (if any).
   const activeMoment = useMemo(
     () => discoveries.find((moment) => moment.eventIndex === stepIndex) ?? null,
@@ -164,10 +181,14 @@ export function CascadeLayer({
 
   // The payout flourish belongs to the resolved payout, not the Open Shop
   // button press. Keeping it on the terminal trace event also makes Skip and
-  // Play again truthful without adding another timer to the cascade.
+  // Play again truthful without adding another timer to the cascade. B-M16: the
+  // same moment notifies the HUD (rent-payment beat rides the slam).
   useEffect(() => {
-    if (currentEvent?.kind === 'dayTotal') playCascadeSting();
-  }, [currentEvent]);
+    if (currentEvent?.kind === 'dayTotal') {
+      playCascadeSting();
+      onDayTotal?.();
+    }
+  }, [currentEvent, onDayTotal]);
 
   // B-M6 spectacle tier — pure function of the trace + the day's goal target.
   // `'normal'` short-circuits every added effect below so ordinary cascades render

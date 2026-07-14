@@ -69,6 +69,9 @@ function expected(p: Palette) {
     },
     cascadeRentLine: {
       alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'center',
     },
     hint: {
       fontSize: 13,

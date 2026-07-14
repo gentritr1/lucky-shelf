@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { type Palette } from '../tokens';
+import { radii, type Palette } from '../tokens';
 
 /**
  * THEME-1 themed factory for RentChip's tone backgrounds/borders and their text
@@ -26,5 +26,8 @@ export function makeStyles(palette: Palette) {
     calmText: { color: palette.inkSoft },
     warmText: { color: palette.ink },
     alarmText: { color: palette.creamBright },
+    // B-M16 rent-eve ember glow: an emberDark film the pulse breathes over the
+    // alarm chip (opacity riding the pulse value — never rendered when calm).
+    emberGlow: { backgroundColor: palette.emberDark, borderRadius: radii.pill },
   });
 }

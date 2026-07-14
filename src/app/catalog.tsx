@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type ComponentProps } from 'react';
+import { useEffect, useMemo, useState, type ComponentProps } from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -26,6 +26,7 @@ import {
   shadows,
   usePalette,
   useReducedMotion,
+  useTextScale,
   useThemedStyles,
 } from '@/ui';
 import type { CatalogStats, ItemInstance } from '@/contracts';
@@ -37,7 +38,6 @@ import {
   buildCatalogView,
   catalogBands,
   catalogSelectors,
-  milestoneScaleView,
   nearestIncompleteBand,
   nextUnlockTeaserView,
   rarityGoalForItems,
@@ -256,9 +256,9 @@ export default function CatalogScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + layout.screenBottomGap }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* In-screen stagger: journal → (gallery) → stamps → page. */}
+        {/* In-screen stagger: journal → (gallery) → stamps → stats → page. */}
         <StaggerReveal order={0}>
-          <JournalHeader view={view} stats={catalog.stats} nextUnlock={nextUnlock} />
+          <JournalHeader view={view} nextUnlock={nextUnlock} />
         </StaggerReveal>
 
         {/* B-M14: the picture gallery entry (flag-gated). Off ⇒ this never
@@ -273,9 +273,15 @@ export default function CatalogScreen() {
           <RarityStampTabs view={view} bands={bands} tab={tab} onSelect={setTab} />
         </StaggerReveal>
 
+        {/* B-M16: the best-run stats ledger — below the stamps row, out of the
+            hero card (the header decram; see JournalHeader). */}
+        <StaggerReveal order={galleryOn ? 3 : 2}>
+          <StatsStrip stats={catalog.stats} />
+        </StaggerReveal>
+
         {/* Conditional render: only the active page is mounted, so its reveal
             plans (and animators) exist only while it is on screen. */}
-        <StaggerReveal order={galleryOn ? 3 : 2}>
+        <StaggerReveal order={galleryOn ? 4 : 3}>
           {tab.kind === 'combos' ? (
             <CombosTab view={view} onOpenCombo={setComboShowcaseId} />
           ) : selectedBand ? (
@@ -347,38 +353,34 @@ function GalleryEntryCard({ onOpen }: { onOpen: () => void }) {
 }
 
 /**
- * B-M15 Collector's Journal header card. A handcrafted paper page: a hand-titled
- * masthead, the big completion % (which count-ups on mount and, at the same time,
- * lights the passive milestone dot-scale as it climbs), the combos wax seal beside
- * the NEXT MILESTONE teaser, and the four best-run stats as receipt-leader lines.
- * Shows exactly the data the view models already pay — no invented lifetime-coins
- * stat, no milestone rewards. Replaces the retired Shelf-Growth card (its wood
- * mini-shelf clashed with the paper journal; the dot-scale + discovered count
- * carry "filling up"). The headline block reads as one VoiceOver summary.
+ * B-M15 Collector's Journal header card, decrammed in B-M16 (human REQUEST
+ * CHANGES: "too many things, too cramped"). The card holds exactly FOUR airy
+ * groups — masthead, big completion %, the discovered count, and the NEXT
+ * MILESTONE row — with spacing.md of air between groups. Removed from the card:
+ * the milestone dot-scale (decorative), the combos wax seal (combos coverage
+ * already lives on the COMBOS stamp in the tab strip), and the four best-run
+ * stats (relocated to the StatsStrip ledger below the stamps row — nothing left
+ * the screen, only the card). The headline reads as one VoiceOver summary.
  */
 function JournalHeader({
   view,
-  stats,
   nextUnlock,
 }: {
   view: CatalogView;
-  stats: CatalogStats;
   nextUnlock: NextUnlockRow | null;
 }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const bands = useMemo(() => catalogBands(view.items), [view.items]);
-  // One count-up drives BOTH the big number and the milestone fill, so the dots
-  // light in step with the percentage as it animates to value (~600ms, once).
+  // Count-up drives the big number to value once on mount (~600ms).
   const animatedPct = useCountUp(view.completionPct);
-  const marks = milestoneScaleView(animatedPct);
   const summaryLabel = `Collector's Journal. Collection ${view.completionPct} percent complete, ${view.itemsDiscovered} of ${view.itemsTotal} items discovered.`;
 
   return (
     <View style={styles.journalCard}>
       <View pointerEvents="none" style={styles.journalStitch} />
 
-      <View accessible accessibilityLabel={summaryLabel}>
+      <View accessible accessibilityLabel={summaryLabel} style={styles.journalHead}>
         <View style={styles.journalMast}>
           <MaterialCommunityIcons name="clover" size={16} color={palette.goldDeep} />
           <AppText variant="heading" color={palette.ink} style={styles.journalTitle}>
@@ -400,82 +402,43 @@ function JournalHeader({
             <AppText variant="label" color={palette.inkFaint}>items discovered</AppText>
           </View>
         </View>
-
-        <MilestoneScale marks={marks} />
       </View>
 
-      <View style={styles.sealRow}>
-        <WaxSeal achieved={view.combosAchieved} total={view.combosTotal} />
-        <NextMilestoneRow nextUnlock={nextUnlock} bands={bands} />
-      </View>
-
-      <View style={styles.journalRule} />
-
-      <View style={styles.journalStats}>
-        <JournalStat label="Runs" value={String(stats.runsPlayed)} />
-        <JournalStat label="Best day" value={`${stats.bestDayTotal}c`} />
-        <JournalStat label="Longest run" value={`${stats.longestRun}d`} />
-        <JournalStat label="Deepest rent" value={String(stats.deepestRentSurvived)} />
-      </View>
+      <NextMilestoneRow nextUnlock={nextUnlock} bands={bands} />
     </View>
   );
 }
 
-/** The passive milestone dot-scale (0/25/50/75/100). Marks fill by real
- *  completionPct; the first becomes a star once any progress exists. PURELY
- *  decorative — no rewards live here. A rule segment between two filled marks
- *  lights gold; the label sits beneath at the two ends only (0% / 100%). */
-function MilestoneScale({ marks }: { marks: ReturnType<typeof milestoneScaleView> }) {
+/**
+ * B-M16: the four best-run stats, relocated OUT of the journal card into a quiet
+ * ledger strip below the stamps row (visually secondary — parchment bed, small
+ * caps). One row at normal text; two-per-row at 130% so the cells never crush.
+ * One accessible summary carries all four values.
+ */
+function StatsStrip({ stats }: { stats: CatalogStats }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
-  return (
-    <View style={styles.milestoneRow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {marks.map((mark, index) => (
-        <Fragment key={mark.threshold}>
-          {index > 0 ? (
-            <View style={[styles.milestoneRule, mark.filled && styles.milestoneRuleFilled]} />
-          ) : null}
-          <View style={[styles.milestoneDot, mark.filled && styles.milestoneDotFilled]}>
-            {mark.isStar ? (
-              <MaterialCommunityIcons name="star" size={9} color={palette.creamBright} />
-            ) : null}
-          </View>
-        </Fragment>
-      ))}
-    </View>
-  );
-}
-
-/** The combos "wax seal" — a deep-teal medallion carrying achieved/total combos,
- *  standing left of the NEXT MILESTONE teaser. One accessible summary. */
-function WaxSeal({ achieved, total }: { achieved: number; total: number }) {
-  const styles = useThemedStyles(makeStyles);
-  const palette = usePalette();
+  const wide = useTextScale() >= 1.3;
+  const cells = [
+    { label: 'RUNS', value: String(stats.runsPlayed) },
+    { label: 'BEST DAY', value: `${stats.bestDayTotal}c` },
+    { label: 'LONGEST RUN', value: `${stats.longestRun}d` },
+    { label: 'DEEPEST RENT', value: String(stats.deepestRentSurvived) },
+  ];
   return (
     <View
-      style={styles.waxSeal}
+      style={styles.statsStrip}
       accessible
-      accessibilityLabel={`${achieved} of ${total} combos achieved`}
+      accessibilityLabel={`Best-run stats. ${stats.runsPlayed} runs played, best day ${stats.bestDayTotal} coins, longest run ${stats.longestRun} days, deepest rent survived ${stats.deepestRentSurvived}.`}
     >
-      <AppText variant="stat" color={palette.creamBright} style={styles.waxSealCount}>
-        {`${achieved}/${total}`}
-      </AppText>
-      <AppText variant="label" color={palette.creamBright} style={styles.waxSealLabel}>
-        COMBOS
-      </AppText>
-    </View>
-  );
-}
-
-/** One best-run stat as a receipt-leader line: label · hairline leader · value. */
-function JournalStat({ label, value }: { label: string; value: string }) {
-  const styles = useThemedStyles(makeStyles);
-  const palette = usePalette();
-  return (
-    <View style={styles.journalStatCell}>
-      <AppText variant="body" color={palette.inkSoft}>{label}</AppText>
-      <View style={styles.journalStatLeader} />
-      <AppText variant="stat" color={palette.ink}>{value}</AppText>
+      {cells.map((cell) => (
+        <View key={cell.label} style={wide ? styles.statsStripCellWide : styles.statsStripCell}>
+          <AppText variant="stat" color={palette.ink}>{cell.value}</AppText>
+          <AppText variant="label" color={palette.inkFaint} style={styles.statsStripLabel}>
+            {cell.label}
+          </AppText>
+        </View>
+      ))}
     </View>
   );
 }
@@ -1161,10 +1124,15 @@ function ComboMedal({
     ],
   }));
 
+  // B-M16 (human: medals "look square, clipped by view height"): the circle was
+  // never clipped — a lime-probe screenshot showed the full round well — it READ
+  // square because woodDark-on-shelfWood left the upper arc invisible; only the
+  // woodLight bottom lip drew. The ring is now `shadow` (a clearly darker brown
+  // in both palettes) so the entire circle reads; the lit lower lip stays.
   const well: ViewStyle = {
     alignItems: 'center',
     backgroundColor: p.woodInset,
-    borderColor: p.woodDark,
+    borderColor: p.shadow,
     // Recessed lighting: dark upper lip, light catches the lower lip.
     borderBottomColor: p.woodLight,
     borderRadius: size / 2,

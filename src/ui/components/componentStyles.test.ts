@@ -148,6 +148,8 @@ const cases: Case[] = [
       calmText: { color: p.inkSoft },
       warmText: { color: p.ink },
       alarmText: { color: p.creamBright },
+      // B-M16 rent-eve ember film (opacity animated at the call site).
+      emberGlow: { backgroundColor: p.emberDark, borderRadius: radii.pill },
     }),
   },
   {

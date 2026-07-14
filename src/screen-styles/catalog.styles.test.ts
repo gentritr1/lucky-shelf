@@ -41,13 +41,14 @@ function expected(p: Palette) {
 
     content: { gap: spacing.md, paddingTop: spacing.md },
 
-    // --- B-M15 Collector's Journal header card. ---
+    // --- B-M15 Collector's Journal header card (B-M16 decram: spacing.md air;
+    // dot-scale, wax seal, and stat lines left the card — stats in statsStrip). ---
     journalCard: {
       backgroundColor: p.creamBright,
       borderColor: p.goldDeep,
       borderRadius: radii.lg,
       borderWidth: borders.regular,
-      gap: spacing.sm,
+      gap: spacing.md,
       overflow: 'hidden',
       padding: layout.cardPad,
       ...shadows.card,
@@ -62,6 +63,7 @@ function expected(p: Palette) {
       right: spacing.xs,
       top: spacing.xs,
     },
+    journalHead: { gap: spacing.md },
     journalMast: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
     journalTitle: { fontStyle: 'italic', letterSpacing: 0.3 },
     journalHeadRow: {
@@ -74,48 +76,12 @@ function expected(p: Palette) {
     completionCaption: { marginBottom: spacing.xxs },
     discoveredCount: { alignItems: 'flex-end', flexShrink: 1, gap: spacing.xxs },
 
-    milestoneRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
-    milestoneRule: {
-      backgroundColor: p.parchmentEdge,
-      borderRadius: radii.pill,
-      flex: 1,
-      height: 2,
-    },
-    milestoneRuleFilled: { backgroundColor: p.coinGold },
-    milestoneDot: {
-      alignItems: 'center',
-      backgroundColor: p.parchment,
-      borderColor: p.parchmentEdge,
-      borderRadius: radii.pill,
-      borderWidth: 1,
-      height: 14,
-      justifyContent: 'center',
-      width: 14,
-    },
-    milestoneDotFilled: { backgroundColor: p.coinGold, borderColor: p.goldDeep },
-
-    sealRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-    waxSeal: {
-      alignItems: 'center',
-      backgroundColor: p.tealDark,
-      borderColor: p.accentTeal,
-      borderRadius: radii.pill,
-      borderWidth: borders.strong,
-      height: 54,
-      justifyContent: 'center',
-      width: 54,
-      ...shadows.float,
-    },
-    waxSealCount: { fontSize: 13, letterSpacing: 0 },
-    waxSealLabel: { fontSize: 8, letterSpacing: 0.6 },
-
     nextStrip: {
       alignItems: 'center',
       backgroundColor: p.parchment,
       borderColor: p.parchmentEdge,
       borderRadius: radii.md,
       borderWidth: borders.hairline,
-      flex: 1,
       flexDirection: 'row',
       gap: spacing.sm,
       paddingHorizontal: spacing.sm,
@@ -145,27 +111,20 @@ function expected(p: Palette) {
     nextTickFill: { backgroundColor: p.accentTeal, borderRadius: radii.pill, height: 4 },
     nextTickText: { fontSize: 12, letterSpacing: 0 },
 
-    journalRule: {
-      alignSelf: 'stretch',
-      borderBottomColor: p.parchmentEdge,
-      borderBottomWidth: borders.hairline,
-      marginTop: spacing.xxs,
-    },
-    journalStats: { flexDirection: 'row', flexWrap: 'wrap' },
-    journalStatCell: {
-      alignItems: 'flex-end',
+    // B-M16: the relocated best-run stats ledger (below the stamps row).
+    statsStrip: {
+      backgroundColor: p.parchment,
+      borderColor: p.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: borders.hairline,
       flexDirection: 'row',
-      gap: spacing.xs,
-      paddingRight: spacing.sm,
-      paddingVertical: spacing.xxs,
-      width: '50%',
+      flexWrap: 'wrap',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
     },
-    journalStatLeader: {
-      borderBottomColor: p.parchmentEdge,
-      borderBottomWidth: borders.hairline,
-      flex: 1,
-      marginBottom: spacing.xs,
-    },
+    statsStripCell: { alignItems: 'center', gap: spacing.xxs, paddingVertical: spacing.xxs, width: '25%' },
+    statsStripCellWide: { alignItems: 'center', gap: spacing.xxs, paddingVertical: spacing.xxs, width: '50%' },
+    statsStripLabel: { fontSize: 8, letterSpacing: 0.4, textAlign: 'center' },
 
     // --- B-M15 rarity postage-stamp tabs. ---
     stampTabStrip: { gap: spacing.sm, paddingVertical: spacing.xs },

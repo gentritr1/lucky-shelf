@@ -52,18 +52,18 @@ export function makeStyles(palette: Palette) {
 
     // ── B-M15 Collector's Journal header card ──────────────────────────────
     // A handcrafted paper page: creamBright bed, a gold frame + an inset hairline
-    // "stitch" for the hand-bound edge, a hand-titled masthead, the big completion
-    // %, a passive milestone dot-scale, the combos wax seal beside the NEXT
-    // MILESTONE teaser, and the four best-run stats as receipt-leader lines. Merges
-    // the retired Shelf-Growth content: the 41-well wood mini-shelf was retired
-    // (its wood clashed with the paper journal — the dot-scale + discovered count +
-    // per-rarity stamp counts carry "filling up"). Grows/scrolls with 130% text.
+    // "stitch" for the hand-bound edge. B-M16 decram (human REQUEST CHANGES):
+    // the card carries ONLY the masthead, the big completion %, the discovered
+    // count, and the NEXT MILESTONE row — generous spacing.md air between groups.
+    // The dot-scale was removed, the wax seal retired (the COMBOS stamp carries
+    // that coverage), and the best-run stats moved to the statsStrip ledger below
+    // the stamps row. Grows/scrolls with 130% text.
     journalCard: {
       backgroundColor: palette.creamBright,
       borderColor: palette.goldDeep,
       borderRadius: radii.lg,
       borderWidth: borders.regular,
-      gap: spacing.sm,
+      gap: spacing.md,
       overflow: 'hidden',
       padding: layout.cardPad,
       ...shadows.card,
@@ -79,6 +79,8 @@ export function makeStyles(palette: Palette) {
       right: spacing.xs,
       top: spacing.xs,
     },
+    // The accessible headline block (masthead + head row) breathes internally too.
+    journalHead: { gap: spacing.md },
     // Masthead: a clover mark + the hand-titled name (Baloo2 italic at the site).
     journalMast: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
     journalTitle: { fontStyle: 'italic', letterSpacing: 0.3 },
@@ -93,57 +95,16 @@ export function makeStyles(palette: Palette) {
     completionCaption: { marginBottom: spacing.xxs },
     discoveredCount: { alignItems: 'flex-end', flexShrink: 1, gap: spacing.xxs },
 
-    // Passive milestone dot-scale (0/25/50/75/100) filled by real completionPct —
-    // NO rewards, no medals: nothing may imply a payout the sim doesn't have. A
-    // thin rule links the dots; the first mark becomes a star once progress exists.
-    milestoneRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
-    milestoneRule: {
-      backgroundColor: palette.parchmentEdge,
-      borderRadius: radii.pill,
-      flex: 1,
-      height: 2,
-    },
-    milestoneRuleFilled: { backgroundColor: palette.coinGold },
-    milestoneDot: {
-      alignItems: 'center',
-      backgroundColor: palette.parchment,
-      borderColor: palette.parchmentEdge,
-      borderRadius: radii.pill,
-      borderWidth: 1,
-      height: 14,
-      justifyContent: 'center',
-      width: 14,
-    },
-    milestoneDotFilled: { backgroundColor: palette.coinGold, borderColor: palette.goldDeep },
-
-    // The combos "wax seal" badge sits left of the NEXT MILESTONE teaser row.
-    sealRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-    // Deep-teal seal (tealDark bed clears AA for the creamBright count text; a
-    // lighter accentTeal rim reads as the wax lip).
-    waxSeal: {
-      alignItems: 'center',
-      backgroundColor: palette.tealDark,
-      borderColor: palette.accentTeal,
-      borderRadius: radii.pill,
-      borderWidth: borders.strong,
-      height: 54,
-      justifyContent: 'center',
-      width: 54,
-      ...shadows.float,
-    },
-    waxSealCount: { fontSize: 13, letterSpacing: 0 },
-    waxSealLabel: { fontSize: 8, letterSpacing: 0.6 },
-
     // NEXT MILESTONE teaser: an inset parchment strip — a silhouette thumb + the
     // real unlock hint (nextUnlockTeaserView) + a runs progress tick, or the
-    // nearest incomplete band as a fallback. Sits flex:1 beside the wax seal.
+    // nearest incomplete band as a fallback. B-M16: stands alone in the card
+    // (the wax seal that used to sit beside it was retired), so no flex:1.
     nextStrip: {
       alignItems: 'center',
       backgroundColor: palette.parchment,
       borderColor: palette.parchmentEdge,
       borderRadius: radii.md,
       borderWidth: borders.hairline,
-      flex: 1,
       flexDirection: 'row',
       gap: spacing.sm,
       paddingHorizontal: spacing.sm,
@@ -173,30 +134,22 @@ export function makeStyles(palette: Palette) {
     nextTickFill: { backgroundColor: palette.accentTeal, borderRadius: radii.pill, height: 4 },
     nextTickText: { fontSize: 12, letterSpacing: 0 },
 
-    // The four best-run stats as receipt-leader lines (label · hairline leader ·
-    // value), two per row — the run-summary ledger dialect, so the app reads as
-    // one hand. A dividing rule sits above them.
-    journalRule: {
-      alignSelf: 'stretch',
-      borderBottomColor: palette.parchmentEdge,
-      borderBottomWidth: borders.hairline,
-      marginTop: spacing.xxs,
-    },
-    journalStats: { flexDirection: 'row', flexWrap: 'wrap' },
-    journalStatCell: {
-      alignItems: 'flex-end',
+    // B-M16: the four best-run stats as a quiet ledger strip BELOW the stamps
+    // row (relocated out of the hero card). Parchment bed like nextStrip so it
+    // reads secondary; cells wrap two-per-row at 130% (statsStripCellWide).
+    statsStrip: {
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: borders.hairline,
       flexDirection: 'row',
-      gap: spacing.xs,
-      paddingRight: spacing.sm,
-      paddingVertical: spacing.xxs,
-      width: '50%',
+      flexWrap: 'wrap',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
     },
-    journalStatLeader: {
-      borderBottomColor: palette.parchmentEdge,
-      borderBottomWidth: borders.hairline,
-      flex: 1,
-      marginBottom: spacing.xs,
-    },
+    statsStripCell: { alignItems: 'center', gap: spacing.xxs, paddingVertical: spacing.xxs, width: '25%' },
+    statsStripCellWide: { alignItems: 'center', gap: spacing.xxs, paddingVertical: spacing.xxs, width: '50%' },
+    statsStripLabel: { fontSize: 8, letterSpacing: 0.4, textAlign: 'center' },
 
     // ── B-M15 rarity postage-stamp tabs ────────────────────────────────────
     // A stamp-album strip (horizontal scroll so it never crushes at 130%): one

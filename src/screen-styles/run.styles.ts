@@ -71,9 +71,13 @@ export function makeStyles(palette: Palette) {
     },
     // B-M13: rent context rendered inside the cascade overlay (the HUD status row
     // is hidden while scoring). Centered so the pill reads as a header above the
-    // cascade rather than a stray left-aligned chip.
+    // cascade rather than a stray left-aligned chip. B-M16: a row — on the rent
+    // payment beat a draining coins pill joins the chip.
     cascadeRentLine: {
       alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'center',
     },
     hint: {
       fontSize: 13,

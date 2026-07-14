@@ -176,8 +176,8 @@ function PaintingCard({ painting, onAssemble }: { painting: GalleryPaintingView;
       ) : (
         <View style={styles.caption}>
           <View style={styles.captionRow}>
-            <AppText variant="body" color={palette.inkSoft}>{painting.sourceCaption}</AppText>
-            <AppText variant="stat" color={palette.ink}>{painting.progressLabel}</AppText>
+            <AppText variant="body" color={palette.inkSoft} style={styles.captionText}>{painting.sourceCaption}</AppText>
+            <AppText variant="stat" color={palette.ink} style={styles.captionFraction}>{painting.progressLabel}</AppText>
           </View>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${pct}%` }]} />

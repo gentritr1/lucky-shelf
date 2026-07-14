@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Pressable, ScrollView, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import type { Action, GameState, Slot } from '@/contracts';
 import {
@@ -14,9 +21,11 @@ import {
   WoodButton,
   buildAccents,
   layout,
+  motion,
   spacing,
   tagIconName,
   usePalette,
+  useReducedMotion,
   useThemedStyles,
 } from '@/ui';
 import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, setMusicTrack } from '@/juice';
@@ -74,14 +83,41 @@ export default function RunHudScreen() {
   );
 
   // Music bed follows rent proximity: the golden-hour loop until the last
-  // morning, then the sparser rent-week variant. Re-runs on focus and whenever
-  // dueInDays crosses the threshold mid-run.
+  // morning, then the rent-tension variants — the named rent-EVE bed on the
+  // final day before rent, the rent-week bed on the due morning itself (B-M16:
+  // rentEve is the asset-ready slot; it points at the same mp3 until the Suno
+  // asset lands, so today this is audibly unchanged). Re-runs on focus and
+  // whenever dueInDays crosses a threshold mid-run.
   const rentDueInDays = gameState.rent.dueInDays;
   useFocusEffect(
     useCallback(() => {
-      setMusicTrack(rentDueInDays <= RENT_TENSION_DUE_IN_DAYS ? 'rentWeek' : 'main');
+      setMusicTrack(
+        rentDueInDays > RENT_TENSION_DUE_IN_DAYS
+          ? 'main'
+          : rentDueInDays === RENT_TENSION_DUE_IN_DAYS
+            ? 'rentEve'
+            : 'rentWeek',
+      );
     }, [rentDueInDays]),
   );
+
+  // B-M16 rent-payment beat: fires (via the cascade's dayTotal notification)
+  // only on a rent-due cascade, delayed to land WITH the rent-thud haptic. The
+  // beat drives the chip's heavy settle + the coins drain in RentPaymentLine.
+  const [rentBeat, setRentBeat] = useState(false);
+  const rentBeatTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    setRentBeat(false);
+    return () => {
+      if (rentBeatTimer.current) clearTimeout(rentBeatTimer.current);
+    };
+  }, [cascadeMount]);
+  const onCascadeDayTotal = useCallback(() => {
+    if (!cascadeMount?.rentDue) return;
+    if (rentBeatTimer.current) clearTimeout(rentBeatTimer.current);
+    setRentBeat(false); // replay restarts the beat
+    rentBeatTimer.current = setTimeout(() => setRentBeat(true), motion.cascade.rentThudDelayMs);
+  }, [cascadeMount]);
 
   useEffect(() => {
     if (cascadeMount) return;
@@ -290,10 +326,14 @@ export default function RunHudScreen() {
         >
           {/* Rent context lives INSIDE the overlay in a stable spot so the day's
               payout can be read against the rent it owes — a deliberate,
-              complete line, never a half-clipped HUD chip behind the scrim. */}
-          <View style={styles.cascadeRentLine}>
-            <RentChip amount={hudState.rent.amount} dueInDays={hudState.rent.dueInDays} />
-          </View>
+              complete line, never a half-clipped HUD chip behind the scrim.
+              B-M16: on a rent-due slam the line plays the payment beat. */}
+          <RentPaymentLine
+            amount={hudState.rent.amount}
+            dueInDays={hudState.rent.dueInDays}
+            beat={rentBeat}
+            coinsAfter={gameState.coins}
+          />
           <CascadeLayer
             gameState={cascadeMount.gameState}
             trace={cascadeMount.trace}
@@ -303,10 +343,60 @@ export default function RunHudScreen() {
             autoPlay
             onComplete={continueAfterCascade}
             completeLabel={cascadeMount.nextRoute === '/summary' ? 'See Results ▸' : 'Collect ▸'}
+            onDayTotal={onCascadeDayTotal}
           />
         </View>
       ) : null}
 
+    </View>
+  );
+}
+
+/**
+ * B-M16 rent-payment beat: the cascade overlay's rent line. Normally just the
+ * RentChip; when `beat` fires (rent-due dayTotal + the thud delay, timed with
+ * the rent-thud haptic) the chip does ONE heavier settle — a press-down dip and
+ * a spring back (uniform scale + translateY only; Fabric scar respected) — and
+ * a coins pill appears draining from pre-rent (coinsAfter + amount) down to
+ * `coinsAfter`, so the deduction ticks down instead of jumping offscreen.
+ * Reduced motion: no settle, and the pill snaps to the final value (CoinCounter
+ * already snaps under reduced motion). No sim reads beyond props; no new sound
+ * (the future sting drops into the audio gateway, one asset).
+ */
+function RentPaymentLine({
+  amount,
+  dueInDays,
+  beat,
+  coinsAfter,
+}: {
+  amount: number;
+  dueInDays: number;
+  beat: boolean;
+  coinsAfter: number;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const reduced = useReducedMotion();
+  const settle = useSharedValue(0);
+  useEffect(() => {
+    if (!beat || reduced) {
+      settle.value = 0;
+      return;
+    }
+    settle.value = withSequence(
+      withTiming(1, { duration: 90 }),
+      withSpring(0, motion.springs.impact),
+    );
+  }, [beat, reduced, settle]);
+  const settleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - settle.value * 0.06 }, { translateY: settle.value * 3 }],
+  }));
+
+  return (
+    <View style={styles.cascadeRentLine}>
+      <Animated.View style={settleStyle}>
+        <RentChip amount={amount} dueInDays={dueInDays} />
+      </Animated.View>
+      {beat ? <CoinCounter coins={coinsAfter} from={coinsAfter + amount} animate /> : null}
     </View>
   );
 }

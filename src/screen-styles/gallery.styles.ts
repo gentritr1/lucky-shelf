@@ -62,7 +62,12 @@ export function makeStyles(palette: Palette) {
     },
 
     caption: { gap: spacing.xxs },
-    captionRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
+    // B-M16: the caption text takes the remaining width and WRAPS; the fraction
+    // never shrinks, so long captions + large fractions ("of 16") coexist at 130%
+    // without the trailing fraction being clipped off the right edge.
+    captionRow: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
+    captionText: { flex: 1 },
+    captionFraction: { flexShrink: 0, textAlign: 'right' },
     progressTrack: {
       backgroundColor: palette.parchment,
       borderRadius: radii.pill,
