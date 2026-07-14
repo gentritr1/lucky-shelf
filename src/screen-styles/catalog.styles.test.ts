@@ -5,10 +5,11 @@ import { borders, highContrastPalette, layout, palette, radii, shadows, spacing,
 import { makeStyles } from './catalog.styles';
 
 /**
- * B-M9 byte-identity proof for the catalog sheet. `expected(p)` is an independent
- * transcription of the original static sheet minus the text color/role that moved
- * to `AppText` (the fixed caption sizes stay). Base palette = default prefs →
- * byte-identical; high-contrast palette → every themed prop threads the argument.
+ * B-M9 byte-identity proof for the catalog sheet, kept current through the B-M15
+ * Collector's Journal restyle. `expected(p)` is an independent transcription of
+ * the sheet minus the text color/role that lives on `AppText` (the fixed caption
+ * sizes stay). Base palette = default prefs → byte-identical; high-contrast
+ * palette → every themed prop threads the argument (no static color leak).
  */
 function expected(p: Palette) {
   return {
@@ -40,44 +41,73 @@ function expected(p: Palette) {
 
     content: { gap: spacing.md, paddingTop: spacing.md },
 
-    // PROG-1 "Shelf Growth" card (replaces the plain % bar with a filling shelf).
-    summary: { gap: spacing.sm },
-    completionRow: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm },
-    statsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-    stat: { alignItems: 'center', flex: 1, gap: spacing.xxs },
-    statLabel: { fontSize: 10 },
-    statValueRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
-
-    growthTop: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-    growthHeadline: { flex: 1, gap: spacing.xxs },
-    combosChip: {
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      backgroundColor: p.parchment,
-      borderRadius: radii.pill,
-      flexDirection: 'row',
-      gap: spacing.xxs,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xxs,
-    },
-
-    miniShelf: {
-      backgroundColor: p.shelfWood,
-      borderColor: p.woodDark,
-      borderRadius: radii.sm,
+    // --- B-M15 Collector's Journal header card. ---
+    journalCard: {
+      backgroundColor: p.creamBright,
+      borderColor: p.goldDeep,
+      borderRadius: radii.lg,
       borderWidth: borders.regular,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.xxs,
-      padding: spacing.xs,
-      width: 93,
+      gap: spacing.sm,
+      overflow: 'hidden',
+      padding: layout.cardPad,
+      ...shadows.card,
     },
-    miniCell: { borderRadius: radii.xs, height: 10, width: 10 },
-    miniCellEmpty: { backgroundColor: p.woodInset },
-    miniCellHeirloom: { backgroundColor: p.coinGold },
-    miniCellRare: { backgroundColor: p.goldDeep },
-    miniCellFine: { backgroundColor: p.sunlight },
-    miniCellCommon: { backgroundColor: p.parchmentEdge },
+    journalStitch: {
+      borderColor: `${p.goldDeep}66`,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      bottom: spacing.xs,
+      left: spacing.xs,
+      position: 'absolute',
+      right: spacing.xs,
+      top: spacing.xs,
+    },
+    journalMast: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+    journalTitle: { fontStyle: 'italic', letterSpacing: 0.3 },
+    journalHeadRow: {
+      alignItems: 'flex-end',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    completionBlock: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.xs },
+    completionCaption: { marginBottom: spacing.xxs },
+    discoveredCount: { alignItems: 'flex-end', flexShrink: 1, gap: spacing.xxs },
+
+    milestoneRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
+    milestoneRule: {
+      backgroundColor: p.parchmentEdge,
+      borderRadius: radii.pill,
+      flex: 1,
+      height: 2,
+    },
+    milestoneRuleFilled: { backgroundColor: p.coinGold },
+    milestoneDot: {
+      alignItems: 'center',
+      backgroundColor: p.parchment,
+      borderColor: p.parchmentEdge,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      height: 14,
+      justifyContent: 'center',
+      width: 14,
+    },
+    milestoneDotFilled: { backgroundColor: p.coinGold, borderColor: p.goldDeep },
+
+    sealRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+    waxSeal: {
+      alignItems: 'center',
+      backgroundColor: p.tealDark,
+      borderColor: p.accentTeal,
+      borderRadius: radii.pill,
+      borderWidth: borders.strong,
+      height: 54,
+      justifyContent: 'center',
+      width: 54,
+      ...shadows.float,
+    },
+    waxSealCount: { fontSize: 13, letterSpacing: 0 },
+    waxSealLabel: { fontSize: 8, letterSpacing: 0.6 },
 
     nextStrip: {
       alignItems: 'center',
@@ -85,6 +115,7 @@ function expected(p: Palette) {
       borderColor: p.parchmentEdge,
       borderRadius: radii.md,
       borderWidth: borders.hairline,
+      flex: 1,
       flexDirection: 'row',
       gap: spacing.sm,
       paddingHorizontal: spacing.sm,
@@ -114,45 +145,90 @@ function expected(p: Palette) {
     nextTickFill: { backgroundColor: p.accentTeal, borderRadius: radii.pill, height: 4 },
     nextTickText: { fontSize: 12, letterSpacing: 0 },
 
-    segment: {
-      backgroundColor: p.parchment,
-      borderRadius: radii.pill,
+    journalRule: {
+      alignSelf: 'stretch',
+      borderBottomColor: p.parchmentEdge,
+      borderBottomWidth: borders.hairline,
+      marginTop: spacing.xxs,
+    },
+    journalStats: { flexDirection: 'row', flexWrap: 'wrap' },
+    journalStatCell: {
+      alignItems: 'flex-end',
       flexDirection: 'row',
-      padding: spacing.xs,
-      position: 'relative',
+      gap: spacing.xs,
+      paddingRight: spacing.sm,
+      paddingVertical: spacing.xxs,
+      width: '50%',
     },
-    segmentPill: {
-      backgroundColor: p.creamBright,
-      borderRadius: radii.pill,
-      bottom: spacing.xs,
-      left: spacing.xs,
-      position: 'absolute',
-      top: spacing.xs,
-      ...shadows.float,
+    journalStatLeader: {
+      borderBottomColor: p.parchmentEdge,
+      borderBottomWidth: borders.hairline,
+      flex: 1,
+      marginBottom: spacing.xs,
     },
-    segmentBtn: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 44, zIndex: 1 },
-    segmentLabel: { letterSpacing: 0.6 },
 
-    legendChips: { flexDirection: 'row', gap: spacing.xs },
-    legendChip: {
+    // --- B-M15 rarity postage-stamp tabs. ---
+    stampTabStrip: { gap: spacing.sm, paddingVertical: spacing.xs },
+    stampTab: { width: 96 },
+    stampTabBody: {
       alignItems: 'center',
       backgroundColor: p.creamBright,
       borderColor: p.parchmentEdge,
-      borderRadius: radii.sm,
-      borderTopWidth: borders.strong,
-      borderWidth: borders.hairline,
-      flex: 1,
       gap: spacing.xxs,
-      paddingHorizontal: spacing.xxs,
+      paddingHorizontal: spacing.xs,
       paddingVertical: spacing.xs,
     },
-    legendAccentHeirloom: { borderTopColor: p.coinGold },
-    legendAccentRare: { borderTopColor: p.goldDeep },
-    legendAccentFine: { borderTopColor: p.sunlight },
-    legendAccentCommon: { borderTopColor: p.parchmentEdge },
-    legendChipName: { fontSize: 10, letterSpacing: 0.4, textAlign: 'center' },
-    legendChipCountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
-    legendChipCount: { fontSize: 13, letterSpacing: 0 },
+    stampTabSelected: { ...shadows.card },
+    stampTabUnselected: { opacity: 0.72 },
+    stampTeethRow: { flexDirection: 'row', height: 5, justifyContent: 'center', overflow: 'hidden' },
+    stampToothDown: {
+      borderLeftColor: 'transparent',
+      borderLeftWidth: 4,
+      borderRightColor: 'transparent',
+      borderRightWidth: 4,
+      borderTopColor: p.wallCream,
+      borderTopWidth: 5,
+      height: 0,
+      width: 0,
+    },
+    stampToothUp: {
+      borderBottomColor: p.wallCream,
+      borderBottomWidth: 5,
+      borderLeftColor: 'transparent',
+      borderLeftWidth: 4,
+      borderRightColor: 'transparent',
+      borderRightWidth: 4,
+      height: 0,
+      width: 0,
+    },
+    stampTabFrame: {
+      borderColor: p.parchmentEdge,
+      borderLeftWidth: borders.hairline,
+      borderRightWidth: borders.hairline,
+    },
+    stampTabFrameSelected: {
+      borderColor: p.goldDeep,
+      borderLeftWidth: borders.strong,
+      borderRightWidth: borders.strong,
+    },
+    stampTintHeirloom: { backgroundColor: `${p.coinGold}33` },
+    stampTintRare: { backgroundColor: `${p.goldDeep}26` },
+    stampTintFine: { backgroundColor: `${p.sunlight}4D` },
+    stampTintCommon: { backgroundColor: p.parchment },
+    stampTintCombos: { backgroundColor: `${p.accentTeal}26` },
+    stampTabName: { fontSize: 10, letterSpacing: 0.4, textAlign: 'center' },
+    stampTabCountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
+    stampTabCount: { fontSize: 13, letterSpacing: 0 },
+    stampTabGoal: { alignItems: 'center', gap: 1, width: '100%' },
+    stampTabGoalTrack: {
+      backgroundColor: p.parchmentEdge,
+      borderRadius: radii.pill,
+      height: 3,
+      overflow: 'hidden',
+      width: '100%',
+    },
+    stampTabGoalFill: { backgroundColor: p.goldDeep, borderRadius: radii.pill, height: 3 },
+    stampTabGoalText: { fontSize: 8, letterSpacing: 0 },
 
     band: { gap: spacing.sm },
 

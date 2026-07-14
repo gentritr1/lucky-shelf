@@ -4,17 +4,27 @@ import { borders, layout, radii, shadows, spacing, type Palette } from '@/ui/tok
 
 /**
  * Catalog sheet as a B-M9 themed factory. Colors read from the passed `palette`.
- * Text color + type role now live on the `AppText` call sites; the entries that
- * survive here for text are the PRE-EXISTING sub-role caption sizes (9–13px) kept
- * verbatim for byte-identity. Those fixed caption sizes do not grow with the
- * large-text pref — a pre-existing design choice, out of B-M9's byte-identity
- * scope to normalize. Byte-identical at default prefs.
+ * Text color + type role live on the `AppText` call sites; the entries that
+ * survive here for text are sub-role caption sizes (9–13px) kept verbatim.
+ *
+ * B-M15 "Collector's Journal": the completion header became a handcrafted paper
+ * journal card (stitched gold edge, hand-titled masthead, big completion %, a
+ * PASSIVE milestone dot-scale, a combos wax-seal, the NEXT MILESTONE teaser, and
+ * the four best-run stats as receipt-leader lines). The ITEMS/COMBOS segmented
+ * control + rarity legend chips were replaced by a strip of serrated postage-stamp
+ * tabs (the deckle-tooth technique from the run summary). The album grid, showcase
+ * modal, and combo trophy shelf keep their structure — only surfaces that clashed
+ * with the paper journal were reskinned. Themed factory: every color threads
+ * `palette`, so high contrast re-themes without a per-component fork.
  */
 export function makeStyles(palette: Palette) {
   return StyleSheet.create({
     screen: { backgroundColor: palette.wallCream, flex: 1, paddingHorizontal: layout.screenPadX },
 
     // B-M14 gallery entry card (flag-gated; not rendered when the flag is off).
+    // Journal-native already (creamBright bed, gold edge, parchment icon well);
+    // kept as-is so the flag-off catalog stays byte-identical and B-M14's gating
+    // is untouched.
     galleryEntry: {
       alignItems: 'center',
       backgroundColor: palette.creamBright,
@@ -37,71 +47,103 @@ export function makeStyles(palette: Palette) {
       width: 40,
     },
     galleryEntryText: { flex: 1, gap: spacing.xxs },
+
     content: { gap: spacing.md, paddingTop: spacing.md },
 
-    // PROG-1 "Shelf Growth" card: tighter section gap so the richer card (mini
-    // shelf + headline + next-on-shelf hook + iconed stats) still clears the tabs
-    // above the fold on an iPhone SE. Measured header height ~226pt (budget ≤240).
-    summary: { gap: spacing.sm },
-    completionRow: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm },
-    statsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-    stat: { alignItems: 'center', flex: 1, gap: spacing.xxs },
-    statLabel: { fontSize: 10 },
-    // Stat value + its MCI icon on one line, the label beneath — keeps the 4-up
-    // row short (icon-over-value stacked would add ~18pt per cell to the header).
-    statValueRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
-
-    // --- PROG-1 Shelf-Growth top row: the mini collection shelf beside the
-    // completion headline (big %, discovered count, combos chip). ---
-    growthTop: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-    growthHeadline: { flex: 1, gap: spacing.xxs },
-    // Combos as a small secondary chip (the card is about the collection whole).
-    combosChip: {
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      backgroundColor: palette.parchment,
-      borderRadius: radii.pill,
-      flexDirection: 'row',
-      gap: spacing.xxs,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xxs,
-    },
-
-    // The mini collection shelf: 41 wells in a wood frame — the game's own shelf
-    // language as the progress meter ("your shelf, filling up"). Grid arithmetic:
-    // 7 cols × 6 rows of 10pt cells + 2pt gaps → inner 82×70; width 82 + pad 8 +
-    // border 3 = 93 (fixed so exactly 7 cells wrap per row); height derives to ~81.
-    // Discovered cells fill with their band accent (the legend ladder); the rest
-    // stay recessed woodInset wells.
-    miniShelf: {
-      backgroundColor: palette.shelfWood,
-      borderColor: palette.woodDark,
-      borderRadius: radii.sm,
+    // ── B-M15 Collector's Journal header card ──────────────────────────────
+    // A handcrafted paper page: creamBright bed, a gold frame + an inset hairline
+    // "stitch" for the hand-bound edge, a hand-titled masthead, the big completion
+    // %, a passive milestone dot-scale, the combos wax seal beside the NEXT
+    // MILESTONE teaser, and the four best-run stats as receipt-leader lines. Merges
+    // the retired Shelf-Growth content: the 41-well wood mini-shelf was retired
+    // (its wood clashed with the paper journal — the dot-scale + discovered count +
+    // per-rarity stamp counts carry "filling up"). Grows/scrolls with 130% text.
+    journalCard: {
+      backgroundColor: palette.creamBright,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.lg,
       borderWidth: borders.regular,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.xxs,
-      padding: spacing.xs,
-      width: 93,
+      gap: spacing.sm,
+      overflow: 'hidden',
+      padding: layout.cardPad,
+      ...shadows.card,
     },
-    miniCell: { borderRadius: radii.xs, height: 10, width: 10 },
-    miniCellEmpty: { backgroundColor: palette.woodInset },
-    // Band accents match the legend chips exactly (coinGold → goldDeep → sunlight
-    // → parchmentEdge), rarest-first, so the shelf fill reads by the same ladder.
-    miniCellHeirloom: { backgroundColor: palette.coinGold },
-    miniCellRare: { backgroundColor: palette.goldDeep },
-    miniCellFine: { backgroundColor: palette.sunlight },
-    miniCellCommon: { backgroundColor: palette.parchmentEdge },
+    // The inset hairline that reads as a hand-bound journal stitch.
+    journalStitch: {
+      borderColor: `${palette.goldDeep}66`,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      bottom: spacing.xs,
+      left: spacing.xs,
+      position: 'absolute',
+      right: spacing.xs,
+      top: spacing.xs,
+    },
+    // Masthead: a clover mark + the hand-titled name (Baloo2 italic at the site).
+    journalMast: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+    journalTitle: { fontStyle: 'italic', letterSpacing: 0.3 },
+    // Headline row: big % + caption on the left, discovered count on the right.
+    journalHeadRow: {
+      alignItems: 'flex-end',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    completionBlock: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.xs },
+    completionCaption: { marginBottom: spacing.xxs },
+    discoveredCount: { alignItems: 'flex-end', flexShrink: 1, gap: spacing.xxs },
 
-    // NEXT ON THE SHELF hook — an inset parchment strip: a silhouette thumb + the
+    // Passive milestone dot-scale (0/25/50/75/100) filled by real completionPct —
+    // NO rewards, no medals: nothing may imply a payout the sim doesn't have. A
+    // thin rule links the dots; the first mark becomes a star once progress exists.
+    milestoneRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
+    milestoneRule: {
+      backgroundColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      flex: 1,
+      height: 2,
+    },
+    milestoneRuleFilled: { backgroundColor: palette.coinGold },
+    milestoneDot: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      height: 14,
+      justifyContent: 'center',
+      width: 14,
+    },
+    milestoneDotFilled: { backgroundColor: palette.coinGold, borderColor: palette.goldDeep },
+
+    // The combos "wax seal" badge sits left of the NEXT MILESTONE teaser row.
+    sealRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+    // Deep-teal seal (tealDark bed clears AA for the creamBright count text; a
+    // lighter accentTeal rim reads as the wax lip).
+    waxSeal: {
+      alignItems: 'center',
+      backgroundColor: palette.tealDark,
+      borderColor: palette.accentTeal,
+      borderRadius: radii.pill,
+      borderWidth: borders.strong,
+      height: 54,
+      justifyContent: 'center',
+      width: 54,
+      ...shadows.float,
+    },
+    waxSealCount: { fontSize: 13, letterSpacing: 0 },
+    waxSealLabel: { fontSize: 8, letterSpacing: 0.6 },
+
+    // NEXT MILESTONE teaser: an inset parchment strip — a silhouette thumb + the
     // real unlock hint (nextUnlockTeaserView) + a runs progress tick, or the
-    // nearest incomplete band as a fallback. The retention loop, honestly sourced.
+    // nearest incomplete band as a fallback. Sits flex:1 beside the wax seal.
     nextStrip: {
       alignItems: 'center',
       backgroundColor: palette.parchment,
       borderColor: palette.parchmentEdge,
       borderRadius: radii.md,
       borderWidth: borders.hairline,
+      flex: 1,
       flexDirection: 'row',
       gap: spacing.sm,
       paddingHorizontal: spacing.sm,
@@ -117,11 +159,9 @@ export function makeStyles(palette: Palette) {
       justifyContent: 'center',
       width: 36,
     },
-    // The locked item's real sprite, tinted to a silhouette via `silhouette`.
     nextThumb: { height: 26, width: 26 },
     nextThumbDot: { backgroundColor: palette.inkFaint, borderRadius: radii.pill, height: 20, width: 20 },
     nextText: { flex: 1, gap: spacing.xxs },
-    // Runs-gated tick ("8 / 9" over a short fill) pinned to the strip's right.
     nextTick: { alignItems: 'flex-end', gap: spacing.xxs, width: 52 },
     nextTickTrack: {
       backgroundColor: palette.parchmentEdge,
@@ -133,54 +173,104 @@ export function makeStyles(palette: Palette) {
     nextTickFill: { backgroundColor: palette.accentTeal, borderRadius: radii.pill, height: 4 },
     nextTickText: { fontSize: 12, letterSpacing: 0 },
 
-    // CAT-2 segmented tabs — a parchment track with a cream selected pill that
-    // slides (translateX only — no scaleX/scaleY) between ITEMS and COMBOS.
-    segment: {
-      backgroundColor: palette.parchment,
-      borderRadius: radii.pill,
+    // The four best-run stats as receipt-leader lines (label · hairline leader ·
+    // value), two per row — the run-summary ledger dialect, so the app reads as
+    // one hand. A dividing rule sits above them.
+    journalRule: {
+      alignSelf: 'stretch',
+      borderBottomColor: palette.parchmentEdge,
+      borderBottomWidth: borders.hairline,
+      marginTop: spacing.xxs,
+    },
+    journalStats: { flexDirection: 'row', flexWrap: 'wrap' },
+    journalStatCell: {
+      alignItems: 'flex-end',
       flexDirection: 'row',
-      padding: spacing.xs,
-      position: 'relative',
+      gap: spacing.xs,
+      paddingRight: spacing.sm,
+      paddingVertical: spacing.xxs,
+      width: '50%',
     },
-    segmentPill: {
-      backgroundColor: palette.creamBright,
-      borderRadius: radii.pill,
-      bottom: spacing.xs,
-      left: spacing.xs,
-      position: 'absolute',
-      top: spacing.xs,
-      ...shadows.float,
+    journalStatLeader: {
+      borderBottomColor: palette.parchmentEdge,
+      borderBottomWidth: borders.hairline,
+      flex: 1,
+      marginBottom: spacing.xs,
     },
-    segmentBtn: { alignItems: 'center', flex: 1, justifyContent: 'center', minHeight: 44, zIndex: 1 },
-    segmentLabel: { letterSpacing: 0.6 },
 
-    // LEG-1 rarity legend — four equal-width band chips in ONE row (replaces the
-    // old dot-separated line the human called unreadable). Each chip stacks a
-    // band name over its n/total, with the band's material accent as a thin top
-    // border. flex:1 makes the four chips share the row exactly (no wrap).
-    legendChips: { flexDirection: 'row', gap: spacing.xs },
-    legendChip: {
+    // ── B-M15 rarity postage-stamp tabs ────────────────────────────────────
+    // A stamp-album strip (horizontal scroll so it never crushes at 130%): one
+    // serrated postage stamp per rarity + a combos stamp. The stamps ARE the tab
+    // control — pressing one shows that page (a rarity's album grid, or the combo
+    // trophy shelf). The selected stamp is "inked": a pastel wash, a heavier gold
+    // frame, a lifted shadow. Serration = the summary's deckle-tooth technique on
+    // the top + bottom edges (wallCream teeth biting into the stamp).
+    stampTabStrip: { gap: spacing.sm, paddingVertical: spacing.xs },
+    stampTab: { width: 96 },
+    stampTabBody: {
       alignItems: 'center',
       backgroundColor: palette.creamBright,
       borderColor: palette.parchmentEdge,
-      borderRadius: radii.sm,
-      borderTopWidth: borders.strong,
-      borderWidth: borders.hairline,
-      flex: 1,
       gap: spacing.xxs,
-      paddingHorizontal: spacing.xxs,
+      paddingHorizontal: spacing.xs,
       paddingVertical: spacing.xs,
     },
-    // Per-band accent for the chip's top edge — the exact material ladder the
-    // stamps climb (coinGold → goldDeep → sunlight → parchmentEdge). Overrides
-    // only borderTopColor, so the rest of the chip frame stays the neutral edge.
-    legendAccentHeirloom: { borderTopColor: palette.coinGold },
-    legendAccentRare: { borderTopColor: palette.goldDeep },
-    legendAccentFine: { borderTopColor: palette.sunlight },
-    legendAccentCommon: { borderTopColor: palette.parchmentEdge },
-    legendChipName: { fontSize: 10, letterSpacing: 0.4, textAlign: 'center' },
-    legendChipCountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
-    legendChipCount: { fontSize: 13, letterSpacing: 0 },
+    // The inked/selected stamp — pressed into the page, gold-framed. Applied over
+    // the pastel tint; the tint is dimmed on the unselected stamps by opacity.
+    stampTabSelected: { ...shadows.card },
+    stampTabUnselected: { opacity: 0.72 },
+    // Serration teeth rows: a clipped row of wallCream triangles biting the edge.
+    stampTeethRow: { flexDirection: 'row', height: 5, justifyContent: 'center', overflow: 'hidden' },
+    stampToothDown: {
+      borderLeftColor: 'transparent',
+      borderLeftWidth: 4,
+      borderRightColor: 'transparent',
+      borderRightWidth: 4,
+      borderTopColor: palette.wallCream,
+      borderTopWidth: 5,
+      height: 0,
+      width: 0,
+    },
+    stampToothUp: {
+      borderBottomColor: palette.wallCream,
+      borderBottomWidth: 5,
+      borderLeftColor: 'transparent',
+      borderLeftWidth: 4,
+      borderRightColor: 'transparent',
+      borderRightWidth: 4,
+      height: 0,
+      width: 0,
+    },
+    // A thin gold frame that survives the teeth (the tooth rows overlay the top +
+    // bottom edges, so the left/right frame reads through as the stamp border).
+    stampTabFrame: {
+      borderColor: palette.parchmentEdge,
+      borderLeftWidth: borders.hairline,
+      borderRightWidth: borders.hairline,
+    },
+    stampTabFrameSelected: { borderColor: palette.goldDeep, borderLeftWidth: borders.strong, borderRightWidth: borders.strong },
+    // Pastel per-rarity washes — the mini legend ladder as translucent tints, so
+    // the stamps read by the same rarest→common color language as the album.
+    stampTintHeirloom: { backgroundColor: `${palette.coinGold}33` },
+    stampTintRare: { backgroundColor: `${palette.goldDeep}26` },
+    stampTintFine: { backgroundColor: `${palette.sunlight}4D` },
+    stampTintCommon: { backgroundColor: palette.parchment },
+    stampTintCombos: { backgroundColor: `${palette.accentTeal}26` },
+    stampTabName: { fontSize: 10, letterSpacing: 0.4, textAlign: 'center' },
+    stampTabCountRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
+    stampTabCount: { fontSize: 13, letterSpacing: 0 },
+    // The optional REAL runsPlayed goal line (a tiny "N/M" over a fill). Rendered
+    // ONLY when rarityGoalForItems finds a real locked runsPlayed item.
+    stampTabGoal: { alignItems: 'center', gap: 1, width: '100%' },
+    stampTabGoalTrack: {
+      backgroundColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      height: 3,
+      overflow: 'hidden',
+      width: '100%',
+    },
+    stampTabGoalFill: { backgroundColor: palette.goldDeep, borderRadius: radii.pill, height: 3 },
+    stampTabGoalText: { fontSize: 8, letterSpacing: 0 },
 
     // CAT-2 band group: a SectionLabel + its rarity grid, kept tight.
     band: { gap: spacing.sm },

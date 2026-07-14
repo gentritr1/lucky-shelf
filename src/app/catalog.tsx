@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentProps } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ComponentProps } from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -16,7 +16,6 @@ import Animated, {
 
 import {
   AppText,
-  Panel,
   SectionLabel,
   TagIcon,
   TopBar,
@@ -25,12 +24,11 @@ import {
   motion,
   pictureGalleryEnabled,
   shadows,
-  spacing,
   usePalette,
   useReducedMotion,
   useThemedStyles,
 } from '@/ui';
-import type { ItemInstance } from '@/contracts';
+import type { CatalogStats, ItemInstance } from '@/contracts';
 import { ItemSprite, easings, spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/catalog.styles';
@@ -39,8 +37,10 @@ import {
   buildCatalogView,
   catalogBands,
   catalogSelectors,
+  milestoneScaleView,
   nearestIncompleteBand,
   nextUnlockTeaserView,
+  rarityGoalForItems,
   useCatalogStore,
   type CatalogBand,
   type CatalogComboRow,
@@ -71,7 +71,23 @@ type ComboSlot = CatalogComboRow['center'];
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-type CatalogTab = 'items' | 'combos';
+/**
+ * B-M15: the catalog's page selection. The postage-stamp strip is the tab
+ * control — one stamp per rarity band (shows that band's album grid) plus a
+ * combos stamp (shows the trophy shelf). Replaces the old ITEMS/COMBOS segmented
+ * control + the rarity legend chips with a single stamp-album strip.
+ */
+type SelectedTab = { kind: 'rarity'; tier: 1 | 2 | 3 | 4 } | { kind: 'combos' };
+
+/** A stable key for a selected tab (drives the reveal-plan remount). */
+function tabKey(tab: SelectedTab): string {
+  return tab.kind === 'combos' ? 'combos' : `rarity-${tab.tier}`;
+}
+
+/** In-screen mount stagger (journal → stamps → grid). Short and subtle — the
+ *  scar says expo-router already animates the screen mount, so a blanket entrance
+ *  gets masked; this only nudges the sections into place in sequence. */
+const STAGGER_STEP_MS = 70;
 
 /** At most this many cards play the reveal at once; the rest snap in already-owned. */
 const MAX_REVEAL = 8;
@@ -149,7 +165,13 @@ export default function CatalogScreen() {
   // ACHIEVED combo on mount — the same verification affordance, inert for an
   // unachieved/unknown id (mystery stays mystery).
   const params = useLocalSearchParams<{ tab?: string; item?: string; combo?: string }>();
-  const [tab, setTab] = useState<CatalogTab>(params.tab === 'combos' ? 'combos' : 'items');
+  // The stamp tabs are the page control. `?tab=combos` opens the trophy shelf;
+  // `?tab=items` (or default) opens the COMMON album page — the band most likely
+  // to hold discoveries, so a fresh open shows a filled grid, not an empty rarest
+  // page. Both deep links are kept for per-page verification.
+  const [tab, setTab] = useState<SelectedTab>(
+    params.tab === 'combos' ? { kind: 'combos' } : { kind: 'rarity', tier: 1 },
+  );
   const [showcaseId, setShowcaseId] = useState<string | null>(params.item ?? null);
   const [comboShowcaseId, setComboShowcaseId] = useState<string | null>(params.combo ?? null);
 
@@ -175,7 +197,8 @@ export default function CatalogScreen() {
   // Same reuse story for `?tab=`: honour a tab deep link even when the screen is
   // already mounted. No param → no-op, so manual tab taps are never overridden.
   useEffect(() => {
-    if (params.tab === 'combos' || params.tab === 'items') setTab(params.tab);
+    if (params.tab === 'combos') setTab({ kind: 'combos' });
+    else if (params.tab === 'items') setTab({ kind: 'rarity', tier: 1 });
   }, [params.tab]);
 
   const newlyAchievedComboIds = useMemo(
@@ -218,6 +241,13 @@ export default function CatalogScreen() {
     [comboShowcaseId, view.combos],
   );
 
+  // The rarity bands (rarest-first) — the stamp tabs and the album grid both read
+  // from these. The selected rarity page shows exactly one band's grid.
+  const bands = useMemo(() => catalogBands(view.items), [view.items]);
+  const galleryOn = pictureGalleryEnabled();
+  const selectedBand =
+    tab.kind === 'rarity' ? bands.find((b) => b.tier === tab.tier) ?? null : null;
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       <TopBar title="Catalog" backLabel="‹ Menu" onBack={() => router.dismissTo('/')} />
@@ -226,32 +256,65 @@ export default function CatalogScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + layout.screenBottomGap }]}
         showsVerticalScrollIndicator={false}
       >
-        <CompletionHeader view={view} stats={catalog.stats} nextUnlock={nextUnlock} />
+        {/* In-screen stagger: journal → (gallery) → stamps → page. */}
+        <StaggerReveal order={0}>
+          <JournalHeader view={view} stats={catalog.stats} nextUnlock={nextUnlock} />
+        </StaggerReveal>
 
         {/* B-M14: the picture gallery entry (flag-gated). Off ⇒ this never
             renders, so the catalog is byte-identical. */}
-        {pictureGalleryEnabled() ? <GalleryEntryCard onOpen={() => router.push('/gallery')} /> : null}
+        {galleryOn ? (
+          <StaggerReveal order={1}>
+            <GalleryEntryCard onOpen={() => router.push('/gallery')} />
+          </StaggerReveal>
+        ) : null}
 
-        <SegmentedTabs
-          tab={tab}
-          onChange={setTab}
-          itemsLabel={`ITEMS ${view.itemsDiscovered}/${view.itemsTotal}`}
-          combosLabel={`COMBOS ${view.combosAchieved}/${view.combosTotal}`}
-        />
+        <StaggerReveal order={galleryOn ? 2 : 1}>
+          <RarityStampTabs view={view} bands={bands} tab={tab} onSelect={setTab} />
+        </StaggerReveal>
 
-        {/* Conditional render: only the active tab is mounted, so its reveal
+        {/* Conditional render: only the active page is mounted, so its reveal
             plans (and animators) exist only while it is on screen. */}
-        {tab === 'items' ? (
-          <ItemsTab view={view} onOpenItem={setShowcaseId} />
-        ) : (
-          <CombosTab view={view} onOpenCombo={setComboShowcaseId} />
-        )}
+        <StaggerReveal order={galleryOn ? 3 : 2}>
+          {tab.kind === 'combos' ? (
+            <CombosTab view={view} onOpenCombo={setComboShowcaseId} />
+          ) : selectedBand ? (
+            <BandPage key={tabKey(tab)} band={selectedBand} onOpenItem={setShowcaseId} />
+          ) : null}
+        </StaggerReveal>
       </ScrollView>
 
       <ItemShowcaseModal row={showcaseRow} onClose={() => setShowcaseId(null)} />
       <ComboShowcaseModal row={comboShowcaseRow} onClose={() => setComboShowcaseId(null)} />
     </View>
   );
+}
+
+/**
+ * The in-screen mount stagger (B-M15). Fades + lifts its child into place after a
+ * short per-section delay (journal → stamps → page). Single translateY (no
+ * scaleX/scaleY split — Fabric collapse scar); reduced motion snaps to placed.
+ * Kept subtle so expo-router's own screen-mount animation isn't doubled/masked.
+ */
+function StaggerReveal({ order, children }: { order: number; children: React.ReactNode }) {
+  const reduced = useReducedMotion();
+  const progress = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    if (reduced) {
+      progress.value = 1;
+      return;
+    }
+    progress.value = 0;
+    progress.value = withDelay(
+      order * STAGGER_STEP_MS,
+      withTiming(1, { duration: motion.durations.settle, easing: easings.out }),
+    );
+  }, [reduced, order, progress]);
+  const anim = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * 8 }],
+  }));
+  return <Animated.View style={anim}>{children}</Animated.View>;
 }
 
 /**
@@ -284,177 +347,153 @@ function GalleryEntryCard({ onOpen }: { onOpen: () => void }) {
 }
 
 /**
- * PROG-1 "Shelf Growth" header — the collection as a filling wooden shelf, not a
- * plain stat block. A mini 41-well shelf (the game's own shelf language) fills
- * band-by-band as items are discovered; beside it the completion %, the real
- * discovered count, and a combos chip. Below: the honest retention hook (NEXT ON
- * THE SHELF — the real unlock ladder, never an invented %-milestone reward) and
- * the four best-run stats with icons. Stays visible above both tabs.
+ * B-M15 Collector's Journal header card. A handcrafted paper page: a hand-titled
+ * masthead, the big completion % (which count-ups on mount and, at the same time,
+ * lights the passive milestone dot-scale as it climbs), the combos wax seal beside
+ * the NEXT MILESTONE teaser, and the four best-run stats as receipt-leader lines.
+ * Shows exactly the data the view models already pay — no invented lifetime-coins
+ * stat, no milestone rewards. Replaces the retired Shelf-Growth card (its wood
+ * mini-shelf clashed with the paper journal; the dot-scale + discovered count
+ * carry "filling up"). The headline block reads as one VoiceOver summary.
  */
-function CompletionHeader({
+function JournalHeader({
   view,
   stats,
   nextUnlock,
 }: {
   view: CatalogView;
-  stats: { runsPlayed: number; bestDayTotal: number; deepestRentSurvived: number; totalCoinsAllTime: number };
+  stats: CatalogStats;
   nextUnlock: NextUnlockRow | null;
 }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   const bands = useMemo(() => catalogBands(view.items), [view.items]);
+  // One count-up drives BOTH the big number and the milestone fill, so the dots
+  // light in step with the percentage as it animates to value (~600ms, once).
+  const animatedPct = useCountUp(view.completionPct);
+  const marks = milestoneScaleView(animatedPct);
+  const summaryLabel = `Collector's Journal. Collection ${view.completionPct} percent complete, ${view.itemsDiscovered} of ${view.itemsTotal} items discovered.`;
+
   return (
-    <Panel style={styles.summary}>
-      <View style={styles.growthTop}>
-        <MiniShelf bands={bands} discovered={view.itemsDiscovered} total={view.itemsTotal} />
-        <View style={styles.growthHeadline}>
-          <View style={styles.completionRow}>
-            <CompletionNumber pct={view.completionPct} />
-            <AppText variant="label" color={palette.inkFaint}>COLLECTED</AppText>
-          </View>
-          <AppText variant="body" color={palette.inkSoft}>
-            {`${view.itemsDiscovered} / ${view.itemsTotal} items discovered`}
+    <View style={styles.journalCard}>
+      <View pointerEvents="none" style={styles.journalStitch} />
+
+      <View accessible accessibilityLabel={summaryLabel}>
+        <View style={styles.journalMast}>
+          <MaterialCommunityIcons name="clover" size={16} color={palette.goldDeep} />
+          <AppText variant="heading" color={palette.ink} style={styles.journalTitle}>
+            Collector&apos;s Journal
           </AppText>
-          <View style={styles.combosChip}>
-            <MaterialCommunityIcons name="star-four-points" size={12} color={palette.goldDeep} />
-            <AppText variant="label" color={palette.inkSoft}>
-              {`${view.combosAchieved}/${view.combosTotal} combos`}
+        </View>
+
+        <View style={styles.journalHeadRow}>
+          <View style={styles.completionBlock}>
+            <AppText variant="display" color={palette.accentTeal}>{animatedPct}%</AppText>
+            <AppText variant="label" color={palette.inkFaint} style={styles.completionCaption}>
+              COMPLETE
             </AppText>
           </View>
+          <View style={styles.discoveredCount}>
+            <AppText variant="stat" color={palette.ink}>
+              {`${view.itemsDiscovered} / ${view.itemsTotal}`}
+            </AppText>
+            <AppText variant="label" color={palette.inkFaint}>items discovered</AppText>
+          </View>
         </View>
+
+        <MilestoneScale marks={marks} />
       </View>
 
-      <NextOnShelf nextUnlock={nextUnlock} bands={bands} />
-
-      <View style={styles.statsGrid}>
-        <Stat icon="storefront-outline" label="Runs" value={String(stats.runsPlayed)} />
-        <Stat icon="trophy-outline" label="Best day" value={`${stats.bestDayTotal}c`} />
-        <Stat icon="stairs-down" label="Deepest rent" value={String(stats.deepestRentSurvived)} />
-        <Stat icon="cash-multiple" label="All-time" value={`${stats.totalCoinsAllTime}c`} />
+      <View style={styles.sealRow}>
+        <WaxSeal achieved={view.combosAchieved} total={view.combosTotal} />
+        <NextMilestoneRow nextUnlock={nextUnlock} bands={bands} />
       </View>
-    </Panel>
-  );
-}
 
-/** At most this many filled cells "pop" onto the mini shelf on mount — the
- *  most-recently-earned end of the collection. One shared value drives them all
- *  (never 41 concurrent animators); the rest snap in already-placed. */
-const MINI_POP_MAX = 8;
+      <View style={styles.journalRule} />
 
-/** Map an item tier to its mini-shelf fill (the legend band accents). */
-function miniFill(tier: CatalogItemRow['tier'], styles: ReturnType<typeof makeStyles>) {
-  switch (tier) {
-    case 4:
-      return styles.miniCellHeirloom;
-    case 3:
-      return styles.miniCellRare;
-    case 2:
-      return styles.miniCellFine;
-    default:
-      return styles.miniCellCommon;
-  }
-}
-
-/**
- * The mini collection shelf: one well per item (41), band-ordered rarest-first to
- * match the grid + legend below. Discovered wells fill with their band accent;
- * the rest stay recessed. On mount the last ≤8 filled wells pop in with a tiny
- * stagger driven by ONE shared value (uniform scale only — Fabric collapses
- * separate scaleX/scaleY); reduced motion snaps everything placed.
- */
-function MiniShelf({
-  bands,
-  discovered,
-  total,
-}: {
-  bands: CatalogBand[];
-  discovered: number;
-  total: number;
-}) {
-  const styles = useThemedStyles(makeStyles);
-  const reduced = useReducedMotion();
-  // Flatten to 41 cells in band order (rarest-first, table order within a band).
-  const cells = useMemo(
-    () => bands.flatMap((band) => band.items.map((item) => ({ id: item.id, tier: item.tier, discovered: item.discovered }))),
-    [bands],
-  );
-  // The pop set: the LAST ≤MINI_POP_MAX filled cells in shelf order, each given a
-  // stagger slot. Computed on every render (cheap; no animators created here).
-  const { popSlots, popCount } = useMemo(() => {
-    const filled = cells.map((cell, index) => (cell.discovered ? index : -1)).filter((index) => index >= 0);
-    const start = Math.max(0, filled.length - MINI_POP_MAX);
-    const slots = new Map<number, number>();
-    filled.slice(start).forEach((cellIndex, slot) => slots.set(cellIndex, slot));
-    return { popSlots: slots, popCount: slots.size };
-  }, [cells]);
-
-  // One shared driver for the whole stagger (0→1 once on mount).
-  const sweep = useSharedValue(reduced ? 1 : 0);
-  useEffect(() => {
-    if (reduced) {
-      sweep.value = 1;
-      return;
-    }
-    sweep.value = 0;
-    sweep.value = withTiming(1, { duration: motion.durations.drift, easing: easings.out });
-  }, [reduced, sweep]);
-
-  return (
-    <View
-      style={styles.miniShelf}
-      accessibilityLabel={`Collection shelf: ${discovered} of ${total} items filled`}
-    >
-      {cells.map((cell, index) => {
-        const slot = popSlots.get(index);
-        if (cell.discovered && slot != null) {
-          return (
-            <MiniShelfPopCell key={cell.id} tier={cell.tier} sweep={sweep} slot={slot} count={popCount} />
-          );
-        }
-        return (
-          <View
-            key={cell.id}
-            style={[styles.miniCell, cell.discovered ? miniFill(cell.tier, styles) : styles.miniCellEmpty]}
-          />
-        );
-      })}
+      <View style={styles.journalStats}>
+        <JournalStat label="Runs" value={String(stats.runsPlayed)} />
+        <JournalStat label="Best day" value={`${stats.bestDayTotal}c`} />
+        <JournalStat label="Longest run" value={`${stats.longestRun}d`} />
+        <JournalStat label="Deepest rent" value={String(stats.deepestRentSurvived)} />
+      </View>
     </View>
   );
 }
 
-/** A filled mini-shelf well that pops in on mount. Reads the shared `sweep`
- *  value (a plain number — arithmetic is legal) and maps it, offset by its
- *  stagger slot, to opacity + a uniform scale. */
-function MiniShelfPopCell({
-  tier,
-  sweep,
-  slot,
-  count,
-}: {
-  tier: CatalogItemRow['tier'];
-  sweep: SharedValue<number>;
-  slot: number;
-  count: number;
-}) {
+/** The passive milestone dot-scale (0/25/50/75/100). Marks fill by real
+ *  completionPct; the first becomes a star once any progress exists. PURELY
+ *  decorative — no rewards live here. A rule segment between two filled marks
+ *  lights gold; the label sits beneath at the two ends only (0% / 100%). */
+function MilestoneScale({ marks }: { marks: ReturnType<typeof milestoneScaleView> }) {
   const styles = useThemedStyles(makeStyles);
-  const anim = useAnimatedStyle(() => {
-    // Spread the pop across the first ~60% of the sweep, then each cell eases in
-    // over the remaining window.
-    const start = count <= 1 ? 0 : (slot / count) * 0.6;
-    const local = interpolate(sweep.value, [start, start + 0.4], [0, 1], Extrapolation.CLAMP);
-    return { opacity: local, transform: [{ scale: interpolate(local, [0, 1], [0.4, 1]) }] };
-  });
-  return <Animated.View style={[styles.miniCell, miniFill(tier, styles), anim]} />;
+  const palette = usePalette();
+  return (
+    <View style={styles.milestoneRow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {marks.map((mark, index) => (
+        <Fragment key={mark.threshold}>
+          {index > 0 ? (
+            <View style={[styles.milestoneRule, mark.filled && styles.milestoneRuleFilled]} />
+          ) : null}
+          <View style={[styles.milestoneDot, mark.filled && styles.milestoneDotFilled]}>
+            {mark.isStar ? (
+              <MaterialCommunityIcons name="star" size={9} color={palette.creamBright} />
+            ) : null}
+          </View>
+        </Fragment>
+      ))}
+    </View>
+  );
+}
+
+/** The combos "wax seal" — a deep-teal medallion carrying achieved/total combos,
+ *  standing left of the NEXT MILESTONE teaser. One accessible summary. */
+function WaxSeal({ achieved, total }: { achieved: number; total: number }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  return (
+    <View
+      style={styles.waxSeal}
+      accessible
+      accessibilityLabel={`${achieved} of ${total} combos achieved`}
+    >
+      <AppText variant="stat" color={palette.creamBright} style={styles.waxSealCount}>
+        {`${achieved}/${total}`}
+      </AppText>
+      <AppText variant="label" color={palette.creamBright} style={styles.waxSealLabel}>
+        COMBOS
+      </AppText>
+    </View>
+  );
+}
+
+/** One best-run stat as a receipt-leader line: label · hairline leader · value. */
+function JournalStat({ label, value }: { label: string; value: string }) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  return (
+    <View style={styles.journalStatCell}>
+      <AppText variant="body" color={palette.inkSoft}>{label}</AppText>
+      <View style={styles.journalStatLeader} />
+      <AppText variant="stat" color={palette.ink}>{value}</AppText>
+    </View>
+  );
 }
 
 /**
- * The NEXT ON THE SHELF hook — the honest retention loop. Primary: the nearest
- * locked ladder unlock (nextUnlockTeaserView) — its real silhouette + real hint
- * ("Reach 9 runs") + a runs progress tick. Fallback (ladder off/exhausted): the
- * nearest incomplete rarity band ("2 more FINE finds complete the row"). NO
- * invented %-milestone reward — every prompt maps to a real unlock or a real set.
+ * The NEXT MILESTONE teaser (restyled `nextUnlockTeaserView`). Primary: the
+ * nearest locked ladder unlock — its real silhouette + real hint ("Reach 9 runs")
+ * + a runs progress fraction/tick that animates to value on mount. Fallback
+ * (ladder off/exhausted): the nearest incomplete rarity band. NO invented reward —
+ * every prompt maps to a real unlock or a real set.
  */
-function NextOnShelf({ nextUnlock, bands }: { nextUnlock: NextUnlockRow | null; bands: CatalogBand[] }) {
+function NextMilestoneRow({
+  nextUnlock,
+  bands,
+}: {
+  nextUnlock: NextUnlockRow | null;
+  bands: CatalogBand[];
+}) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
 
@@ -475,7 +514,7 @@ function NextOnShelf({ nextUnlock, bands }: { nextUnlock: NextUnlockRow | null; 
           )}
         </View>
         <View style={styles.nextText}>
-          <AppText variant="label" color={palette.inkFaint}>NEXT ON THE SHELF</AppText>
+          <AppText variant="label" color={palette.inkFaint}>NEXT MILESTONE</AppText>
           <AppText variant="body" color={palette.inkSoft} numberOfLines={1}>
             {nextUnlock.hint}
           </AppText>
@@ -485,9 +524,7 @@ function NextOnShelf({ nextUnlock, bands }: { nextUnlock: NextUnlockRow | null; 
             <AppText variant="stat" color={palette.ink} style={styles.nextTickText}>
               {`${progress.current}/${progress.target}`}
             </AppText>
-            <View style={styles.nextTickTrack}>
-              <View style={[styles.nextTickFill, { width: `${pct}%` }]} />
-            </View>
+            <ProgressTrack pct={pct} trackStyle={styles.nextTickTrack} fillStyle={styles.nextTickFill} />
           </View>
         ) : null}
       </View>
@@ -512,143 +549,268 @@ function NextOnShelf({ nextUnlock, bands }: { nextUnlock: NextUnlockRow | null; 
   );
 }
 
-/**
- * The ITEMS / COMBOS segmented control: a parchment track with a cream pill that
- * slides under the selected label. The pill animates with translateX only (never
- * scaleX/scaleY — those collapse the view on Fabric); reduced motion snaps it.
- */
-function SegmentedTabs({
-  tab,
-  onChange,
-  itemsLabel,
-  combosLabel,
+/** A progress bar whose fill animates to `pct` once on mount (~600ms, ease-out;
+ *  snaps under reduced motion). Reads the count-up value as a plain number and
+ *  drives width — no scaleX (Fabric collapse scar), no with*() arithmetic. */
+function ProgressTrack({
+  pct,
+  trackStyle,
+  fillStyle,
 }: {
-  tab: CatalogTab;
-  onChange: (tab: CatalogTab) => void;
-  itemsLabel: string;
-  combosLabel: string;
+  pct: number;
+  trackStyle: StyleProp<ViewStyle>;
+  fillStyle: StyleProp<ViewStyle>;
+}) {
+  const animatedPct = useCountUp(pct);
+  return (
+    <View style={trackStyle}>
+      <View style={[fillStyle, { width: `${animatedPct}%` }]} />
+    </View>
+  );
+}
+
+/**
+ * B-M15 rarity postage-stamp tabs — the catalog's page control. A horizontal
+ * stamp-album strip: one serrated stamp per rarity band + a combos stamp. Pressing
+ * a stamp selects that page (a band's album grid, or the combo trophy shelf); the
+ * selected stamp is "inked" (gold frame, full tint, lifted). Each stamp shows its
+ * rarity icon, discovered/total, and — ONLY when a REAL runsPlayed-gated locked
+ * item of that rarity exists — the nearest such goal line (never a fabricated
+ * goal). Replaces the old ITEMS/COMBOS segmented control + the rarity legend chips.
+ */
+function RarityStampTabs({
+  view,
+  bands,
+  tab,
+  onSelect,
+}: {
+  view: CatalogView;
+  bands: CatalogBand[];
+  tab: SelectedTab;
+  onSelect: (tab: SelectedTab) => void;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.stampTabStrip}
+    >
+      {bands.map((band) => (
+        <RarityStamp
+          key={band.tier}
+          band={band}
+          selected={tab.kind === 'rarity' && tab.tier === band.tier}
+          onPress={() => onSelect({ kind: 'rarity', tier: band.tier })}
+        />
+      ))}
+      <ComboStamp
+        achieved={view.combosAchieved}
+        total={view.combosTotal}
+        selected={tab.kind === 'combos'}
+        onPress={() => onSelect({ kind: 'combos' })}
+      />
+    </ScrollView>
+  );
+}
+
+const RARITY_STAMP_ICON: Record<1 | 2 | 3 | 4, MciName> = {
+  4: 'crown',
+  3: 'diamond-stone',
+  2: 'star-four-points',
+  1: 'shape',
+};
+
+/** Per-rarity pastel tint (the legend ladder as a translucent wash). */
+function stampTint(tier: 1 | 2 | 3 | 4, styles: ReturnType<typeof makeStyles>) {
+  switch (tier) {
+    case 4:
+      return styles.stampTintHeirloom;
+    case 3:
+      return styles.stampTintRare;
+    case 2:
+      return styles.stampTintFine;
+    default:
+      return styles.stampTintCommon;
+  }
+}
+
+/** How many perforation teeth bite across a stamp's top/bottom edge. */
+const STAMP_TEETH = 11;
+
+/** A serrated stamp edge (wallCream teeth biting in), reusing the run-summary
+ *  deckle technique — down-pointing on the top edge, up-pointing on the bottom. */
+function StampTeeth({ dir }: { dir: 'up' | 'down' }) {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.stampTeethRow} pointerEvents="none">
+      {Array.from({ length: STAMP_TEETH }).map((_, i) => (
+        <View key={i} style={dir === 'down' ? styles.stampToothDown : styles.stampToothUp} />
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Shared stamp frame: serrated top/bottom edges around a tinted, pressable body.
+ * Selected = "inked" (gold side-frame, full tint, a lift); unselected dims the
+ * tint. A press-spring (uniform scale) gives the pressed-stamp feel; reduced
+ * motion snaps. Tab semantics preserved (accessibilityRole="tab" + selected).
+ */
+function StampFrame({
+  tint,
+  selected,
+  onPress,
+  accessibilityLabel,
+  children,
+}: {
+  tint: StyleProp<ViewStyle>;
+  selected: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+  children: React.ReactNode;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const reduced = useReducedMotion();
+  const press = useSharedValue(1);
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: press.value }] }));
+  return (
+    <AnimatedPressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected }}
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      onPressIn={() => {
+        if (!reduced) press.value = withTiming(0.95, { duration: motion.durations.tick });
+      }}
+      onPressOut={() => {
+        press.value = reduced ? 1 : withSpring(1, motion.springs.settle);
+      }}
+      style={[styles.stampTab, anim, !selected && styles.stampTabUnselected]}
+    >
+      <StampTeeth dir="down" />
+      <View
+        style={[
+          styles.stampTabBody,
+          styles.stampTabFrame,
+          selected && styles.stampTabFrameSelected,
+          tint,
+          selected && styles.stampTabSelected,
+        ]}
+      >
+        {children}
+      </View>
+      <StampTeeth dir="up" />
+    </AnimatedPressable>
+  );
+}
+
+/** One rarity stamp: icon, band name, discovered/total, and — only when the band
+ *  holds a REAL runsPlayed-gated locked item — the nearest such goal line. */
+function RarityStamp({
+  band,
+  selected,
+  onPress,
+}: {
+  band: CatalogBand;
+  selected: boolean;
+  onPress: () => void;
 }) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
-  const reduced = useReducedMotion();
-  const [trackWidth, setTrackWidth] = useState(0);
-  const index = tab === 'items' ? 0 : 1;
-  const half = Math.max(0, (trackWidth - spacing.xs * 2) / 2);
-  const x = useSharedValue(0);
-
-  useEffect(() => {
-    const target = index * half;
-    if (reduced || half === 0) {
-      x.value = target;
-    } else {
-      x.value = withSpring(target, motion.springs.settle);
-    }
-  }, [index, half, reduced, x]);
-
-  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
-
+  const goal = rarityGoalForItems(band.items);
+  const goalPct =
+    goal && goal.target > 0 ? Math.min(100, Math.round((goal.current / goal.target) * 100)) : 0;
   return (
-    <View style={styles.segment} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
-      {half > 0 ? <Animated.View style={[styles.segmentPill, { width: half }, pillStyle]} /> : null}
-      <Pressable style={styles.segmentBtn} onPress={() => onChange('items')} accessibilityRole="tab">
-        <AppText
-          variant="label"
-          color={index === 0 ? palette.ink : palette.inkFaint}
-          style={styles.segmentLabel}
-        >
-          {itemsLabel}
+    <StampFrame
+      tint={stampTint(band.tier, styles)}
+      selected={selected}
+      onPress={onPress}
+      accessibilityLabel={`${band.name}, ${band.discovered} of ${band.total} discovered`}
+    >
+      <MaterialCommunityIcons name={RARITY_STAMP_ICON[band.tier]} size={18} color={palette.goldDeep} />
+      <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.stampTabName}>
+        {band.name}
+      </AppText>
+      <View style={styles.stampTabCountRow}>
+        <AppText variant="stat" color={palette.ink} style={styles.stampTabCount}>
+          {`${band.discovered}/${band.total}`}
         </AppText>
-      </Pressable>
-      <Pressable style={styles.segmentBtn} onPress={() => onChange('combos')} accessibilityRole="tab">
-        <AppText
-          variant="label"
-          color={index === 1 ? palette.ink : palette.inkFaint}
-          style={styles.segmentLabel}
-        >
-          {combosLabel}
+      </View>
+      {goal ? (
+        <View style={styles.stampTabGoal}>
+          <View style={styles.stampTabGoalTrack}>
+            <View style={[styles.stampTabGoalFill, { width: `${goalPct}%` }]} />
+          </View>
+          <AppText variant="label" color={palette.inkFaint} style={styles.stampTabGoalText}>
+            {`Reach ${goal.target} runs`}
+          </AppText>
+        </View>
+      ) : null}
+    </StampFrame>
+  );
+}
+
+/** The combos stamp — the trophy-shelf page's tab: a medal glyph + achieved/total. */
+function ComboStamp({
+  achieved,
+  total,
+  selected,
+  onPress,
+}: {
+  achieved: number;
+  total: number;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  return (
+    <StampFrame
+      tint={styles.stampTintCombos}
+      selected={selected}
+      onPress={onPress}
+      accessibilityLabel={`Combos, ${achieved} of ${total} achieved`}
+    >
+      <MaterialCommunityIcons name="medal" size={18} color={palette.tealDark} />
+      <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.stampTabName}>
+        COMBOS
+      </AppText>
+      <View style={styles.stampTabCountRow}>
+        <AppText variant="stat" color={palette.ink} style={styles.stampTabCount}>
+          {`${achieved}/${total}`}
         </AppText>
-      </Pressable>
-    </View>
+      </View>
+    </StampFrame>
   );
 }
 
 /**
- * The Items tab: a quiet rarity legend (the "what can be achieved" map), then the
- * cards grouped into bands rarest-first, each with a per-band discovered/total
- * count. The one-time reveal is planned here on first mount (see planReveals).
+ * One rarity album page: the band's SectionLabel + its grid of item stamps
+ * (unchanged CAT-2 cards). The one-time discovery reveal is planned here on the
+ * page's first mount — planReveals no-ops on already-revealed ids, so switching
+ * pages never replays it, and only the visible page's animators exist.
  */
-function ItemsTab({ view, onOpenItem }: { view: CatalogView; onOpenItem: (id: string) => void }) {
+function BandPage({ band, onOpenItem }: { band: CatalogBand; onOpenItem: (id: string) => void }) {
   const styles = useThemedStyles(makeStyles);
-  const palette = usePalette();
-  const bands = useMemo(() => catalogBands(view.items), [view.items]);
-  // Reveal plan for THIS tab, computed once on its first mount, in screen order
-  // (rarest band first). Re-mounting on a tab switch replans, but planReveals
-  // no-ops on already-revealed ids, so the reveal never replays.
-  const [revealPlan] = useState(() =>
-    planReveals(bands.flatMap((b) => b.items).filter((i) => i.isNew).map((i) => i.id)),
-  );
-
+  const [revealPlan] = useState(() => planReveals(band.items.filter((i) => i.isNew).map((i) => i.id)));
   return (
-    <>
-      {/* LEG-1: four equal-width band chips in one row (band name over n/total,
-          a material accent on the top edge, a quiet check when a band is
-          complete) — replaces the ragged dot-separated line. */}
-      <View style={styles.legendChips}>
-        {bands.map((band) => (
-          <LegendChip key={band.tier} band={band} />
+    <View style={styles.band}>
+      <SectionLabel>{`${band.name} — ${band.discovered}/${band.total}`}</SectionLabel>
+      <View style={styles.grid}>
+        {band.items.map((item) => (
+          <ItemStamp
+            key={item.id}
+            item={item}
+            revealIndex={revealPlan.get(item.id) ?? null}
+            onOpenItem={onOpenItem}
+          />
         ))}
-      </View>
-
-      {bands.map((band) => (
-        <View key={band.tier} style={styles.band}>
-          <SectionLabel>{`${band.name} — ${band.discovered}/${band.total}`}</SectionLabel>
-          <View style={styles.grid}>
-            {band.items.map((item) => (
-              <ItemStamp
-                key={item.id}
-                item={item}
-                revealIndex={revealPlan.get(item.id) ?? null}
-                onOpenItem={onOpenItem}
-              />
-            ))}
-          </View>
-        </View>
-      ))}
-    </>
-  );
-}
-
-/** One LEG-1 legend chip: band name over its n/total, a material accent on the
- *  top edge, and a quiet check when the band is fully collected. flex:1 (in the
- *  sheet) makes the four chips split the row equally, one line, no wrap. */
-function LegendChip({ band }: { band: CatalogBand }) {
-  const styles = useThemedStyles(makeStyles);
-  const palette = usePalette();
-  const accent =
-    band.tier === 4
-      ? styles.legendAccentHeirloom
-      : band.tier === 3
-        ? styles.legendAccentRare
-        : band.tier === 2
-          ? styles.legendAccentFine
-          : styles.legendAccentCommon;
-  const complete = band.total > 0 && band.discovered === band.total;
-  return (
-    <View style={[styles.legendChip, accent]}>
-      <AppText variant="label" color={palette.inkSoft} numberOfLines={1} style={styles.legendChipName}>
-        {band.name}
-      </AppText>
-      <View style={styles.legendChipCountRow}>
-        <AppText variant="stat" color={palette.ink} style={styles.legendChipCount}>
-          {`${band.discovered}/${band.total}`}
-        </AppText>
-        {complete ? (
-          <MaterialCommunityIcons name="check" size={12} color={palette.accentTeal} />
-        ) : null}
       </View>
     </View>
   );
 }
+
 
 /**
  * The Combos tab: a WOODEN TROPHY SHELF (COMBO-2). Combos sit two-per-row as
@@ -726,31 +888,6 @@ function useCountUp(target: number, durationMs = motion.durations.banner): numbe
     return () => cancelAnimationFrame(raf);
   }, [target, reduced, durationMs]);
   return value;
-}
-
-function CompletionNumber({ pct }: { pct: number }) {
-  const palette = usePalette();
-  const value = useCountUp(pct);
-  return (
-    <AppText variant="display" color={palette.accentTeal}>
-      {value}%
-    </AppText>
-  );
-}
-
-/** One best-run stat: an MCI icon beside the value, the label beneath. */
-function Stat({ icon, label, value }: { icon: MciName; label: string; value: string }) {
-  const styles = useThemedStyles(makeStyles);
-  const palette = usePalette();
-  return (
-    <View style={styles.stat}>
-      <View style={styles.statValueRow}>
-        <MaterialCommunityIcons name={icon} size={14} color={palette.inkFaint} />
-        <AppText variant="stat" color={palette.ink}>{value}</AppText>
-      </View>
-      <AppText variant="label" color={palette.inkFaint} style={styles.statLabel}>{label}</AppText>
-    </View>
-  );
 }
 
 /**

@@ -545,3 +545,68 @@ export function nearestIncompleteBand(bands: readonly CatalogBand[]): CatalogBan
   }
   return best;
 }
+
+// --- View model: B-M15 Collector's Journal header derivations. ---
+
+/**
+ * B-M15: the passive milestone track marks (0/25/50/75/100%). PURELY decorative
+ * progress — no rewards, no medals, nothing the sim pays out at a threshold. A
+ * mark is `filled` once real `completionPct` reaches it; the first mark becomes a
+ * `star` the moment any progress exists (>0%). At 0% every mark is empty. Pure
+ * display derive over one number — no persistence, no new stat.
+ */
+export const MILESTONE_MARKS = [0, 25, 50, 75, 100] as const;
+
+export interface MilestoneMark {
+  /** The percentage this mark sits at. */
+  threshold: number;
+  /** True once completionPct has reached this mark. */
+  filled: boolean;
+  /** True only for the first mark, and only once completionPct > 0 (a star). */
+  isStar: boolean;
+}
+
+export function milestoneScaleView(completionPct: number): MilestoneMark[] {
+  const pct = Math.max(0, Math.min(100, completionPct));
+  return MILESTONE_MARKS.map((threshold, index) => {
+    // The 0% mark is only "reached" once there is actual progress, so a fresh
+    // collection shows an empty scale rather than a pre-lit first dot.
+    const filled = index === 0 ? pct > 0 : pct >= threshold;
+    return { threshold, filled, isStar: index === 0 && pct > 0 };
+  });
+}
+
+/** A rarity stamp's optional goal line — progress toward the NEAREST real
+ *  runsPlayed-gated locked item of that rarity. */
+export interface RarityGoal {
+  current: number;
+  target: number;
+}
+
+/**
+ * B-M15: the single real goal line a rarity stamp may show. Scans the band's
+ * rows for LOCKED items carrying a numeric `unlockProgress` (which
+ * `buildCatalogView` sets ONLY for a `runsPlayed` gate) and returns the one
+ * nearest to unlocking (fewest runs remaining; ties break to the smaller target).
+ * Returns null when the band has no such real goal — the stamp then shows its
+ * discovered/total count only, never a fabricated "Reach N runs" line. Pure
+ * derive over already-built rows; no persistence, no unlock LOGIC (that stays in
+ * the sim — this only reads the classified progress).
+ */
+export function rarityGoalForItems(items: readonly CatalogItemRow[]): RarityGoal | null {
+  let best: RarityGoal | null = null;
+  for (const item of items) {
+    if (!item.locked || !item.unlockProgress) continue;
+    const goal = item.unlockProgress;
+    if (best === null) {
+      best = goal;
+      continue;
+    }
+    const remaining = goal.target - goal.current;
+    const bestRemaining = best.target - best.current;
+    if (remaining < bestRemaining || (remaining === bestRemaining && goal.target < best.target)) {
+      best = goal;
+    }
+  }
+  return best;
+}

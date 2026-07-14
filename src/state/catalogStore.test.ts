@@ -8,8 +8,10 @@ import {
   buildCatalogView,
   catalogBands,
   createCatalogStore,
+  milestoneScaleView,
   nearestIncompleteBand,
   nextUnlockTeaserView,
+  rarityGoalForItems,
   RARITY_BANDS,
   type CatalogBand,
 } from './catalogStore';
@@ -388,5 +390,66 @@ describe('nearestIncompleteBand — PROG-1 shelf-growth fallback hook', () => {
     catalog.discoveredItemIds.push('maneki-neko');
     const bands = catalogBands(buildCatalogView(catalog, table, combos).items);
     expect(nearestIncompleteBand(bands)?.name).toBe('HEIRLOOM');
+  });
+});
+
+describe('milestoneScaleView — B-M15 passive milestone track', () => {
+  it('shows an all-empty scale with no star at 0%', () => {
+    const marks = milestoneScaleView(0);
+    expect(marks.map((m) => m.threshold)).toEqual([0, 25, 50, 75, 100]);
+    expect(marks.every((m) => !m.filled)).toBe(true);
+    expect(marks.some((m) => m.isStar)).toBe(false);
+  });
+
+  it('lights only the first mark as a star at the first sliver of progress', () => {
+    const marks = milestoneScaleView(1);
+    expect(marks[0]).toEqual({ threshold: 0, filled: true, isStar: true });
+    expect(marks.slice(1).every((m) => !m.filled)).toBe(true);
+  });
+
+  it('fills every mark the real percentage has reached (and only those)', () => {
+    const marks = milestoneScaleView(50);
+    expect(marks.map((m) => m.filled)).toEqual([true, true, true, false, false]);
+    // Still exactly one star (the first mark) — the mid marks are plain dots.
+    expect(marks.filter((m) => m.isStar)).toHaveLength(1);
+  });
+
+  it('fills the whole scale at 100% and clamps out-of-range input', () => {
+    expect(milestoneScaleView(100).every((m) => m.filled)).toBe(true);
+    expect(milestoneScaleView(140).every((m) => m.filled)).toBe(true);
+    expect(milestoneScaleView(-20).every((m) => !m.filled)).toBe(true);
+  });
+});
+
+describe('rarityGoalForItems — B-M15 real per-rarity goal line', () => {
+  it('returns null for every band when the unlock ladder is off (no locked goals)', () => {
+    const bands = catalogBands(
+      buildCatalogView(freshCatalog(), table, combos, { unlockLadder: false }).items,
+    );
+    expect(bands.every((b) => rarityGoalForItems(b.items) === null)).toBe(true);
+  });
+
+  it('surfaces the nearest real runsPlayed goal, matching the rows independently', () => {
+    const view = buildCatalogView(freshCatalog(), table, combos, { unlockLadder: true });
+    const bands = catalogBands(view.items);
+    for (const band of bands) {
+      // Independent expectation: the fewest-runs-remaining locked runsPlayed goal.
+      const goals = band.items
+        .filter((i) => i.locked && i.unlockProgress)
+        .map((i) => i.unlockProgress!)
+        .sort((a, b) => a.target - a.current - (b.target - b.current) || a.target - b.target);
+      expect(rarityGoalForItems(band.items)).toEqual(goals[0] ?? null);
+    }
+    // At least one band must actually carry a goal, or the test proves nothing.
+    expect(bands.some((b) => rarityGoalForItems(b.items) !== null)).toBe(true);
+  });
+
+  it('never invents a goal for a band whose only locked items are item/combo-gated', () => {
+    // A band of rows that are locked but carry no numeric (runsPlayed) progress.
+    const rows = [
+      { locked: true, unlockProgress: null },
+      { locked: false, unlockProgress: null },
+    ] as unknown as Parameters<typeof rarityGoalForItems>[0];
+    expect(rarityGoalForItems(rows)).toBeNull();
   });
 });
