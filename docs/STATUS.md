@@ -1,5 +1,17 @@
 # STATUS — start here (new thread)
 
+## 2026-07-14 — graduation-flip MERGED TO MAIN (human ruling) and pushed
+
+The human ruled the merge after a day of hands-on device sessions that effectively served as the
+Gate-2 pass ("push to main — we have a lot"). Main now ships: the graduated depth defaults, the
+Gate-1.2 retuned economy (swing 1.62–1.92× in band), the intuitiveness pass, B-M13–16 polish
+rounds, the Picture Gallery (flag ON, human-tested), the Collector's Journal catalog, and the
+human's Suno audio set (discovery jingle closes the B-M11 gate; gameplay is SFX-only by human
+ruling — music re-enters solely as the rent-eve signal). Merge verified: tsc clean, fixtures 7/7,
+418/418 serial, both determinism pins green (v1 frozen `8d48e1c5a6ad14c9`, graduating
+`1adfc85f256b8512`). Remaining externals: physical VoiceOver pass, TestFlight inputs (privacy URL,
+feedback email, signing, testers) — see the audit packet §7 for the alpha runbook.
+
 ## 2026-07-13 gameplay/intuitiveness audit — Gate 1.2 reopened
 
 The end-to-end audit and research packet is
