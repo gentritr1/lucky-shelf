@@ -82,18 +82,19 @@ export default function RunHudScreen() {
     [gameState, inspectedInstanceId],
   );
 
-  // Music bed follows rent proximity: the golden-hour loop until the last
-  // morning, then the rent-tension variants — the named rent-EVE bed on the
-  // final day before rent, the rent-week bed on the due morning itself (B-M16:
-  // rentEve is the asset-ready slot; it points at the same mp3 until the Suno
-  // asset lands, so today this is audibly unchanged). Re-runs on focus and
-  // whenever dueInDays crosses a threshold mid-run.
+  // Human ruling 2026-07-14 ("keep just sfx, do not keep double"): normal
+  // gameplay is SFX-ONLY — no music bed under the run, so the receipt sounds
+  // stand alone. Music re-enters exactly once per cycle, as a SIGNAL: the
+  // rent-tension beds fade in when rent looms (rent-EVE on the final day
+  // before rent, rent-week on the due morning). Silence → music IS the
+  // escalation now. Re-runs on focus and whenever dueInDays crosses a
+  // threshold mid-run.
   const rentDueInDays = gameState.rent.dueInDays;
   useFocusEffect(
     useCallback(() => {
       setMusicTrack(
         rentDueInDays > RENT_TENSION_DUE_IN_DAYS
-          ? 'main'
+          ? null
           : rentDueInDays === RENT_TENSION_DUE_IN_DAYS
             ? 'rentEve'
             : 'rentWeek',

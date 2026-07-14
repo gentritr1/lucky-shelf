@@ -54,8 +54,9 @@ export default function RestockScreen() {
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const affordances = useMemo(() => restockAffordanceView(gameState), [gameState]);
 
-  // Rent was just paid before restock — back to the calm golden-hour bed.
-  useFocusEffect(useCallback(() => setMusicTrack('main'), []));
+  // Human ruling 2026-07-14: gameplay is SFX-only — the shop stays bed-less
+  // too (rent tension, if any, resolves on the run screen's own assertion).
+  useFocusEffect(useCallback(() => setMusicTrack(null), []));
 
   useEffect(() => {
     const route = routeForGameState(gameState);

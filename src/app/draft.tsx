@@ -32,8 +32,8 @@ export default function DraftScreen() {
   const onboardingLoaded = useOnboardingStore((state) => state.loaded);
   const syncOnboardingTo = useOnboardingStore((state) => state.syncTo);
 
-  // Everyday golden-hour bed while drafting.
-  useFocusEffect(useCallback(() => setMusicTrack('main'), []));
+  // Human ruling 2026-07-14: gameplay is SFX-only — no bed under drafting.
+  useFocusEffect(useCallback(() => setMusicTrack(null), []));
 
   useEffect(() => {
     const route = routeForGameState(gameState);

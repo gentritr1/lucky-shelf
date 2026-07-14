@@ -24,7 +24,7 @@ import {
   useReducedMotion,
   useThemedStyles,
 } from '@/ui';
-import { spriteFor } from '@/juice';
+import { setMusicTrack, spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/summary.styles';
 import { routeForGameState } from '../state/phaseRouting';
@@ -70,6 +70,11 @@ export default function RunSummaryScreen() {
   const recordDaily = useDailyStore((state) => state.recordDaily);
   const streakCount = useDailyStore(dailySelectors.streakCount);
   const isDaily = isDailySeed(gameState.seed);
+
+  // Human ruling 2026-07-14 (gameplay = SFX-only): the receipt reads in quiet —
+  // and a run that ended on a rent-tension day must not carry the tension bed
+  // into its results.
+  useEffect(() => setMusicTrack(null), []);
 
   // Freeze the STANDING personal bests at mount — before `recordRunEnd` folds this
   // run into the catalog — so "New record!" compares against the prior record.
