@@ -85,7 +85,10 @@ export function useCascadePlayer({
         break;
       case 'dayTotal':
         haptic('dayTotalSlam');
-        if (rentDueRef.current) haptic('rentThud');
+        if (rentDueRef.current) {
+          const rentTimer = setTimeout(() => haptic('rentThud'), motion.cascade.rentThudDelayMs);
+          return () => clearTimeout(rentTimer);
+        }
         break;
       default:
         break;

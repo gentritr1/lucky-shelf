@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { shadows, type Palette } from '@/ui/tokens';
+import { radii, shadows, spacing, type Palette } from '@/ui/tokens';
 
 // Responsive frame: portrait is the whole design, so on wider viewports we center
 // a phone-width column against a warm backdrop (like the shop sitting on a wooden
@@ -30,6 +30,36 @@ export function makeStyles(palette: Palette) {
       overflow: 'hidden',
       width: '100%',
       ...shadows.lifted,
+    },
+    saveBanner: {
+      alignItems: 'center',
+      backgroundColor: palette.emberDark,
+      borderRadius: radii.md,
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'space-between',
+      left: spacing.md,
+      minHeight: 44,
+      paddingHorizontal: spacing.md,
+      position: 'absolute',
+      right: spacing.md,
+      zIndex: 20,
+      ...shadows.float,
+    },
+    saveBannerText: {
+      flex: 1,
+    },
+    saveRetry: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderRadius: radii.pill,
+      justifyContent: 'center',
+      minHeight: 44,
+      minWidth: 64,
+      paddingHorizontal: spacing.md,
+    },
+    saveRetryPressed: {
+      opacity: 0.75,
     },
   });
 }

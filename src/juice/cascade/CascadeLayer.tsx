@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -12,9 +12,10 @@ import Animated, {
 
 import type { DailyTargetResult, GameState, ItemInstance, ScoringTrace, Slot } from '@/contracts';
 import { toSlotKey } from '@/contracts';
-import { arrowPalette, motion, palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
+import { loadCombos, loadItemTable } from '@/items';
+import { arrowPalette, borders, motion, palette, radii, shadows, spacing, typeScale } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/prefs';
-import { CoinCounter, WoodButton } from '@/ui';
+import { AppText, CoinCounter, WoodButton, usePalette } from '@/ui';
 import { ItemSprite } from '../ItemSprite';
 import { glyphFor } from '../glyphs';
 import {
@@ -26,7 +27,14 @@ import {
   type ShelfLayout,
 } from '../layout';
 import { haptic } from '../haptics';
-import { playDiscoveryJingle } from '../audio';
+import { playCascadeSting, playDiscoveryJingle, setBedDucked } from '../audio';
+import {
+  receiptCaptionForStep,
+  receiptDepsFromGameState,
+  receiptFromTrace,
+  type ReceiptCaption,
+  type ReceiptLine,
+} from '../receipt';
 import type { CascadeFrame } from './cascadeState';
 import { classifyDiscoveries, slowBeatStepIndices, type DiscoveryMoment } from './discoveryModel';
 import { deltaLabel, isSelfFire } from './popModel';
@@ -40,6 +48,8 @@ const overshoot = Easing.bezier(...motion.easings.overshoot);
 
 /** Warmer on-slot pop scale at the higher tiers (1 = shipped/normal, untouched). */
 const POP_SCALE_BOOST: Record<CascadeTier, number> = { normal: 1, big: 1.15, apex: 1.3 };
+const RECEIPT_ITEM_TABLE = loadItemTable();
+const RECEIPT_COMBOS = loadCombos();
 
 /**
  * The cascade: consumes a ScoringTrace verbatim and animates every coin
@@ -71,6 +81,13 @@ interface CascadeLayerProps {
   /** Label for that single advance affordance (defaults to a collect-flavored verb). */
   completeLabel?: string;
   /**
+   * B-M16: fires when the terminal dayTotal RESOLVES (play-through, skip, and
+   * each replay — the same moments the payout sting plays). The run HUD uses it
+   * to time the rent-payment beat against the slam. Optional; omitting it
+   * changes nothing.
+   */
+  onDayTotal?: () => void;
+  /**
    * B-M11: the combos achieved all-time BEFORE this run started
    * (`catalog.achievedComboIds` snapshot at run start). Enables combo-discovery
    * moments — a first-ever combo earns a toast + stamp + jingle + slow-beat; a
@@ -93,10 +110,13 @@ export function CascadeLayer({
   targetResult,
   onComplete,
   completeLabel = 'Collect ▸',
+  onDayTotal,
   achievedBeforeRun,
 }: CascadeLayerProps) {
   const reduced = useReducedMotion();
+  const livePalette = usePalette();
   const { rows, cols } = gameState.shelf.size;
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   // B-M11 combo discovery — pure classification over the trace. `achievedBeforeRun`
   // is the run-start catalog; combos already discovered on earlier days this run
@@ -120,6 +140,32 @@ export function CascadeLayer({
 
   const player = useCascadePlayer({ events: trace.events, rentDue, autoPlay, slowBeatIndices });
   const { frame, currentEvent, stepIndex } = player;
+  const receiptLines = useMemo(
+    () =>
+      receiptFromTrace(
+        trace,
+        receiptDepsFromGameState(gameState, {
+          table: RECEIPT_ITEM_TABLE,
+          combos: RECEIPT_COMBOS,
+        }),
+      ),
+    [gameState, trace],
+  );
+  const currentCaption = useMemo(
+    () => receiptCaptionForStep(receiptLines, stepIndex),
+    [receiptLines, stepIndex],
+  );
+
+  useEffect(() => setReceiptOpen(false), [trace]);
+
+  // Audio duck (2026-07-14, human-approved): while the cascade owns the screen
+  // the music bed drops to its ducked level so payout stings/jingle/captions
+  // read on top; the cleanup swells it back on Collect/route-away. Idempotent
+  // and prefs-gated inside the gateway.
+  useEffect(() => {
+    setBedDucked(true);
+    return () => setBedDucked(false);
+  }, []);
 
   // The discovery moment for the currently-resolved step (if any).
   const activeMoment = useMemo(
@@ -132,6 +178,17 @@ export function CascadeLayer({
   useEffect(() => {
     if (activeMoment?.kind === 'first-ever') playDiscoveryJingle();
   }, [activeMoment]);
+
+  // The payout flourish belongs to the resolved payout, not the Open Shop
+  // button press. Keeping it on the terminal trace event also makes Skip and
+  // Play again truthful without adding another timer to the cascade. B-M16: the
+  // same moment notifies the HUD (rent-payment beat rides the slam).
+  useEffect(() => {
+    if (currentEvent?.kind === 'dayTotal') {
+      playCascadeSting();
+      onDayTotal?.();
+    }
+  }, [currentEvent, onDayTotal]);
 
   // B-M6 spectacle tier — pure function of the trace + the day's goal target.
   // `'normal'` short-circuits every added effect below so ordinary cascades render
@@ -167,15 +224,25 @@ export function CascadeLayer({
 
   const primaryLabel = player.playing ? 'Pause' : player.done ? 'Play again' : 'Play';
   const onPrimary = () => {
-    if (player.playing) player.pause();
-    else if (player.done) player.restart();
-    else player.play();
+    if (player.playing) {
+      player.pause();
+    } else if (player.done) {
+      setReceiptOpen(false);
+      player.restart();
+    } else {
+      player.play();
+    }
   };
 
   return (
     <View style={styles.wrap}>
       <View style={styles.scene} onLayout={onLayout}>
-        {layout ? (
+        {receiptOpen ? (
+          <ReceiptReview
+            height={layout?.frameHeight ?? 260}
+            lines={receiptLines}
+          />
+        ) : layout ? (
           <View style={{ width: layout.frameWidth, height: layout.frameHeight }}>
             <Board layout={layout} />
 
@@ -243,13 +310,14 @@ export function CascadeLayer({
                     to={slotCenter(layout, currentEvent.targetSlot.row, currentEvent.targetSlot.col)}
                     color={arrowColor(currentEvent.sourceSlot, cols)}
                     reduced={reduced}
+                    speed={player.speed}
                   />
                 )
               : null}
           </View>
         ) : null}
 
-        {frame.combo ? (
+        {!receiptOpen && frame.combo ? (
           <View style={styles.bannerLayer} pointerEvents="none">
             <ComboBanner
               combo={frame.combo}
@@ -263,12 +331,20 @@ export function CascadeLayer({
         {/* B-M11 discovery toast — warm recognition below the combo banner. A
             first-this-run combo gets the plain ink-on-paper chip; a first-ever
             combo adds the "DISCOVERED" stamp motif. Repeats show nothing. */}
-        {activeMoment && activeMoment.kind !== 'repeat' ? (
+        {!receiptOpen && activeMoment && activeMoment.kind !== 'repeat' ? (
           <View style={styles.discoveryLayer} pointerEvents="none">
             <DiscoveryToast key={activeMoment.eventIndex} moment={activeMoment} reduced={reduced} />
           </View>
         ) : null}
       </View>
+
+      {!receiptOpen ? (
+        <CurrentCauseCaption
+          key={currentCaption?.eventIndex ?? -1}
+          caption={currentCaption}
+          reduced={reduced}
+        />
+      ) : null}
 
       <View style={styles.footer}>
         <View style={styles.totalRow}>
@@ -298,7 +374,23 @@ export function CascadeLayer({
             advance affordance owns the beat. Skip jumps to the same done-state,
             so this collect tap is always the one and only way past the cascade. */}
         {player.done ? (
-          <WoodButton label={completeLabel} onPress={() => onComplete?.()} />
+          <View style={styles.doneActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: receiptOpen }}
+              onPress={() => setReceiptOpen((open) => !open)}
+              style={({ pressed }) => [
+                styles.receiptToggle,
+                { borderColor: livePalette.parchmentEdge, backgroundColor: livePalette.creamBright },
+                pressed && styles.receiptTogglePressed,
+              ]}
+            >
+              <AppText variant="label" color={livePalette.tealDark}>
+                {receiptOpen ? 'Back to shelf' : 'Review scoring receipt'}
+              </AppText>
+            </Pressable>
+            <WoodButton label={completeLabel} onPress={() => onComplete?.()} />
+          </View>
         ) : (
           <>
             <SpeedControl speed={player.speed} onSpeed={player.setSpeed} onSkip={player.skip} />
@@ -313,6 +405,109 @@ export function CascadeLayer({
       {spectacle ? (
         <CascadeSpectacle tier={tier} progress={progress} slam={slam} reduced={reduced} />
       ) : null}
+    </View>
+  );
+}
+
+function CurrentCauseCaption({
+  caption,
+  reduced,
+}: {
+  caption: ReceiptCaption | null;
+  reduced: boolean;
+}) {
+  const livePalette = usePalette();
+  const reveal = useSharedValue(reduced ? 1 : 0);
+  useEffect(() => {
+    reveal.value = reduced
+      ? 1
+      : withTiming(1, { duration: motion.durations.snap, easing: Easing.bezier(...motion.easings.out) });
+  }, [reduced, reveal]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: reveal.value,
+    transform: [{ translateY: reduced ? 0 : (1 - reveal.value) * 5 }],
+  }));
+
+  return (
+    <Animated.View
+      accessible
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={
+        caption?.accessibilityLabel ?? 'Scoring will explain each payout as it happens.'
+      }
+      style={[
+        styles.causeCaption,
+        { backgroundColor: livePalette.creamBright, borderColor: livePalette.parchmentEdge },
+        animatedStyle,
+      ]}
+    >
+      <AppText variant="label" color={livePalette.tealDark} style={styles.causeCaptionTitle}>
+        {caption?.title ?? 'Follow the payout'}
+      </AppText>
+      <AppText variant="body" color={livePalette.ink} style={styles.causeCaptionBody}>
+        {caption?.explanation ?? 'Each step names what paid, what changed, and the new total.'}
+      </AppText>
+    </Animated.View>
+  );
+}
+
+function ReceiptReview({ height, lines }: { height: number; lines: readonly ReceiptLine[] }) {
+  const livePalette = usePalette();
+  return (
+    <View
+      accessibilityLabel="Complete scoring receipt"
+      style={[
+        styles.receiptPanel,
+        {
+          backgroundColor: livePalette.creamBright,
+          borderColor: livePalette.parchmentEdge,
+          height,
+        },
+      ]}
+    >
+      <View style={styles.receiptHeader}>
+        <AppText variant="heading" color={livePalette.ink}>Scoring receipt</AppText>
+        <AppText variant="label" color={livePalette.inkFaint}>{lines.length} lines</AppText>
+      </View>
+      <ScrollView
+        accessibilityLabel="Scoring receipt lines"
+        contentContainerStyle={styles.receiptContent}
+        showsVerticalScrollIndicator
+      >
+        {lines.map((line, index) => {
+          const total = line.kind === 'total';
+          return (
+            <View
+              accessible
+              accessibilityLabel={`${line.label}${line.amount ? `, ${line.amount}` : ''}`}
+              key={`${line.eventIndex}-${line.kind}-${index}`}
+              style={[
+                styles.receiptLine,
+                line.indent === 1 && styles.receiptLineIndented,
+                total && { borderTopColor: livePalette.goldDeep },
+                total && styles.receiptLineTotal,
+              ]}
+            >
+              <AppText
+                variant="receipt"
+                color={total ? livePalette.ink : livePalette.inkSoft}
+                style={[styles.receiptLineLabel, total && styles.receiptLineTotalText]}
+              >
+                {line.label}
+              </AppText>
+              {line.amount ? (
+                <AppText
+                  variant="receipt"
+                  color={total ? livePalette.goldDeep : livePalette.ink}
+                  style={total ? styles.receiptLineTotalText : undefined}
+                >
+                  {line.amount}
+                </AppText>
+              ) : null}
+            </View>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -462,6 +657,12 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
   const vanished = Boolean(frame.vanished[key]);
   const glyph = glyphFor(transformed ? transformed.toItem : item.itemId);
   const active = frame.openSlot === key;
+  const slotTotal = frame.slots[key];
+  // Combo membership (Fable plan #4): index in reading order for the hop stagger.
+  const memberIndex = frame.combo
+    ? frame.combo.slots.findIndex((s) => s.row === row && s.col === col)
+    : -1;
+  const isMember = memberIndex >= 0;
 
   const pop = useSharedValue(0);
   useEffect(() => {
@@ -469,6 +670,38 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
       pop.value = reduced ? 0 : withSequence(withTiming(1, { duration: 130 }), withTiming(0, { duration: 200 }));
     }
   }, [transformed, reduced, pop]);
+
+  // "Receive" bump (Fable plan #2): each time this slot's total GROWS — a coin
+  // just landed — the sprite swells and springs back, so the combo reads as one
+  // object paying another. Delayed by the coin's flight so it fires on arrival,
+  // not departure. Skips the initial base (undefined→value) and reduced motion
+  // (R-28 — the number tick alone carries it).
+  const impact = useSharedValue(0);
+  const prevTotal = useRef(slotTotal);
+  useEffect(() => {
+    const grew = prevTotal.current !== undefined && slotTotal !== undefined && slotTotal > prevTotal.current;
+    prevTotal.current = slotTotal;
+    if (!grew || reduced) return;
+    impact.value = withDelay(
+      motion.durations.tokenTravel,
+      withSequence(withTiming(1, { duration: 90 }), withSpring(0, motion.springs.impact)),
+    );
+  }, [slotTotal, reduced, impact]);
+
+  // Combo "take a bow" (Fable plan #4): when this item is named in a combo, it
+  // hops once, staggered by its reading-order index, so the members celebrate on
+  // the shelf. Reduced motion shows a static gold ring instead (below), no hop.
+  const hop = useSharedValue(0);
+  useEffect(() => {
+    if (!isMember || reduced) {
+      hop.value = 0;
+      return;
+    }
+    hop.value = withDelay(
+      memberIndex * motion.cascade.hopStaggerMs,
+      withSequence(withTiming(1, { duration: 90 }), withSpring(0, motion.springs.settle)),
+    );
+  }, [isMember, memberIndex, reduced, hop]);
 
   // vanish = a puff, not a plain fade: the sprite swells as it dissolves (R-38
   // fixture path, motion-spec §4 "300ms puff before dayTotal").
@@ -481,13 +714,28 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
     }
   }, [vanished, reduced, puff]);
 
-  const style = useAnimatedStyle(() => ({
-    opacity: 1 - puff.value,
-    transform: [
-      { scale: (1 + pop.value * 0.12) * (1 + puff.value * 0.35) },
-      { translateY: withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap }) },
-    ],
-  }));
+  // Open-window lift as a shared value so it can COMPOSE with the hop below.
+  // `withTiming(...)` returns an animation object, not a number — arithmetic on
+  // it inside useAnimatedStyle is NaN, which made Fabric drop every sprite.
+  const lift = useSharedValue(0);
+  useEffect(() => {
+    lift.value = withTiming(active && !reduced ? -3 : 0, { duration: motion.durations.snap });
+  }, [active, reduced, lift]);
+
+  const style = useAnimatedStyle(() => {
+    // Single uniform `scale` ONLY — separate scaleX/scaleY transforms collapse the
+    // view on the New Architecture (Fabric, newArchEnabled), which blanked every
+    // cascade sprite. So the "receive" impact is a uniform bump (grow, spring back)
+    // rather than a non-uniform squash; pop + puff (vanish swell) also fold in here.
+    const base = (1 + pop.value * 0.12) * (1 + puff.value * 0.35);
+    return {
+      opacity: 1 - puff.value,
+      transform: [
+        { scale: base * (1 + impact.value * 0.12) },
+        { translateY: lift.value - motion.cascade.hopY * hop.value },
+      ],
+    };
+  });
 
   return (
     <Animated.View
@@ -495,6 +743,9 @@ function CascadeItem({ item, index, layout, frame, reduced }: CascadeItemProps) 
         styles.item,
         { left: x, top: y, width: layout.slotSize, height: layout.slotSize },
         active && styles.itemActive,
+        // Reduced motion keeps the members identifiable with a static gold ring
+        // for the banner's lifetime instead of the hop (R-28).
+        isMember && reduced && styles.itemMember,
         style,
       ]}
     >
@@ -708,6 +959,74 @@ const POP_W = 44;
 const POP_H = 26;
 
 const styles = StyleSheet.create({
+  causeCaption: {
+    alignSelf: 'stretch',
+    borderRadius: radii.md,
+    borderWidth: borders.regular,
+    gap: spacing.xxs,
+    minHeight: 62,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  causeCaptionTitle: {
+    letterSpacing: 0.2,
+    textTransform: 'none',
+  },
+  causeCaptionBody: {
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  doneActions: {
+    gap: spacing.sm,
+  },
+  receiptToggle: {
+    alignItems: 'center',
+    borderRadius: radii.md,
+    borderWidth: borders.regular,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+  },
+  receiptTogglePressed: {
+    opacity: 0.72,
+  },
+  receiptPanel: {
+    alignSelf: 'stretch',
+    borderRadius: radii.lg,
+    borderWidth: borders.regular,
+    overflow: 'hidden',
+    padding: spacing.md,
+  },
+  receiptHeader: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: spacing.sm,
+  },
+  receiptContent: {
+    paddingBottom: spacing.sm,
+  },
+  receiptLine: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 24,
+    paddingVertical: spacing.xxs,
+  },
+  receiptLineIndented: {
+    paddingLeft: spacing.md,
+  },
+  receiptLineLabel: {
+    flex: 1,
+  },
+  receiptLineTotal: {
+    borderTopWidth: borders.strong,
+    marginTop: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  receiptLineTotalText: {
+    fontWeight: '700',
+  },
   pop: {
     alignItems: 'center',
     borderRadius: radii.pill,
@@ -768,6 +1087,11 @@ const styles = StyleSheet.create({
   },
   itemActive: {
     zIndex: 3,
+  },
+  itemMember: {
+    borderColor: palette.goldDeep,
+    borderRadius: radii.md,
+    borderWidth: borders.regular,
   },
   tag: {
     alignItems: 'center',

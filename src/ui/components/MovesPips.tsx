@@ -1,6 +1,9 @@
 import { StyleSheet, View } from 'react-native';
 
-import { borders, palette, radii, spacing } from '../tokens';
+import { borders, radii, spacing } from '../tokens';
+import { usePalette } from '../prefs';
+import { useThemedStyles } from '../useThemedStyles';
+import { makeStyles } from './MovesPips.styles';
 import { AppText } from './AppText';
 
 interface MovesPipsProps {
@@ -15,15 +18,22 @@ interface MovesPipsProps {
  * daily puzzle — scarcity has to be felt before the drag, not discovered after.
  */
 export function MovesPips({ remaining, total = 3 }: MovesPipsProps) {
+  const p = usePalette();
+  const themed = useThemedStyles(makeStyles);
   const clamped = Math.max(0, Math.min(remaining, total));
   return (
-    <View style={styles.wrap}>
+    <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={`${clamped} free ${clamped === 1 ? 'move' : 'moves'} remaining`}
+      style={styles.wrap}
+    >
       <View style={styles.pips}>
         {Array.from({ length: total }, (_, index) => (
-          <View key={index} style={[styles.pip, index < clamped ? styles.pipFilled : styles.pipSpent]} />
+          <View key={index} style={[styles.pip, index < clamped ? themed.pipFilled : themed.pipSpent]} />
         ))}
       </View>
-      <AppText variant="label" color={palette.inkFaint} style={styles.label}>MOVES</AppText>
+      <AppText variant="label" color={p.inkFaint} style={styles.label}>MOVES</AppText>
     </View>
   );
 }
@@ -42,14 +52,6 @@ const styles = StyleSheet.create({
     borderWidth: borders.regular,
     height: 12,
     width: 12,
-  },
-  pipFilled: {
-    backgroundColor: palette.accentTeal,
-    borderColor: palette.tealDark,
-  },
-  pipSpent: {
-    backgroundColor: 'transparent',
-    borderColor: palette.parchmentEdge,
   },
   label: {
     fontSize: 10,

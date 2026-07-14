@@ -7,8 +7,9 @@ import { layout, radii, spacing, type Palette } from '@/ui/tokens';
  * human-WIP exception during the sweep). Colors read from the passed `palette`;
  * text color/role for block copy moved to the `AppText` call sites, so entries
  * that still carry text styling are only the leftover size/weight pins (the
- * pre-existing sub-role sizes, preserved byte-identically) and `buildEmoji`, the
- * decorative glyph raw-<Text> exception. Byte-identical at default prefs.
+ * pre-existing sub-role sizes, preserved byte-identically). The build-hero glyph
+ * is now a MaterialCommunityIcons node (ICON-2) sized/colored via props, so the
+ * former `buildEmoji` text style is gone. Byte-identical at default prefs.
  */
 export function makeStyles(palette: Palette) {
   return StyleSheet.create({
@@ -68,9 +69,55 @@ export function makeStyles(palette: Palette) {
       top: 0,
       zIndex: 10,
     },
+    // B-M13: rent context rendered inside the cascade overlay (the HUD status row
+    // is hidden while scoring). Centered so the pill reads as a header above the
+    // cascade rather than a stray left-aligned chip. B-M16: a row — on the rent
+    // payment beat a draining coins pill joins the chip.
+    cascadeRentLine: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'center',
+    },
     hint: {
       fontSize: 13,
       textAlign: 'center',
+    },
+    inspector: {
+      alignSelf: 'stretch',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    inspectorHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+    },
+    inspectorTitleWrap: {
+      flex: 1,
+      gap: 2,
+    },
+    inspectorClose: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderRadius: radii.pill,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
+    },
+    inspectorClosePressed: {
+      opacity: 0.72,
+    },
+    inspectorRules: {
+      gap: spacing.xs,
+    },
+    inspectorHint: {
+      letterSpacing: 0.2,
     },
     sellRow: {
       flexDirection: 'row',
@@ -124,17 +171,27 @@ export function makeStyles(palette: Palette) {
       flexDirection: 'row',
       gap: spacing.sm,
     },
-    buildEmoji: {
-      fontSize: 28,
+    buildEmojiTile: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
     },
     buildHeroText: {
       flex: 1,
-      gap: 1,
+      gap: 2,
     },
     buildTitle: {
+      // fontSize is bumped above the `label` variant's 12 → the variant's
+      // lineHeight of 16 would clip these caps, so pin a roomy one here.
       fontSize: 16,
       fontWeight: '800',
-      letterSpacing: 0.5,
+      letterSpacing: 0.7,
+      lineHeight: 21,
     },
     buildSub: {
       fontSize: 11,
@@ -178,6 +235,12 @@ export function makeStyles(palette: Palette) {
     goalChipMet: {
       backgroundColor: palette.slotLegal,
       borderColor: palette.tealDark,
+    },
+    goalChipLabelRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexShrink: 1,
+      gap: spacing.xxs,
     },
     goalChipLabel: {
       flexShrink: 1,

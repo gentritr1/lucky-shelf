@@ -184,11 +184,19 @@ function printReport(report: ReturnType<typeof runBalanceReport>): void {
     console.log('');
   }
 
-  const swing = Object.entries(report.buildSwingTotalCoinsRatio);
-  if (swing.length > 0) {
-    console.log('Build swing (allDepth median earned / baseline median earned):');
-    for (const [policy, ratio] of swing) {
-      console.log(`  ${policy}: ${ratio}x`);
+  const cohorts = Object.entries(report.buildSwingTotalCoinsRatioByCohort);
+  if (cohorts.some(([, swing]) => Object.keys(swing).length > 0)) {
+    console.log('Build swing by unlock cohort (graduating median earned / baseline median earned):');
+    for (const [cohort, swing] of cohorts) {
+      for (const [policy, ratio] of Object.entries(swing)) {
+        const paired = report.buildSwingPairedRatioByCohort[
+          cohort as keyof typeof report.buildSwingPairedRatioByCohort
+        ][policy as BalancePolicyName];
+        const pairedLabel = paired
+          ? `; paired median ${paired.median}x (p10 ${paired.p10}, p90 ${paired.p90})`
+          : '';
+        console.log(`  ${cohort}/${policy}: ${ratio}x${pairedLabel}`);
+      }
     }
   }
 
@@ -217,10 +225,10 @@ const report = runBalanceReport({
   policies: args.policies,
 });
 
-if (args.assertBands) assertBalanceBands(report);
-
 if (args.json) {
   console.log(JSON.stringify(report, null, 2));
 } else {
   printReport(report);
 }
+
+if (args.assertBands) assertBalanceBands(report);

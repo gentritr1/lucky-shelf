@@ -13,6 +13,7 @@ import {
 } from '../sim';
 import { mergeRunIntoCatalog } from '../persistence/catalog';
 import type { CatalogPersistence, LoadCatalogStatus } from '../persistence/catalog';
+import { describeItemRules } from './describeItemRules';
 
 /**
  * The permanent Catalog store — collection meta, separate from the run store
@@ -35,7 +36,7 @@ export interface CatalogStoreState {
    *  field); it survives until the next run records or the app restarts — the
    *  "until first viewed" fade would need view-tracking persistence, so it is
    *  dropped (see the B-M11 packet). */
-  lastRunDiscovery: { runId: string; comboIds: readonly string[] } | null;
+  lastRunDiscovery: { runId: string; comboIds: readonly string[]; itemIds: readonly string[] } | null;
   loadCatalog(): Promise<Catalog>;
   recordRunEnd(gameState: GameState): Promise<Catalog>;
 }
@@ -96,11 +97,18 @@ export function createCatalogStore(options: CatalogStoreOptions = {}) {
       const newCombos = gameState.catalogDelta.discoveredComboIds.filter(
         (comboId) => !priorAchieved.has(comboId),
       );
+      // …and the items this run saw for the FIRST TIME EVER (absent from the
+      // pre-merge catalog) — drives the album's item reveal, exactly mirroring the
+      // combo derivation above. In-memory only; no new persisted field.
+      const priorDiscovered = new Set(previous.discoveredItemIds);
+      const newItems = gameState.catalogDelta.discoveredItemIds.filter(
+        (itemId) => !priorDiscovered.has(itemId),
+      );
       set({
         catalog: merged,
         lastRecordedRunId: gameState.runId,
         prevRunStats: { runId: gameState.runId, stats: previous.stats },
-        lastRunDiscovery: { runId: gameState.runId, comboIds: newCombos },
+        lastRunDiscovery: { runId: gameState.runId, comboIds: newCombos, itemIds: newItems },
       });
       await (await getPersistence()).saveCatalog(merged);
       return merged;
@@ -186,6 +194,26 @@ export interface CatalogItemRow {
   locked: boolean;
   /** Human unlock hint for a locked item ("Reach 6 runs"); null unless locked. */
   unlockHint: string | null;
+  /** CAT-1: discovered for the first time by the latest run — gets a one-time
+   *  reveal in the album. Always `false` unless `newlyDiscoveredItemIds` is
+   *  supplied, so the default album render is unchanged. */
+  isNew: boolean;
+  /** CAT-1: numeric progress toward a `runsPlayed`-gated locked item, so the card
+   *  reads "there's something here worth getting" with a concrete "4/5" tick
+   *  instead of a bare hint. Derived from live stats (`current`) vs the ladder
+   *  count (`target`); null for non-runs gates and for anything not locked. Pure
+   *  display — the unlock LOGIC still lives in the sim. */
+  unlockProgress: { current: number; target: number } | null;
+  /**
+   * CAT-3 showcase payload — the item's tags, base value, and player-facing rule
+   * sentences for the tap-to-open modal. Populated ONLY for a DISCOVERED item, so
+   * an undiscovered id never ships its rule text (or tags) to the UI — mystery
+   * stays mystery. An undiscovered/locked row carries `[] / 0 / []`. Pure derive
+   * over the item def; no persistence touched.
+   */
+  tags: readonly string[];
+  baseValue: number;
+  ruleSentences: readonly string[];
 }
 
 /**
@@ -213,6 +241,51 @@ function formatUnlockHint(
   }
 }
 
+/** Indefinite article for a phrase, by its first letter's vowel sound (good
+ *  enough for the combo vocabulary — no "hour"/"honest" edge cases here). */
+function indefiniteArticle(word: string): 'a' | 'an' {
+  return /^[aeiou]/i.test(word) ? 'an' : 'a';
+}
+
+/** Naive display-name plural for the "×N" adjacent phrasing (Cheese Wheel →
+ *  Cheese Wheels). Handles the sibilant endings so a future item reads right. */
+function pluralizeName(name: string): string {
+  return /(s|x|z|sh|ch)$/i.test(name) ? `${name}es` : `${name}s`;
+}
+
+/** The center descriptor as prose: a concrete item ("a Bread Loaf") or a tag
+ *  archetype ("a sweet item" / "an antique item"). */
+function describeComboCenter(center: NamedCombo['center'], table: ItemTable): string {
+  if (center.kind === 'item') {
+    const name = table.get(center.itemId)?.name ?? center.itemId;
+    return `${indefiniteArticle(name)} ${name}`;
+  }
+  return `${indefiniteArticle(center.tag)} ${center.tag} item`;
+}
+
+/** The adjacent descriptor as prose, counted: "2 food items" (tag) or
+ *  "3 Cheese Wheels" / "1 Mirror" (concrete item). */
+function describeComboAdjacent(
+  adjacent: NamedCombo['adjacent'],
+  count: number,
+  table: ItemTable,
+): string {
+  if (adjacent.kind === 'item') {
+    const name = table.get(adjacent.itemId)?.name ?? adjacent.itemId;
+    return `${count} ${count === 1 ? name : pluralizeName(name)}`;
+  }
+  return `${count} ${adjacent.tag} ${count === 1 ? 'item' : 'items'}`;
+}
+
+/** The one-line recipe sentence for a combo's detail modal. Item ids resolve to
+ *  display names via the passed table so the SCREEN never imports @/items. */
+function formatComboUnlock(combo: NamedCombo, table: ItemTable): string {
+  return `Arrange ${describeComboAdjacent(combo.adjacent, combo.count, table)} around ${describeComboCenter(
+    combo.center,
+    table,
+  )}`;
+}
+
 export interface CatalogComboRow {
   comboId: string;
   name: string;
@@ -222,6 +295,38 @@ export interface CatalogComboRow {
    *  stamp accent in the album. Always `false` unless `newlyAchievedComboIds` is
    *  supplied, so the default album render is unchanged. */
   isNew: boolean;
+  /**
+   * COMBO-1 recipe-card diagram descriptors: the combo's center and the neighbor
+   * it wants, resolved straight from the combo def (a tag, or a sprite-able item
+   * id), plus how many of that neighbor (`adjacentCount`, 1–3 — distinct from
+   * `count` above, which is times-achieved). The card renders these as a mini
+   * shelf cluster. Present on every row — the UI only DRAWS the diagram for an
+   * achieved combo, so an unachieved recipe is never leaked. Pure passthrough of
+   * the combo def; no persistence touched.
+   */
+  center: NamedCombo['center'];
+  adjacent: NamedCombo['adjacent'];
+  adjacentCount: number;
+  /**
+   * COMBO-2 detail-modal prose: the recipe as one player-facing sentence
+   * ("Arrange 2 food items around a Bread Loaf"), derived from
+   * center/adjacent/adjacentCount with item ids resolved to display names HERE
+   * (the screen never imports @/items). Present on every row; the UI only shows
+   * it inside an ACHIEVED combo's modal, so an unachieved recipe is never
+   * leaked. Pure derive over the combo def; no persistence touched.
+   */
+  unlockSentence: string;
+  /**
+   * COMBO-2 R1: a representative DISCOVERED item for a tag-kind slot, so the
+   * recipe diagram can show a real gameplay item card ("any food item — like
+   * this one") instead of a bare glyph. Deterministic: the FIRST discovered id
+   * in table order carrying the tag. STRICTLY discovered-only (never leaks an
+   * unseen sprite). Null when the slot is item-kind (the card is the recipe's
+   * own item) or when the player has discovered nothing with the tag (the UI
+   * falls back to the tag glyph). Pure derive; no persistence touched.
+   */
+  centerExampleItemId: string | null;
+  adjacentExampleItemId: string | null;
 }
 
 export interface CatalogView {
@@ -242,10 +347,15 @@ export function buildCatalogView(
   catalog: Catalog,
   table: ItemTable = loadItemTable(),
   combos: readonly NamedCombo[] = loadCombos(),
-  options: { unlockLadder?: boolean; newlyAchievedComboIds?: ReadonlySet<string> } = {},
+  options: {
+    unlockLadder?: boolean;
+    newlyAchievedComboIds?: ReadonlySet<string>;
+    newlyDiscoveredItemIds?: ReadonlySet<string>;
+  } = {},
 ): CatalogView {
   const ladderOn = options.unlockLadder ?? unlockLadderEnabled();
   const newlyAchieved = options.newlyAchievedComboIds ?? EMPTY_COMBO_SET;
+  const newlyDiscovered = options.newlyDiscoveredItemIds ?? EMPTY_COMBO_SET;
   const discoveredItems = new Set(catalog.discoveredItemIds);
   const achievedCombos = new Set(catalog.achievedComboIds);
   // Only computed when the ladder is on — off keeps every item `locked: false`.
@@ -258,6 +368,10 @@ export function buildCatalogView(
     const predicate = UNLOCK_LADDER[def.id];
     const locked =
       unlocked !== null && !discovered && predicate !== undefined && !unlocked.has(def.id);
+    const unlockProgress =
+      locked && predicate?.kind === 'runsPlayed'
+        ? { current: catalog.stats.runsPlayed, target: predicate.count }
+        : null;
     return {
       id: def.id,
       name: def.name,
@@ -265,8 +379,29 @@ export function buildCatalogView(
       discovered,
       locked,
       unlockHint: locked && predicate ? formatUnlockHint(predicate, table, combos) : null,
+      isNew: discovered && newlyDiscovered.has(def.id),
+      unlockProgress,
+      // Showcase payload only for a discovered item — an undiscovered/locked row
+      // ships no tags or rule text to the UI (mystery stays mystery).
+      tags: discovered ? def.tags : [],
+      baseValue: discovered ? def.baseValue : 0,
+      ruleSentences: discovered
+        ? describeItemRules(def, { itemName: (id) => table.get(id)?.name ?? id })
+        : [],
     };
   });
+
+  // COMBO-2 R1: the representative card for a tag slot — the first DISCOVERED
+  // item in table order carrying the tag (deterministic; discovered-only so an
+  // unseen sprite is never leaked); null → the UI keeps its tag-glyph fallback.
+  const exampleForTag = (tag: string): string | null => {
+    for (const def of table.values()) {
+      if (discoveredItems.has(def.id) && def.tags.includes(tag)) return def.id;
+    }
+    return null;
+  };
+  const exampleForSlot = (slot: NamedCombo['center']): string | null =>
+    slot.kind === 'tag' ? exampleForTag(slot.tag) : null;
 
   const comboRows: CatalogComboRow[] = combos.map((combo) => ({
     comboId: combo.comboId,
@@ -274,6 +409,12 @@ export function buildCatalogView(
     count: catalog.comboCounts[combo.comboId] ?? 0,
     achieved: achievedCombos.has(combo.comboId),
     isNew: newlyAchieved.has(combo.comboId),
+    center: combo.center,
+    adjacent: combo.adjacent,
+    adjacentCount: combo.count,
+    unlockSentence: formatComboUnlock(combo, table),
+    centerExampleItemId: exampleForSlot(combo.center),
+    adjacentExampleItemId: exampleForSlot(combo.adjacent),
   }));
 
   const itemsDiscovered = items.filter((i) => i.discovered).length;
@@ -292,12 +433,69 @@ export function buildCatalogView(
   };
 }
 
+// --- View model: rarity bands (CAT-2 prestige grouping). ---
+
+/**
+ * CAT-2: the four rarity bands the catalog groups items into, keyed by the item
+ * def's `tier` (1–4). Ordered RAREST-FIRST so aspiration leads the wall — an
+ * empty HEIRLOOM row up top reads as "there is something worth chasing". These
+ * are UI display names over the existing `tier` field; no persisted shape, no
+ * new save data — a pure re-presentation of `buildCatalogView().items`.
+ */
+export const RARITY_BANDS = [
+  { tier: 4, name: 'HEIRLOOM' },
+  { tier: 3, name: 'RARE' },
+  { tier: 2, name: 'FINE' },
+  { tier: 1, name: 'COMMON' },
+] as const satisfies readonly { tier: 1 | 2 | 3 | 4; name: string }[];
+
+export interface CatalogBand {
+  tier: 1 | 2 | 3 | 4;
+  /** The band's display name ("HEIRLOOM"…). */
+  name: string;
+  /** The band's rows, in the same stable table order `buildCatalogView` emits. */
+  items: CatalogItemRow[];
+  /** How many of this band the player has discovered. */
+  discovered: number;
+  /** How many items exist in this band total. */
+  total: number;
+}
+
+/**
+ * Group catalog item rows into rarity bands, rarest-first, dropping empty bands.
+ * Pure derive over `view.items` — the `tier` on each row already came from the
+ * item def (no persistence touched). Within a band, rows keep the order
+ * `buildCatalogView` produced (stable filter), so discovered/undiscovered/locked
+ * cards interleave exactly as they do today, just partitioned by rarity.
+ */
+export function catalogBands(items: readonly CatalogItemRow[]): CatalogBand[] {
+  return RARITY_BANDS.map(({ tier, name }) => {
+    const bandItems = items.filter((row) => row.tier === tier);
+    return {
+      tier,
+      name,
+      items: bandItems,
+      discovered: bandItems.filter((row) => row.discovered).length,
+      total: bandItems.length,
+    };
+  }).filter((band) => band.total > 0);
+}
+
 // --- View model: the run-summary "next unlock" teaser (Part 3). ---
 
 export interface NextUnlockRow {
   itemId: string;
   name: string;
   hint: string;
+  /**
+   * PROG-1: numeric progress toward a `runsPlayed`-gated next unlock — live runs
+   * (`current`) vs the ladder count (`target`) — so the shelf-growth hook can
+   * render a concrete "8 / 9" tick and a fill toward it. Null for item/combo
+   * gates, which have no linear countdown to draw. Pure display derive over the
+   * sim predicate (mirrors `CatalogItemRow.unlockProgress`); the unlock LOGIC
+   * still lives in the sim.
+   */
+  progress: { current: number; target: number } | null;
 }
 
 /**
@@ -321,5 +519,94 @@ export function nextUnlockTeaserView(
     itemId: pick.itemId,
     name: table.get(pick.itemId)?.name ?? pick.itemId,
     hint: formatUnlockHint(pick.predicate, table, combos),
+    progress:
+      pick.predicate.kind === 'runsPlayed'
+        ? { current: catalog.stats.runsPlayed, target: pick.predicate.count }
+        : null,
   };
+}
+
+/**
+ * PROG-1 shelf-growth fallback hook. When the unlock ladder is off or exhausted
+ * (`nextUnlockTeaserView` returns null) the header still needs a "what's next"
+ * pointer, so it aims the player at the nearest INCOMPLETE rarity band ("2 more
+ * FINE finds complete the row"). Returns the incomplete band CLOSEST to done
+ * (fewest items remaining); ties resolve to the rarest, since `catalogBands`
+ * arrives rarest-first and only a strictly smaller remainder replaces the pick.
+ * Null when every band is complete (100% — nothing left to chase). Pure derive
+ * over `catalogBands` output; no persistence touched.
+ */
+export function nearestIncompleteBand(bands: readonly CatalogBand[]): CatalogBand | null {
+  let best: CatalogBand | null = null;
+  for (const band of bands) {
+    const remaining = band.total - band.discovered;
+    if (remaining <= 0) continue;
+    if (best === null || remaining < best.total - best.discovered) best = band;
+  }
+  return best;
+}
+
+// --- View model: B-M15 Collector's Journal header derivations. ---
+
+/**
+ * B-M15: the passive milestone track marks (0/25/50/75/100%). PURELY decorative
+ * progress — no rewards, no medals, nothing the sim pays out at a threshold. A
+ * mark is `filled` once real `completionPct` reaches it; the first mark becomes a
+ * `star` the moment any progress exists (>0%). At 0% every mark is empty. Pure
+ * display derive over one number — no persistence, no new stat.
+ */
+export const MILESTONE_MARKS = [0, 25, 50, 75, 100] as const;
+
+export interface MilestoneMark {
+  /** The percentage this mark sits at. */
+  threshold: number;
+  /** True once completionPct has reached this mark. */
+  filled: boolean;
+  /** True only for the first mark, and only once completionPct > 0 (a star). */
+  isStar: boolean;
+}
+
+export function milestoneScaleView(completionPct: number): MilestoneMark[] {
+  const pct = Math.max(0, Math.min(100, completionPct));
+  return MILESTONE_MARKS.map((threshold, index) => {
+    // The 0% mark is only "reached" once there is actual progress, so a fresh
+    // collection shows an empty scale rather than a pre-lit first dot.
+    const filled = index === 0 ? pct > 0 : pct >= threshold;
+    return { threshold, filled, isStar: index === 0 && pct > 0 };
+  });
+}
+
+/** A rarity stamp's optional goal line — progress toward the NEAREST real
+ *  runsPlayed-gated locked item of that rarity. */
+export interface RarityGoal {
+  current: number;
+  target: number;
+}
+
+/**
+ * B-M15: the single real goal line a rarity stamp may show. Scans the band's
+ * rows for LOCKED items carrying a numeric `unlockProgress` (which
+ * `buildCatalogView` sets ONLY for a `runsPlayed` gate) and returns the one
+ * nearest to unlocking (fewest runs remaining; ties break to the smaller target).
+ * Returns null when the band has no such real goal — the stamp then shows its
+ * discovered/total count only, never a fabricated "Reach N runs" line. Pure
+ * derive over already-built rows; no persistence, no unlock LOGIC (that stays in
+ * the sim — this only reads the classified progress).
+ */
+export function rarityGoalForItems(items: readonly CatalogItemRow[]): RarityGoal | null {
+  let best: RarityGoal | null = null;
+  for (const item of items) {
+    if (!item.locked || !item.unlockProgress) continue;
+    const goal = item.unlockProgress;
+    if (best === null) {
+      best = goal;
+      continue;
+    }
+    const remaining = goal.target - goal.current;
+    const bestRemaining = best.target - best.current;
+    if (remaining < bestRemaining || (remaining === bestRemaining && goal.target < best.target)) {
+      best = goal;
+    }
+  }
+  return best;
 }

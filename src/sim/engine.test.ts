@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { loadCombos, loadItemTable } from '../items';
 import { EngineError, createRun, dispatch } from './engine';
-import { makeState } from './testkit';
+import { makeState, withFlagWorld } from './testkit';
 
 const deps = { table: loadItemTable(), combos: loadCombos() };
 
 describe('dispatcher', () => {
-  it('runs delivery → arrange → openShop and advances the day', () => {
+  // The first three tests pin all depth flags OFF: they document the FROZEN v1
+  // opening flow, which must survive default flips byte-identically.
+  it('runs delivery → arrange → openShop and advances the day', () =>
+    withFlagWorld([], () => {
     let state = createRun('engine-test', deps);
     expect(state.phase).toBe('delivery');
     expect(state.currentOffers.length).toBeGreaterThan(0);
@@ -23,20 +26,22 @@ describe('dispatcher', () => {
     expect(state.day).toBe(2);
     expect(state.lastScoringTrace).not.toBeNull();
     expect(state.rent.dueInDays).toBe(2);
-  });
+  }));
 
-  it('does not mutate the input state', () => {
+  it('does not mutate the input state', () =>
+    withFlagWorld([], () => {
     const state = createRun('engine-pure', deps);
     const snapshot = JSON.stringify(state);
     dispatch(state, { type: 'draftItem', offerIndex: 0 }, deps);
     expect(JSON.stringify(state)).toBe(snapshot);
-  });
+  }));
 
-  it('rejects opening the shop while holding an item', () => {
+  it('rejects opening the shop while holding an item', () =>
+    withFlagWorld([], () => {
     let state = createRun('engine-held', deps);
     state = dispatch(state, { type: 'draftItem', offerIndex: 0 }, deps);
     expect(() => dispatch(state, { type: 'openShop' }, deps)).toThrow(EngineError);
-  });
+  }));
 
   it('ends the run when rent cannot be paid', () => {
     // Empty shelf earns nothing; rent 25 lands after day 3.

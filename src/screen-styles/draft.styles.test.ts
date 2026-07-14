@@ -46,9 +46,11 @@ function expected(p: Palette) {
       paddingVertical: spacing.xxs,
     },
     captionPlate: {
+      alignItems: 'center',
       alignSelf: 'center',
       backgroundColor: p.plate,
       borderRadius: radii.md,
+      gap: spacing.xxs,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
     },
@@ -60,7 +62,11 @@ function expected(p: Palette) {
     },
     pickBody: {
       flex: 1,
+    },
+    pickContent: {
+      flexGrow: 1,
       gap: spacing.lg,
+      paddingBottom: spacing.lg,
     },
     offers: {
       flexDirection: 'row',
@@ -74,6 +80,10 @@ function expected(p: Palette) {
       gap: spacing.md,
       padding: spacing.lg,
       ...shadows.card,
+    },
+    supplierScroll: {
+      flexGrow: 1,
+      paddingBottom: spacing.lg,
     },
     supplierHint: {
       fontSize: 14,
@@ -90,20 +100,16 @@ function expected(p: Palette) {
       backgroundColor: p.creamBright,
       borderRadius: radii.md,
       borderWidth: 2,
-      gap: spacing.xxs,
+      gap: spacing.xs,
       justifyContent: 'center',
       minHeight: touch.minTargetPt,
-      minWidth: 88,
-      paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
+      width: 96,
       ...shadows.card,
     },
     supplierChipPressed: {
       opacity: 0.7,
       transform: [{ scale: 0.97 }],
-    },
-    supplierEmoji: {
-      fontSize: 26,
     },
     supplierChipText: {
       fontSize: 15,

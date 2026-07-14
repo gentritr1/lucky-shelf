@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  baloo2IconNudge,
+  borders,
+  fonts,
   highContrastPalette,
   layout,
   palette,
@@ -15,12 +16,20 @@ import {
 import { makeStyles } from './restock.styles';
 
 /**
- * B-M9 byte-identity proof for the restock / daily-shop sheet. `expected(p)` is an
- * independent transcription of the original static sheet: text entries whose
- * color/role moved to `AppText` are slimmed to their leftover layout props; the
- * coin-adjacent digits, bespoke badge, glyph icons, and pre-existing dead styles
- * are transcribed in full (parametrized). Base palette = default prefs →
- * byte-identical; high-contrast palette → every themed prop threads the argument.
+ * Byte-identity proof for the restock / daily-shop sheet. `expected(p)` is an
+ * independent transcription of the sheet: text entries whose color/role moved to
+ * `AppText` are slimmed to their leftover layout props; the coin-adjacent digits,
+ * bespoke badge, glyph icons, and pre-existing dead styles are transcribed in
+ * full (parametrized). Base palette = default prefs; high-contrast palette →
+ * every themed prop threads the argument.
+ *
+ * TYPO-1: the coin-adjacent digits (`shopBuyText`, `rerollCost`) and the pill
+ * label (`sellValue`) previously carried a Baloo2 optical nudge
+ * (`baloo2IconNudge` / manual `translateY`). They now ride the system `coin` role
+ * (`fonts.ui`), which centers against the coin dot with NO nudge — so those
+ * entries here have no `transform`/`includeFontPadding`, and a dedicated `it`
+ * below asserts the system font + nudge-free shape directly (not just via the
+ * whole-sheet transcription).
  */
 function expected(p: Palette) {
   return {
@@ -74,6 +83,10 @@ function expected(p: Palette) {
     },
     shopList: {
       gap: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    shopScroller: {
+      flex: 1,
     },
     shopRow: {
       alignItems: 'center',
@@ -84,7 +97,7 @@ function expected(p: Palette) {
       flexDirection: 'row',
       gap: spacing.md,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.xs,
       ...shadows.card,
     },
     shopThumb: {
@@ -102,16 +115,32 @@ function expected(p: Palette) {
     shopThumbGlyph: {
       fontSize: 28,
     },
+    shopTap: {
+      alignItems: 'center',
+      flex: 1,
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
     shopInfo: {
       flex: 1,
-      gap: spacing.xxs,
+      gap: spacing.xs,
     },
     shopName: {
+      flexShrink: 1,
       fontSize: 15,
+      lineHeight: 19,
     },
     shopTags: {
       flexDirection: 'row',
       gap: spacing.xxs,
+    },
+    shopRule: {
+      letterSpacing: 0,
+    },
+    shopRowSelected: {
+      borderColor: p.accentTeal,
+      borderWidth: borders.strong + 1,
+      ...shadows.lifted,
     },
     shopRowSignature: {
       backgroundColor: p.sunlight,
@@ -141,8 +170,7 @@ function expected(p: Palette) {
       letterSpacing: 0.4,
     },
     signatureEffect: {
-      fontSize: 11,
-      fontWeight: '700',
+      letterSpacing: 0,
     },
     shopBuy: {
       alignItems: 'center',
@@ -160,7 +188,6 @@ function expected(p: Palette) {
       color: p.creamBright,
       fontSize: 15,
       lineHeight: 18,
-      ...baloo2IconNudge(15),
     },
     offerCol: {
       flex: 1,
@@ -226,7 +253,6 @@ function expected(p: Palette) {
       color: p.tealDark,
       fontSize: 14,
       lineHeight: 16,
-      ...baloo2IconNudge(14),
     },
     sellGrid: {
       flexDirection: 'row',
@@ -270,8 +296,36 @@ function expected(p: Palette) {
     sellValue: {
       fontSize: 13,
       lineHeight: 16,
-      includeFontPadding: false,
-      transform: [{ translateY: 1 }],
+    },
+    detailCard: {
+      backgroundColor: p.creamBright,
+      borderColor: p.parchmentEdge,
+      borderRadius: radii.lg,
+      borderWidth: borders.hairline,
+      gap: spacing.xs,
+      justifyContent: 'center',
+      minHeight: 60,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      ...shadows.card,
+    },
+    detailName: {
+      letterSpacing: 0,
+    },
+    detailRules: {
+      gap: spacing.xxs,
+    },
+    detailRule: {
+      letterSpacing: 0,
+    },
+    detailTags: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xxs,
+    },
+    detailPrompt: {
+      letterSpacing: 0,
+      textAlign: 'center',
     },
     caption: {
       textAlign: 'center',
@@ -295,5 +349,58 @@ describe('restock.tsx themed styles', () => {
 
   it('threads the palette argument under high contrast (no static leak)', () => {
     expect(makeStyles(highContrastPalette)).toEqual(expected(highContrastPalette));
+  });
+
+  // TYPO-1: the coin-adjacent digits and the sell pill label now ride the platform
+  // system face and must carry NO optical nudge — the whole point of the font swap.
+  // These assertions replace the old `baloo2IconNudge(...)` transcriptions so the
+  // regression is caught directly, not just as a byte-diff.
+  it('coin-adjacent digits use the system font with no translateY nudge', () => {
+    const s = makeStyles(palette);
+    for (const key of ['shopBuyText', 'rerollCost'] as const) {
+      expect(s[key].fontFamily).toBe(fonts.ui);
+      expect(s[key].fontVariant).toEqual(['tabular-nums']);
+      // No leftover optical-centering hacks.
+      expect(s[key]).not.toHaveProperty('transform');
+      expect(s[key]).not.toHaveProperty('includeFontPadding');
+    }
+  });
+
+  it('the sell pill label dropped its Baloo2 lift (no transform)', () => {
+    const s = makeStyles(palette);
+    expect(s.sellValue).not.toHaveProperty('transform');
+    expect(s.sellValue).not.toHaveProperty('includeFontPadding');
+    expect(s.sellValue).toEqual({ fontSize: 13, lineHeight: 16 });
+  });
+
+  // B-M13 (round 3): the accordion was eyeball-rejected and replaced by draft.tsx's
+  // selection pattern. The tappable half (thumb + info) is a flex row separate from
+  // the Buy button — a row tap SELECTS it (no buy). No chevron/expansion styles
+  // survive; the selected ring reuses OfferCard's teal-ring language, and a fixed
+  // detail card below the list holds the full rules.
+  it('exposes the row-select affordance styles (tap area + teal ring + detail card)', () => {
+    const s = makeStyles(palette);
+    expect(s.shopTap).toEqual({
+      alignItems: 'center',
+      flex: 1,
+      flexDirection: 'row',
+      gap: spacing.md,
+    });
+    // Selection reuses the draft OfferCard.selected language: a thick teal ring + lift.
+    expect(s.shopRowSelected).toEqual({
+      borderColor: palette.accentTeal,
+      borderWidth: borders.strong + 1,
+      ...shadows.lifted,
+    });
+    // The name shrinks so a long name never pushes the row's layout.
+    expect(s.shopName.flexShrink).toBe(1);
+    // The fixed detail card is content-sized (a minHeight floor, but NO fixed
+    // height) so it grows instead of clipping at 130% text.
+    expect(s.detailCard.minHeight).toBe(60);
+    expect(s.detailCard).not.toHaveProperty('height');
+    // The accordion chevron/expansion styles are gone.
+    expect(s).not.toHaveProperty('shopChevron');
+    expect(s).not.toHaveProperty('shopChevronOpen');
+    expect(s).not.toHaveProperty('shopRules');
   });
 });

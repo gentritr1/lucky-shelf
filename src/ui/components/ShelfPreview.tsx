@@ -1,7 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Shelf } from '../../contracts';
-import { borders, palette, radii, spacing, typeScale } from '../tokens';
+import { spacing } from '../tokens';
+import { useThemedStyles } from '../useThemedStyles';
+import { makeStyles } from './ShelfPreview.styles';
 
 interface ShelfPreviewProps {
   shelf: Shelf;
@@ -15,29 +17,30 @@ interface ShelfPreviewProps {
  * (depth, idle motion, drag glow) replaces this at M1; layout stays.
  */
 export function ShelfPreview({ shelf, glyphs }: ShelfPreviewProps) {
+  const themed = useThemedStyles(makeStyles);
   const rows = Array.from({ length: shelf.size.rows }, (_, row) =>
     shelf.slots.filter((slotState) => slotState.slot.row === row),
   );
 
   return (
-    <View style={styles.frame}>
+    <View style={themed.frame}>
       {rows.map((rowSlots, rowIndex) => (
         <View key={rowIndex} style={styles.rowWrap}>
           <View style={styles.row}>
             {rowSlots.map((slotState) => (
-              <View key={`${slotState.slot.row}-${slotState.slot.col}`} style={styles.slot}>
+              <View key={`${slotState.slot.row}-${slotState.slot.col}`} style={themed.slot}>
                 {slotState.item ? (
                   <View style={styles.item}>
                     <Text style={styles.glyph}>{glyphs[slotState.item.itemId] ?? '📦'}</Text>
-                    <View style={styles.valueBadge}>
-                      <Text style={styles.valueText}>{slotState.item.baseValue}</Text>
+                    <View style={themed.valueBadge}>
+                      <Text style={themed.valueText}>{slotState.item.baseValue}</Text>
                     </View>
                   </View>
                 ) : null}
               </View>
             ))}
           </View>
-          <View style={styles.plank} />
+          <View style={themed.plank} />
         </View>
       ))}
     </View>
@@ -45,14 +48,6 @@ export function ShelfPreview({ shelf, glyphs }: ShelfPreviewProps) {
 }
 
 const styles = StyleSheet.create({
-  frame: {
-    backgroundColor: palette.shelfWood,
-    borderColor: palette.woodDark,
-    borderRadius: radii.lg, // top-level surface
-    borderWidth: borders.frame,
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
   rowWrap: {
     gap: 0,
   },
@@ -60,40 +55,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  slot: {
-    alignItems: 'center',
-    aspectRatio: 1,
-    backgroundColor: palette.woodInset,
-    borderRadius: radii.sm,
-    flex: 1,
-    justifyContent: 'center',
-  },
-  plank: {
-    backgroundColor: palette.woodLight,
-    borderBottomColor: palette.woodDark,
-    borderBottomWidth: borders.strong,
-    borderRadius: radii.xs,
-    height: 8,
-    marginTop: spacing.xs,
-  },
   item: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   glyph: {
     fontSize: 34,
-  },
-  valueBadge: {
-    backgroundColor: palette.coinGold,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.pill,
-    borderWidth: borders.hairline,
-    marginTop: -spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  valueText: {
-    ...typeScale.label,
-    color: palette.ink,
-    letterSpacing: 0,
   },
 });

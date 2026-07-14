@@ -6,8 +6,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { borders, motion, palette, radii, spacing, touch } from '../tokens';
+import { motion, radii, spacing, touch } from '../tokens';
 import { useReducedMotion } from '../prefs';
+import { useThemedStyles } from '../useThemedStyles';
+import { makeStyles } from './WoodButton.styles';
 import { AppText } from './AppText';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -28,6 +30,7 @@ interface WoodButtonProps {
 export function WoodButton({ label, onPress, variant = 'primary', disabled = false }: WoodButtonProps) {
   const primary = variant === 'primary';
   const reduced = useReducedMotion();
+  const themed = useThemedStyles(makeStyles);
   const press = useSharedValue(0);
 
   const setPress = (to: number) => {
@@ -48,12 +51,12 @@ export function WoodButton({ label, onPress, variant = 'primary', disabled = fal
       onPressOut={() => setPress(0)}
       style={[
         styles.base,
-        primary ? styles.primary : styles.secondary,
+        primary ? themed.primary : themed.secondary,
         animStyle,
         disabled && styles.disabled,
       ]}
     >
-      <AppText variant="heading" align="center" style={primary ? styles.labelPrimary : styles.labelSecondary}>
+      <AppText variant="heading" align="center" style={primary ? themed.labelPrimary : themed.labelSecondary}>
         {label}
       </AppText>
     </AnimatedPressable>
@@ -69,23 +72,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
   },
-  primary: {
-    backgroundColor: palette.shelfWood,
-    borderColor: palette.sunlight,
-    borderTopWidth: borders.strong,
-  },
-  secondary: {
-    backgroundColor: palette.parchment,
-    borderColor: palette.parchmentEdge,
-    borderWidth: borders.hairline,
-  },
   disabled: {
     opacity: 0.45,
-  },
-  labelPrimary: {
-    color: palette.creamBright,
-  },
-  labelSecondary: {
-    color: palette.ink,
   },
 });

@@ -9,10 +9,11 @@ import { makeStyles } from './run.styles';
  * `expected(p)` is an independent transcription of the original static sheet:
  * text entries whose color/role moved to `AppText` are slimmed to their leftover
  * size/weight pins (`back`/`eyebrow`/`phase` hoisted entirely and dropped;
- * `buildMultTextActive`/`goalChipValueMet` became conditional `color` props);
- * `buildEmoji` — the decorative glyph raw-<Text> exception — is transcribed in
- * full. Base palette = default prefs → byte-identical; high-contrast palette →
- * every themed prop threads the argument (no static leak).
+ * `buildMultTextActive`/`goalChipValueMet` became conditional `color` props). The
+ * build-hero glyph moved from a raw <Text> emoji to a MaterialCommunityIcons node
+ * (ICON-2), so the former `buildEmoji` text style is gone from both sheet and
+ * transcription. Base palette = default prefs → byte-identical; high-contrast
+ * palette → every themed prop threads the argument (no static leak).
  */
 function expected(p: Palette) {
   return {
@@ -66,9 +67,51 @@ function expected(p: Palette) {
       top: 0,
       zIndex: 10,
     },
+    cascadeRentLine: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'center',
+    },
     hint: {
       fontSize: 13,
       textAlign: 'center',
+    },
+    inspector: {
+      alignSelf: 'stretch',
+      backgroundColor: p.creamBright,
+      borderColor: p.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      gap: spacing.sm,
+      padding: spacing.md,
+    },
+    inspectorHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'space-between',
+    },
+    inspectorTitleWrap: {
+      flex: 1,
+      gap: 2,
+    },
+    inspectorClose: {
+      alignItems: 'center',
+      backgroundColor: p.parchment,
+      borderRadius: radii.pill,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
+    },
+    inspectorClosePressed: {
+      opacity: 0.72,
+    },
+    inspectorRules: {
+      gap: spacing.xs,
+    },
+    inspectorHint: {
+      letterSpacing: 0.2,
     },
     sellRow: {
       flexDirection: 'row',
@@ -122,17 +165,25 @@ function expected(p: Palette) {
       flexDirection: 'row',
       gap: spacing.sm,
     },
-    buildEmoji: {
-      fontSize: 28,
+    buildEmojiTile: {
+      alignItems: 'center',
+      backgroundColor: p.creamBright,
+      borderColor: p.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: 1.5,
+      height: 44,
+      justifyContent: 'center',
+      width: 44,
     },
     buildHeroText: {
       flex: 1,
-      gap: 1,
+      gap: 2,
     },
     buildTitle: {
       fontSize: 16,
       fontWeight: '800',
-      letterSpacing: 0.5,
+      letterSpacing: 0.7,
+      lineHeight: 21,
     },
     buildSub: {
       fontSize: 11,
@@ -176,6 +227,12 @@ function expected(p: Palette) {
     goalChipMet: {
       backgroundColor: p.slotLegal,
       borderColor: p.tealDark,
+    },
+    goalChipLabelRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexShrink: 1,
+      gap: spacing.xxs,
     },
     goalChipLabel: {
       flexShrink: 1,

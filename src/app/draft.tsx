@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { DeliveryOffer } from '@/contracts';
-import { AppText, OfferCard, SectionLabel, WoodButton, buildAccents, layout, tagEmoji, usePalette, useThemedStyles, type OfferCardData } from '@/ui';
+import { AppText, OfferCard, OnboardingHint, SectionLabel, TagIcon, WoodButton, buildAccents, layout, usePalette, useThemedStyles, type OfferCardData } from '@/ui';
 import { Entrance, glyphFor, setMusicTrack, spriteFor } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/draft.styles';
 import { routeForGameState } from '../state/phaseRouting';
-import { draftAffordanceView, runSelectors, useRunStore } from '../state/store';
+import { draftAffordanceView, itemRuleLines, runSelectors, useRunStore } from '../state/store';
+import { useOnboardingStore } from '../state/onboardingStore';
 
 /**
  * Delivery draft: renders the engine's real seeded offers and dispatches the
@@ -27,9 +28,12 @@ export default function DraftScreen() {
   const dispatchAction = useRunStore((state) => state.dispatchAction);
   const [selected, setSelected] = useState(0);
   const affordances = useMemo(() => draftAffordanceView(gameState), [gameState]);
+  const pendingSupplierTags = affordances.pendingSupplierTags;
+  const onboardingLoaded = useOnboardingStore((state) => state.loaded);
+  const syncOnboardingTo = useOnboardingStore((state) => state.syncTo);
 
-  // Everyday golden-hour bed while drafting.
-  useFocusEffect(useCallback(() => setMusicTrack('main'), []));
+  // Human ruling 2026-07-14: gameplay is SFX-only — no bed under drafting.
+  useFocusEffect(useCallback(() => setMusicTrack(null), []));
 
   useEffect(() => {
     const route = routeForGameState(gameState);
@@ -42,11 +46,24 @@ export default function DraftScreen() {
     }
   }, [gameState.currentOffers.length, selected]);
 
+  // The game state is the tutorial clock: once the supplier picker has gone,
+  // the player has completed that verb. This also reconciles resumed/flag-off
+  // runs without a second tutorial state machine.
+  useEffect(() => {
+    if (onboardingLoaded && !pendingSupplierTags) {
+      void syncOnboardingTo('draft').catch(() => undefined);
+    }
+  }, [onboardingLoaded, pendingSupplierTags, syncOnboardingTo]);
+
   const offers = useMemo(
     () => gameState.currentOffers.map((offer) => offerToCard(offer)),
     [gameState.currentOffers],
   );
   const selectedOffer = gameState.currentOffers[selected] ?? null;
+  const selectedRules = useMemo(
+    () => (selectedOffer ? itemRuleLines(selectedOffer.item) : []),
+    [selectedOffer],
+  );
   const selectedDraftAction =
     affordances.draftActions.find((action) => action.offerIndex === selected) ?? null;
 
@@ -67,8 +84,6 @@ export default function DraftScreen() {
     const result = dispatchAction(action);
     if (result.accepted) void result.save.catch(() => undefined);
   };
-  const pendingSupplierTags = affordances.pendingSupplierTags;
-
   return (
     <View style={[styles.screen, { paddingTop: insets.top + layout.screenTopGap }]}>
       {/* morning-delivery room behind everything; the opaque offer cards and the
@@ -89,8 +104,13 @@ export default function DraftScreen() {
       </View>
 
       {pendingSupplierTags ? (
-        <View style={styles.pickBody}>
+        <ScrollView
+          style={styles.pickBody}
+          contentContainerStyle={styles.supplierScroll}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.supplierPanel}>
+            <OnboardingHint step="supplier" />
             <SectionLabel>CHOOSE YOUR SUPPLIER</SectionLabel>
             <AppText variant="body" color={palette.inkSoft} style={styles.supplierHint}>
               Lean into an archetype — the shop tilts toward it all run.
@@ -107,16 +127,20 @@ export default function DraftScreen() {
                   ]}
                   onPress={() => chooseSupplier(tag)}
                 >
-                  {/* decorative emoji glyph — raw <Text> exception (icon-like) */}
-                  <Text style={styles.supplierEmoji}>{tagEmoji[tag] ?? '🏷️'}</Text>
+                  <TagIcon tag={tag} size={28} badge badgeSize={56} />
                   <AppText variant="heading" color={palette.ink} style={styles.supplierChipText}>{capitalize(tag)}</AppText>
                 </Pressable>
               ))}
             </View>
           </View>
-        </View>
+        </ScrollView>
       ) : (
-        <View style={styles.pickBody}>
+        <ScrollView
+          style={styles.pickBody}
+          contentContainerStyle={styles.pickContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <OnboardingHint step="draft" />
           <Entrance index={0} style={styles.labelPlate}>
             <SectionLabel>{`DAY ${gameState.day} DELIVERY — DRAFT ONE`}</SectionLabel>
           </Entrance>
@@ -135,9 +159,14 @@ export default function DraftScreen() {
             )}
           </Entrance>
           <Entrance index={2} style={styles.captionPlate}>
-            <AppText variant="body" color={palette.inkFaint} style={styles.caption}>
-              {lastRejectedAction?.message ?? 'The other offers leave when you draft.'}
+            <AppText variant="body" color={palette.ink} style={styles.caption}>
+              {lastRejectedAction?.message ?? selectedRules.slice(0, 2).join(' · ')}
             </AppText>
+            {lastRejectedAction ? null : (
+              <AppText variant="label" color={palette.inkFaint} style={styles.caption}>
+                The other offers leave when you draft.
+              </AppText>
+            )}
           </Entrance>
           <Entrance index={3} style={[styles.actions, { paddingBottom: insets.bottom + layout.screenBottomGap }]}>
             <WoodButton
@@ -146,7 +175,7 @@ export default function DraftScreen() {
               onPress={draftSelected}
             />
           </Entrance>
-        </View>
+        </ScrollView>
       )}
     </View>
   );
@@ -172,4 +201,3 @@ function offerToCard(offer: DeliveryOffer): DraftOfferCard {
     tags: offer.item.tags,
   };
 }
-

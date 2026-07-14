@@ -91,6 +91,7 @@ function expected(p: Palette) {
     completionText: { fontSize: 12 },
 
     streak: { letterSpacing: 1, fontWeight: '700' },
+    streakRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs, justifyContent: 'center' },
     tagline: { fontStyle: 'italic', textAlign: 'center' },
     hintRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
     hintDot: {

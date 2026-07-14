@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { palette } from '../tokens';
+import { usePalette } from '../prefs';
 import { AppText } from './AppText';
 
 /**
@@ -34,11 +34,15 @@ export function TopBar({
   left,
   right,
 }: TopBarProps): React.JSX.Element {
+  // THEME-1: colors are inline `AppText color` props (no colored StyleSheet entry),
+  // so `usePalette()` + inline is the SectionLabel pattern; byte-identical at
+  // default prefs where `usePalette()` returns the base palette by identity.
+  const p = usePalette();
   const leftNode =
     left ??
     (onBack ? (
       <Pressable accessibilityRole="button" hitSlop={12} onPress={onBack}>
-        <AppText variant="heading" color={palette.tealDark}>{backLabel}</AppText>
+        <AppText variant="heading" color={p.tealDark}>{backLabel}</AppText>
       </Pressable>
     ) : (
       <View style={styles.edge} />
@@ -50,11 +54,11 @@ export function TopBar({
       {right ?? <View style={styles.edge} />}
       <View style={styles.center} pointerEvents="none">
         {eyebrow ? (
-          <AppText variant="label" align="center" color={palette.inkFaint}>
+          <AppText variant="label" align="center" color={p.inkFaint}>
             {eyebrow}
           </AppText>
         ) : null}
-        <AppText variant={titleVariant} align="center" color={palette.ink} numberOfLines={1}>
+        <AppText variant={titleVariant} align="center" color={p.ink} numberOfLines={1}>
           {title}
         </AppText>
       </View>

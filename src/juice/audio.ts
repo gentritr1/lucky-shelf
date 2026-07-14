@@ -12,7 +12,9 @@ import { usePrefs } from '@/ui/prefs';
  *   • MUSIC — one looping bed at a time (`title` / `main` / `rentWeek`), gated
  *     by `usePrefs().musicEnabled`. Switching beds crossfades so the golden-hour
  *     loop and the rent-week variant trade places without a hard cut.
- *   • SFX — one-shot cues (the cascade payout sting), gated by `sfxEnabled`.
+ *   • SFX — the one-shot cascade payout sting + combo-discovery jingle, gated by
+ *     `sfxEnabled`. These are melodic flourishes but are wanted even with the
+ *     music bed off (human call, 2026-07-11), so they ride the SFX toggle only.
  *
  * Autoplay reality (web + iOS): the very first `play()` can be blocked until a
  * user gesture. Every screen re-asserts its bed on focus, and the title screen
@@ -21,25 +23,32 @@ import { usePrefs } from '@/ui/prefs';
  * throw into the UI.
  */
 
-export type MusicTrack = 'title' | 'main' | 'rentWeek';
+export type MusicTrack = 'title' | 'main' | 'rentWeek' | 'rentEve';
 
 const MUSIC_SOURCES: Record<MusicTrack, number> = {
   title: require('../../assets/audio/title.mp3'),
   main: require('../../assets/audio/main.mp3'),
   rentWeek: require('../../assets/audio/rent-week.mp3'),
+  // B-M16 rent-eve bed — Suno asset landed 2026-07-14 ("Dusk Clock Lullaby",
+  // trimmed to a 120s loop, loudness already at the house −15dB band). The
+  // distinct final-day tension bed the placeholder was holding a seat for.
+  rentEve: require('../../assets/audio/rent-eve.mp3'),
 };
 
 const CASCADE_STING_SOURCE = require('../../assets/audio/cascade.mp3');
 
-// B-M11 combo-discovery jingle. PLACEHOLDER SOURCE: a dedicated "warm
-// recognition" jingle asset is a deferred audio dependency — until it lands this
-// points at the cascade sting so the gateway/prefs wiring is real and the bundle
-// stays intact. Swap this one constant for `discovery.mp3` when the asset ships
-// (see the B-M11 review packet's deferred gates).
-const DISCOVERY_JINGLE_SOURCE = require('../../assets/audio/cascade.mp3');
+// B-M11 combo-discovery jingle — dedicated asset landed 2026-07-14 (Suno
+// "Cinnamon Button Tale", opening 2.8s music-box phrase, faded). Discovery
+// recognition finally sounds distinct from the cascade payout sting, closing
+// the B-M11 deferred audio gate.
+const DISCOVERY_JINGLE_SOURCE = require('../../assets/audio/discovery.mp3');
 
 // Beds sit under the UI; the sting is a reward and rides a touch louder.
 const MUSIC_VOLUME = 0.55;
+// Cascade duck (2026-07-14, human-approved): while the scoring cascade owns the
+// moment, the bed drops here so the payout stings/jingle read on top; it swells
+// back to MUSIC_VOLUME on Collect. Spectacle-without-swing applied to audio.
+const BED_DUCK_VOLUME = 0.3;
 const STING_VOLUME = 0.85;
 const FADE_MS = 650;
 const FADE_STEP_MS = 40;
@@ -138,6 +147,26 @@ function subscribeToPrefs(): void {
   });
 }
 
+// Whether the scoring cascade currently holds the bed down (see setBedDucked).
+let bedDucked = false;
+
+function bedTargetVolume(): number {
+  return bedDucked ? BED_DUCK_VOLUME : MUSIC_VOLUME;
+}
+
+/**
+ * Duck/restore the music bed under the scoring cascade. Idempotent; respects the
+ * music pref (a muted bed stays muted); any bed that starts or resumes while
+ * ducked comes in at the ducked level so a mid-cascade bed switch cannot blare.
+ */
+export function setBedDucked(ducked: boolean): void {
+  if (bedDucked === ducked) return;
+  bedDucked = ducked;
+  if (!currentTrack || !usePrefs.getState().musicEnabled) return;
+  const player = musicPlayers[currentTrack];
+  if (player) fadeTo(player, bedTargetVolume(), FADE_MS);
+}
+
 function resumeCurrentBed(): void {
   if (!currentTrack) return;
   const player = ensureMusicPlayer(currentTrack);
@@ -146,7 +175,7 @@ function resumeCurrentBed(): void {
   } catch {
     /* autoplay-gated; a later gesture re-asserts */
   }
-  fadeTo(player, MUSIC_VOLUME, FADE_MS);
+  fadeTo(player, bedTargetVolume(), FADE_MS);
 }
 
 function pauseAllBeds(): void {
@@ -203,7 +232,7 @@ export function setMusicTrack(track: MusicTrack | null): void {
   } catch {
     /* autoplay-gated; primeAudio()/next focus re-asserts */
   }
-  fadeTo(player, MUSIC_VOLUME, FADE_MS);
+  fadeTo(player, bedTargetVolume(), FADE_MS);
 }
 
 /**
@@ -223,7 +252,9 @@ function ensureStingPlayer(): AudioPlayer {
   return stingPlayer;
 }
 
-/** One-shot cascade payout flourish. No-op when SFX are muted. */
+/** One-shot cascade payout flourish. Gated by `sfxEnabled` only — the melodic
+ *  combo stings are a wanted reward even with the music bed off (human call,
+ *  2026-07-11): the "Sound effects" toggle is their control. */
 export function playCascadeSting(): void {
   ensureAudioMode();
   if (!usePrefs.getState().sfxEnabled) return;

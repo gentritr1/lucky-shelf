@@ -40,7 +40,14 @@ Prerequisites before the flip (each has a named verification):
    the retune must name its measurement script and land a fresh 400-run fuzz with every
    day in the 65–85% band. (Last known state: 16 slots push days 9–12 to ~0.85, band top.)
 2. **`pnpm balance:assert` green under the final set** — guardrail bands hold: ceiling
-   run length [24,36]d, build swing [1.3,2.0]×.
+   run length [20,36]d, build swing [1.3,2.0]×.
+   - **REOPENED 2026-07-13:** the harness had compared `allDepth` instead of the exact
+     `graduating` set, used unpaired config seeds, and mixed starter/full item pools. Corrected
+     like-for-like 80-run evidence is outside the approved ceiling in both cohorts: starter
+     **2.635× greedy / 2.713× combo**; full **2.248× / 2.416×**. The report also prints per-seed
+     paired median/p10/p90 ratios. See
+     `review-packets/gameplay-intuitiveness-audit-2026-07-12.md`. Fable retune required;
+     do not widen the band to make the gate green.
 3. **Determinism story split:** OFF-path pin `8d48e1c5a6ad14c9` + M0 goldens stay green
    (flags remain in code as the regression floor); mint new ON-path goldens for the
    shipping config so graduation itself gets a pin.
@@ -76,6 +83,27 @@ the graduated build, not the flag-off one):
   against the tightened v2 numbers).
 - Re-shoot any archived summary screenshots with black regions — current visual
   sign-off evidence is unreliable (critique finding).
+- Re-check title save hydration/retry/replacement and the four-row Daily Shop at 1.3× text after the
+  final Fable retune. Normal-scale iPhone 16 Pro evidence is green on 2026-07-13.
+- **B-M8 receipt visual close-out — GREEN 2026-07-13:** cascade beats now state source → affected
+  item → delta → new total; the finished cascade exposes an inline scrollable receipt that replaces
+  the shelf only after apex spectacle resolves. iPhone 16 Pro checks pass at normal settings and at
+  130% text + high contrast + reduced motion. Recheck on the final retuned build, but no known layout
+  or comprehension defect remains in this surface.
+- **B-M7 shelf-access close-out — CODE GREEN / PHYSICAL VOICEOVER RECHECK 2026-07-13:** tapping or
+  activating a shelf/tray item opens its exact rules, location, and value; non-sticky items then expose
+  every legal empty slot as a labeled 44pt action. Drag remains unchanged. The inspector layout passes
+  iPhone 16 Pro visual QA; run the actual VoiceOver focus/action sequence in this gate. Normal-mode
+  secondary copy now measures 5.24:1 on the wall and 4.76:1 on parchment; high contrast remains AAA.
+- **Feedback timing close-out — CODE GREEN / EARS-AND-HANDS RECHECK 2026-07-13:** placement impact and
+  settled tick are separated, payout audio fires on terminal `dayTotal` (including Skip/replay), and
+  rent thud follows the total on its own beat. The discovery cue still shares `cascade.mp3`; a dedicated
+  warm-recognition asset remains required before B-M11 audio distinctness can pass.
+- **Contextual first-run teaching — CODE GREEN / DEVICE RECHECK 2026-07-13:** the blocking all-systems
+  welcome wall is replaced by short supplier, draft, place, and Open Shop notes beside the real action.
+  Progress is monotonic and persisted, resumes at the correct verb, and can be skipped at any point.
+  Supplier/draft content scrolls for large text. Recheck the complete fresh-run sequence at SE width
+  and 130% text; changing the ten-choice supplier gate itself remains a Fable gameplay ruling.
 
 Exit criteria: written yes/no per item; any REQUEST CHANGES loops back to Gate 1 scope
 before Gate 3 recruiting starts.
@@ -87,12 +115,18 @@ scoring comprehension, intentional build formation, rent tension, or run-two des
 This gate is now worth more than any further feature or fuzz.
 
 Prep Claude can do BEFORE Gate 2 closes (parallel-safe):
-- Define + instrument the metrics: first-rent survival, run-two conversion, D1/D3
-  return, a comprehension proxy (e.g. post-run "why did you score?" prompt), session
-  length. Local analytics only — check store/privacy constraints first (real-world-
-  constraints scar).
-- Feedback capture: in-build prompt or linked form; crash reporting wired.
-- TestFlight build checklist (certs, build config, versioning).
+- **Privacy-minimal alpha ruling (2026-07-13):** do not add a custom analytics or third-party crash
+  SDK for ~10 testers. Gameplay/save state remains on-device. Apple says on-device-only processing is
+  not App Privacy "collection"; verify the release archive's aggregated privacy report before upload.
+- Use TestFlight's existing per-tester sessions/crashes and screenshot/comment feedback. Collect the
+  four comprehension prompts and observed confusion through that explicit tester feedback, not silent
+  free-text persistence in the app.
+- Report-only sim support is ready in `decisionDepthProxies`: moves/sells/buys/rerolls/expansions,
+  shelf saturation, item/combo presence, and observed supplier outcomes. These are descriptive bot
+  proxies, not human-product gates.
+- TestFlight checklist: privacy-policy URL, beta description, what-to-test text, feedback email,
+  contact details, signing/build/version configuration, release-archive privacy report, then external
+  TestFlight review. Email-invite the ten named testers; a public link adds no value at this scale.
 
 Human-owned: TestFlight submission (outward-facing), recruiting the ~10 players.
 
@@ -142,9 +176,8 @@ track.
 
 ## Immediate queue (Claude-executable, in order)
 
-1. Summary rent-copy fix + one-story summary audit (Gate 1.4).
-2. Goal-table retune vs the final flag set + 400-run fuzz + balance:assert (Gate 1.1–1.2).
-3. ON-path goldens + graduation flip on a branch (Gate 1.3).
-4. Discovery-jingle candidates (Gate 1.5).
-5. Gate-3 instrumentation + feedback prep (parallel-safe).
-6. → hand the graduated build to the human for the single Gate-2 batch.
+1. Fable retune against the explicit starter/full cohort report; keep the [1.3,2.0]× band fixed.
+2. Re-run goal-table validation, pins, fixtures, full suite, fuzz, and the paired 80-run balance gate.
+3. Source/swap the external discovery jingle (Gate 1.5).
+4. Human supplies privacy-policy URL, feedback email, signing access, and tester list.
+5. → hand the retuned graduated build to the human for the single Gate-2 batch and TestFlight review.

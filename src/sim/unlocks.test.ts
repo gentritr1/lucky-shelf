@@ -31,6 +31,8 @@ import {
   unlockedItemIds,
 } from './unlocks';
 
+import { withFlagWorld } from './testkit';
+
 const deps = { table: loadItemTable(), combos: loadCombos() };
 
 const DEPTH_ENV = {
@@ -45,21 +47,26 @@ const DEPTH_ENV = {
   [UNLOCK_LADDER_ENV_VAR]: '1',
 } as const;
 
+/** Overlay on a fully pinned-OFF world: named keys apply (undefined = force
+ *  OFF via '0'); every unnamed depth flag is pinned '0' so graduated compiled
+ *  defaults (unlock ladder, build steering's supplier gate...) cannot leak
+ *  into these deterministic offer/unlock expectations. */
 function withEnv<T>(env: Record<string, string | undefined>, fn: () => T): T {
-  const previous: Record<string, string | undefined> = {};
-  for (const key of Object.keys(env)) {
-    previous[key] = process.env[key];
-    if (env[key] === undefined) delete process.env[key];
-    else process.env[key] = env[key];
-  }
-  try {
-    return fn();
-  } finally {
-    for (const [key, value] of Object.entries(previous)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
+  return withFlagWorld([], () => {
+    const previous: Record<string, string | undefined> = {};
+    for (const key of Object.keys(env)) {
+      previous[key] = process.env[key];
+      process.env[key] = env[key] ?? '0';
     }
-  }
+    try {
+      return fn();
+    } finally {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
 }
 
 function allDepthWithUnlock<T>(fn: () => T): T {
@@ -179,13 +186,7 @@ describe('unlock ladder', () => {
   it('keeps discovery and combo unlock hooks reachable by real bot runs', () => {
     allDepthWithUnlock(() => {
       let catalog = emptyCatalog();
-      const gatedIds = [
-        'brass-scale',
-        'ledger-book',
-        'lucky-cat',
-        'consignment-sign',
-        'window-display',
-      ];
+      const gatedIds = ['brass-scale', 'ledger-book', 'lucky-cat', 'window-display'];
 
       for (let runIndex = 1; runIndex <= 28; runIndex += 1) {
         const strategy: StrategyName = runIndex % 2 === 0 ? 'combo' : 'greedy';
@@ -198,10 +199,32 @@ describe('unlock ladder', () => {
         expect.arrayContaining(['price-gun', 'coupon-stack']),
       );
       expect(catalog.achievedComboIds).toEqual(
-        expect.arrayContaining(['lucky-cluster', 'fire-sale', 'cheese-board']),
+        expect.arrayContaining(['lucky-cluster', 'cheese-board']),
       );
+
+      // The fire-sale-gated pair gets a bounded CONTINUATION instead of a fixed
+      // run count (Fable ruling, Gate-1.2 retune 2026-07-13): fire-sale
+      // (coupon-stack + price-gun adjacent) is intrinsically rare — ~4–6% of
+      // ceiling-combo runs (measured 2026-07-13 by a 150-run full-pool
+      // playRun probe over seeds `fs-combo-*`/`fs-greedy-*`: base economy
+      // 4/150 combo & 1/150 greedy; retuned 6/150 & 2/150) — so WHICH run
+      // first lands it is seed-luck that reshuffles under any legitimate
+      // scoring/economy change (the Gate-1.2 TAG_SYNERGY_LADDER trim moved it
+      // from run 6 to run 51 in the old alternating 28-run sequence). The
+      // continuation keeps evolving the same catalog with the combo policy
+      // (the one that actually chases combos) and breaks on first achievement;
+      // under the retuned economy it deterministically lands at run 51. The cap
+      // is sized ~1.75× that measured first-hit (Fable review bump, 2026-07-13)
+      // so the NEXT legitimate retune has real headroom — the loop breaks on
+      // first hit, so the extra budget costs nothing until it is needed.
+      for (let runIndex = 29; runIndex <= 90; runIndex += 1) {
+        if (catalog.achievedComboIds.includes('fire-sale')) break;
+        catalog = playCatalogRun(catalog, runIndex, 'combo').catalog;
+      }
+      expect(catalog.achievedComboIds).toEqual(expect.arrayContaining(['fire-sale']));
+      expect(unlockedItemIds(catalog)).toEqual(expect.arrayContaining(['consignment-sign']));
     });
-  }, 60000);
+  }, 180000);
 
   it('replays a flagged run identically after the live catalog changes when the run snapshot is reused', () => {
     allDepthWithUnlock(() => {

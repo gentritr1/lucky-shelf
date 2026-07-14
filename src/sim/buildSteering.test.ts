@@ -14,32 +14,10 @@ import {
 import { createRun, dispatch, EngineError, legalActions } from './engine';
 import { hashState } from './hash';
 import { runReplay } from './replay';
+import { withFlagWorld } from './testkit';
 
 const deps = { table: loadItemTable(), combos: loadCombos() };
 
-function withBuildSteering<T>(enabled: boolean, run: () => T): T {
-  const previous = process.env[BUILD_STEERING_ENV_VAR];
-  if (enabled) process.env[BUILD_STEERING_ENV_VAR] = '1';
-  else delete process.env[BUILD_STEERING_ENV_VAR];
-  try {
-    return run();
-  } finally {
-    if (previous === undefined) delete process.env[BUILD_STEERING_ENV_VAR];
-    else process.env[BUILD_STEERING_ENV_VAR] = previous;
-  }
-}
-
-function withLoopV2<T>(enabled: boolean, run: () => T): T {
-  const previous = process.env[LOOP_V2_ENV_VAR];
-  if (enabled) process.env[LOOP_V2_ENV_VAR] = '1';
-  else delete process.env[LOOP_V2_ENV_VAR];
-  try {
-    return run();
-  } finally {
-    if (previous === undefined) delete process.env[LOOP_V2_ENV_VAR];
-    else process.env[LOOP_V2_ENV_VAR] = previous;
-  }
-}
 
 function chooseSupplierActions(state = createRun('build-steering-legal', deps)) {
   return legalActions(state, deps).filter((action) => action.type === 'chooseSupplier');
@@ -63,7 +41,7 @@ function tagOfferCount(tag: string, supplierTag: string | null): number {
 
 describe('loop v2 phase 2b build steering', () => {
   it('keeps supplier lean fully absent while the flag is off', () =>
-    withBuildSteering(false, () => {
+    withFlagWorld([], () => {
       const state = createRun('build-steering-off', deps);
 
       expect('supplierTag' in state).toBe(false);
@@ -85,7 +63,7 @@ describe('loop v2 phase 2b build steering', () => {
     }));
 
   it('sets supplierTag exactly once at the opening delivery and regenerates deterministic offers', () =>
-    withBuildSteering(true, () => {
+    withFlagWorld([BUILD_STEERING_ENV_VAR], () => {
       const initial = createRun('build-steering-on', deps);
       expect(initial.phase).toBe('delivery');
       expect(initial.supplierTag).toBeNull();
@@ -121,7 +99,7 @@ describe('loop v2 phase 2b build steering', () => {
     }));
 
   it('rejects supplier tags outside the eligible archetype pool', () =>
-    withBuildSteering(true, () => {
+    withFlagWorld([BUILD_STEERING_ENV_VAR], () => {
       const state = createRun('build-steering-invalid-tag', deps);
 
       expect(BUILD_STEERING_ELIGIBLE_TAGS).not.toContain('paper');
@@ -131,7 +109,7 @@ describe('loop v2 phase 2b build steering', () => {
     }));
 
   it('multiplies leaned-tag offer weight by the build-steer bias without locking the pool', () =>
-    withBuildSteering(true, () => {
+    withFlagWorld([BUILD_STEERING_ENV_VAR], () => {
       const food = deps.table.get('cheese-wheel');
       const nonFood = [...deps.table.values()].find(
         (definition) => !definition.tags.includes('food') && offerWeight(definition, 5) > 0,
@@ -153,8 +131,7 @@ describe('loop v2 phase 2b build steering', () => {
     }));
 
   it('keeps bot supplier choices deterministic for the same seed', () =>
-    withBuildSteering(true, () =>
-      withLoopV2(true, () => {
+    withFlagWorld([BUILD_STEERING_ENV_VAR, LOOP_V2_ENV_VAR], () => {
         const first = playRun('build-steering-bot', 'greedy', deps, 140);
         const second = playRun('build-steering-bot', 'greedy', deps, 140);
 
@@ -166,12 +143,10 @@ describe('loop v2 phase 2b build steering', () => {
           hashState(first.finalState),
         );
         expect(first.metrics.supplierTag).toBe(first.finalState.supplierTag);
-      }),
-    ));
+      }));
 
   it('carries the chosen supplier through starter placement and the daily shop offers', () =>
-    withBuildSteering(true, () =>
-      withLoopV2(true, () => {
+    withFlagWorld([BUILD_STEERING_ENV_VAR, LOOP_V2_ENV_VAR], () => {
         let state = createRun('build-steering-loop-v2', deps);
         state = dispatch(state, { type: 'chooseSupplier', tag: 'food' }, deps);
         state = dispatch(state, { type: 'draftItem', offerIndex: 0 }, deps);
@@ -187,6 +162,5 @@ describe('loop v2 phase 2b build steering', () => {
         expect(state.currentOffers).toEqual(
           generateOffers(state.seed, state.day, 'restock', deps.table, '', 'food'),
         );
-      }),
-    ));
+      }));
 });

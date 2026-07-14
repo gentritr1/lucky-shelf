@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { loadCombos, loadItemTable } from '../items';
 import { createRun, dispatch } from '../sim';
 import { hashState } from '../sim/hash';
+import { withFlagWorld } from '../sim/testkit';
 import {
   cascadeMountAfterOpenShop,
   routeForPhase,
@@ -19,7 +20,10 @@ describe('phase routing', () => {
     expect(routeForPhase('gameOver')).toBe('/summary');
   });
 
-  it('builds a real cascade mount from openShop output without losing the scoring shelf', () => {
+  // Pinned to the frozen v1 world: this documents the pre-graduation flow and
+  // must not absorb graduated defaults (supplier gate, day-2 starter routing).
+  it('builds a real cascade mount from openShop output without losing the scoring shelf', () =>
+    withFlagWorld([], () => {
     let state = createRun('m3-cascade-mount', deps);
     state = dispatch(state, { type: 'draftItem', offerIndex: 0 }, deps);
     const beforeOpenShop = dispatch(state, { type: 'placeItem', slot: { row: 0, col: 0 } }, deps);
@@ -31,5 +35,5 @@ describe('phase routing', () => {
     expect(mount.trace.events.at(-1)?.kind).toBe('dayTotal');
     expect(hashState(mount.gameState)).toBe(hashState(beforeOpenShop));
     expect(mount.nextRoute).toBe(routeForPhase(afterOpenShop.phase));
-  });
+  }));
 });

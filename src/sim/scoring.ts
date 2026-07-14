@@ -218,8 +218,12 @@ function applySignatureRules(
   totals: Map<string, number>,
   events: TraceEvent[],
   table: ItemTable,
+  runIsV2: boolean,
 ): void {
-  if (!signatureItemsEnabled()) return;
+  // runIsV2 = the run's loopV2 snapshot: v1 runs can never score signature
+  // rules, regardless of the compiled default (they can't buy signatures either
+  // — see offerablePool — so this is defense in depth for hand-built states).
+  if (!runIsV2 || !signatureItemsEnabled()) return;
 
   const sources = scoredSlots(occupied, totals).filter((entry) =>
     hasSignatureRule(itemDefinition(table, entry.item.itemId)),
@@ -419,7 +423,10 @@ export function resolveOpenShop(
   const orderMet = order
     ? occupied.filter((entry) => entry.item?.tags.includes(order.tag)).length >= order.count
     : false;
-  const synergyEnabled = tagSynergyEnabled();
+  // Snapshot-gated like every depth lever: a run that wasn't created under
+  // loop v2 (old saves, M0 golden states) must score byte-identically no matter
+  // what the compiled default graduates to (RELEASE-PLAN Gate 1.3).
+  const synergyEnabled = tagSynergyEnabled() && state.loopV2 === true;
   const synergyCounts = synergyEnabled ? eligibleTagCounts(occupied) : new Map<string, number>();
 
   // --- Resolve slot windows. ---
@@ -652,7 +659,7 @@ export function resolveOpenShop(
   // Signature stock resolves after ordinary item windows have settled, then
   // writes updated ruleFire/itemTotal pairs before non-scoring catalog/mutation
   // events. The branch is dead unless SIGNATURE_ITEMS_ENABLED is on.
-  applySignatureRules(occupied, resolvedTotals, events, table);
+  applySignatureRules(occupied, resolvedTotals, events, table, state.loopV2 === true);
 
   // --- Named combos (catalog-only, R-2). ---
   const discoveredComboIds: string[] = [];

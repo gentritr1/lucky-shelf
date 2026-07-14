@@ -37,7 +37,7 @@ export const palette = {
   // ink
   ink: '#3F2A1D',
   inkSoft: '#5A4534',
-  inkFaint: '#8A745C',
+  inkFaint: '#735B44', // quiet secondary copy; still AA on wallCream/parchment
 
   // accents
   tealDark: '#2F6E62',
@@ -120,21 +120,30 @@ export const buildAccents: Record<string, string> = {
 } as const;
 
 /**
- * One emoji per build/synergy tag, shared by the build-identity hero and the
- * supplier picker so an archetype reads the same everywhere. Fall back to 🏷️.
+ * One MaterialCommunityIcons name per build/synergy tag, shared by the
+ * build-identity hero, the supplier picker, and the summary recap so an
+ * archetype reads the same everywhere. Rendered inside a tinted container by
+ * `<TagIcon>` so iconography obeys the palette (accent-tinted) like the rest of
+ * the chrome — never a bare emoji (inconsistent width, no color control). One
+ * coherent FILLED set; falls back to `tagIconFallback` for unknown tags (never
+ * shown in normal play — all synergy tags are mapped). Names verified against
+ * the MCI glyphmap (scripts note in the ICON-2 report).
  */
-export const tagEmoji: Record<string, string> = {
-  fancy: '✨',
-  food: '🍎',
-  antique: '🏺',
-  lucky: '🍀',
-  fragile: '🥂',
-  utility: '🔧',
-  drink: '🍷',
-  perishable: '🍓',
-  sweet: '🍬',
-  plant: '🪴',
+export const tagIcon: Record<string, string> = {
+  fancy: 'star-four-points',
+  food: 'food-apple',
+  antique: 'treasure-chest',
+  lucky: 'clover',
+  fragile: 'glass-flute',
+  utility: 'wrench',
+  drink: 'glass-mug-variant',
+  perishable: 'fruit-cherries',
+  sweet: 'candy',
+  plant: 'sprout',
 } as const;
+
+/** Defensive fallback glyph for an unmapped tag (filled, matches the set). */
+export const tagIconFallback = 'tag';
 
 // ---------------------------------------------------------------------------
 // Layout scales.
@@ -219,6 +228,14 @@ export const touch = {
 export const fonts = {
   display: 'Baloo2',
   body: 'Nunito',
+  // Platform system face for numerals, labels, and body copy (TYPO-1). SF on iOS
+  // / Roboto on Android center their glyphs correctly inside a constrained
+  // lineHeight — unlike Baloo2/Nunito, whose glyphs sit high in the line box and
+  // forced per-site `baloo2IconNudge` translateY hacks beside every coin dot/icon.
+  // Baloo2 (display) now stays ONLY on block-centered display/title/heading
+  // headlines, where the brand personality reads and the metrics don't hurt.
+  // ONE central decision: swapping this one value re-faces body/label/coin/stat.
+  ui: Platform.select({ ios: 'System', android: 'sans-serif', web: 'System', default: 'System' }) ?? 'System',
   // Platform typewriter face for the paper-receipt share card (B-M10). The
   // receipt body is dot-leader aligned by `formatReceipt`, which only lines up
   // in a fixed-width font. No new asset — this uses the OS monospace so it costs
@@ -230,9 +247,13 @@ export const typeScale = {
   display: { fontFamily: fonts.display, fontSize: 34, lineHeight: 42, fontWeight: '800' },
   title: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, fontWeight: '700' },
   heading: { fontFamily: fonts.display, fontSize: 18, lineHeight: 24, fontWeight: '600' },
-  body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  label: { fontFamily: fonts.body, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6 },
-  coin: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  body: { fontFamily: fonts.ui, fontSize: 15, lineHeight: 22, fontWeight: '500' },
+  label: { fontFamily: fonts.ui, fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6 },
+  coin: { fontFamily: fonts.ui, fontSize: 20, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  // Numeric VALUES (BestRow/Stat totals, previously abusing `heading`'s Baloo2).
+  // System font + tabular-nums so figures align in a column and center against
+  // their labels; sits between heading (18) and coin (20) in emphasis.
+  stat: { fontFamily: fonts.ui, fontSize: 18, lineHeight: 24, fontWeight: '700', fontVariant: ['tabular-nums'] },
   receipt: { fontFamily: fonts.mono, fontSize: 12, lineHeight: 18, fontWeight: '400' },
 } as const satisfies Record<string, TextStyle>;
 
@@ -253,13 +274,19 @@ export function scaleTypeStyle(base: TextStyle, scale: number): TextStyle {
 }
 
 /**
+ * @deprecated TYPO-1 moved every numeral/label role (coin/label/body/stat) to the
+ * platform system face (`fonts.ui`), whose glyphs center correctly inside a
+ * constrained line box — so none of the former call sites (CoinCounter, OfferCard,
+ * restock) need this nudge anymore and all were removed. Baloo2 now survives only
+ * on block-centered display/title/heading headlines, which are centered by flexbox
+ * and must NOT use this helper. Kept exported for one release in case a future
+ * Baloo2-beside-an-icon site appears; if none does, delete it.
+ *
  * Optical centering for a display-font (Baloo2) number/label sitting in a ROW
  * beside a SHORTER neighbor — a coin dot, an icon. Baloo2 glyphs sit high in
  * their line box, so `alignItems:'center'` leaves the glyph above the neighbor's
- * center; this nudges it down to sit dead-center. THE ONE place that knowledge
- * lives — previously hand-copied as translateY 1/2/5 across CoinCounter,
- * OfferCard, restock. Calibrated on the iOS simulator (zoomed): dy ≈ 0.12·size
- * (16px→2, 20px→2, 34px→4).
+ * center; this nudges it down to sit dead-center. Calibrated on the iOS simulator
+ * (zoomed): dy ≈ 0.12·size (16px→2, 20px→2, 34px→4).
  *
  * Icon-adjacent ONLY. Do NOT use for block-centered text (buttons, titles): a
  * `<Text>` that is the sole centered child of a box is already centered by
@@ -331,9 +358,13 @@ export const motion = {
     snap: 140, // grab lift, chip changes
     settle: 220, // drop settle, panel entrance
     drift: 320, // rubber-band return, layout shifts
-    cascadeStep: 260, // one trace event at 1x speed (motion-spec §4)
+    cascadeStep: 380, // one trace event at 1x speed. Was 260 — raised twice for
+    // legibility (2026-07-11 feel-gate: the linked ruleFires read as a fast frenzy,
+    // no time to follow each cause→effect beat). 2× still halves it (190ms) for
+    // speed-runners.
     countUp: 120, // per-slot number tick on itemBase/ruleFire/itemTotal
-    arrowDraw: 180, // ruleFire source→target arrow draw
+    tokenTravel: 280, // ruleFire coin flight source→target; a calm, followable lob
+    // that lands inside the 380ms dwell then HOLDS on the target (140ms at 2×).
     auraSweep: 240, // rowAura glow sweep left→right (then persists per R-9)
     morph: 300, // transform / vanish after totals, before dayTotal
     banner: 600, // named-combo banner moment
@@ -352,12 +383,30 @@ export const motion = {
     grab: { damping: 18, stiffness: 220, mass: 0.9 },
     settle: { damping: 14, stiffness: 260, mass: 1 },
     neighborPart: { damping: 20, stiffness: 300, mass: 0.8 },
+    // Cascade "receive" squash — a scored item absorbs the landing coin and
+    // springs back (Fable plan #2, completes give→travel→receive).
+    impact: { damping: 12, stiffness: 320, mass: 0.7 },
   },
   // B-M11: a first-EVER combo discovery lingers on its cascade step by this
   // factor (a brief slow-beat of warm recognition). Applied only to that step's
   // dwell in the cascade player; reduced motion drops it entirely (cadence
   // unchanged, R-28). A multiplier, not a duration — it scales `cascadeStep`.
   discoverySlowBeat: 1.2,
+  // Cascade ruleFire "coin travel" (Fable plan #1): a chunky gold coin lobs from
+  // the source slot to the target instead of a drawn line (the line read as a
+  // fast "green line" and lingered — removed entirely, 2026-07-11 feel-gate). The
+  // arc is a fraction of the source→target distance (perpendicular lift). Reduced
+  // motion snaps the coin onto the target (R-28) — no flight.
+  cascade: {
+    tokenArcFraction: 0.16, // peak lift = fraction × source→target length
+    // Combo "members take a bow" (Fable plan #4): when a combo is NAMED, its
+    // member items hop once in reading order — a little curtain-call on the shelf.
+    hopY: 5, // peak lift of a member hop, px
+    hopStaggerMs: 45, // delay between successive members (reading order)
+    // Day total lands first; rent follows as its own consequence rather than a
+    // second heavy impact on the exact same frame.
+    rentThudDelayMs: 220,
+  },
 } as const;
 
 // ---------------------------------------------------------------------------

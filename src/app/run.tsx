@@ -1,25 +1,34 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 import type { Action, GameState, Slot } from '@/contracts';
 import {
   AppText,
   CoinCounter,
   MovesPips,
-  OnboardingHint,
   RentChip,
   SectionLabel,
   WoodButton,
   buildAccents,
   layout,
+  motion,
   spacing,
-  tagEmoji,
+  tagIconName,
   usePalette,
+  useReducedMotion,
   useThemedStyles,
 } from '@/ui';
-import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, playCascadeSting, setMusicTrack } from '@/juice';
+import { CascadeLayer, DuskAmbience, ITEM_GLYPHS, ShelfScene, setMusicTrack } from '@/juice';
 
 import { makeStyles } from '@/screen-styles/run.styles';
 import { cascadeMountAfterOpenShop, routeForGameState, type CascadeMount } from '../state/phaseRouting';
@@ -30,12 +39,15 @@ import {
   orderHudView,
   runSelectors,
   sellShelfView,
+  shelfItemInspectorView,
   slotActionFor,
   useRunStore,
   type BuildIdentityView,
   type OrderHudView,
+  type ShelfItemInspectorView,
 } from '../state/store';
 import { useRunStartAchievedCombos } from '../state/catalogStore';
+import { useOnboardingStore, type OnboardingStep } from '../state/onboardingStore';
 
 // Rent runs on a 3-day cycle (RENT_PERIOD_DAYS). The tension bed takes over on
 // the final morning before rent (dueInDays ≤ 1) — the same beat the DuskAmbience
@@ -58,23 +70,71 @@ export default function RunHudScreen() {
   // B-M11: run-start catalog snapshot → the cascade classifies first-ever combos.
   const achievedBeforeRun = useRunStartAchievedCombos();
   const [cascadeMount, setCascadeMount] = useState<CascadeMount | null>(null);
+  const [inspectedInstanceId, setInspectedInstanceId] = useState<string | null>(null);
+  const onboardingStep = useOnboardingStore((state) => state.step);
+  const onboardingLoaded = useOnboardingStore((state) => state.loaded);
+  const loadOnboarding = useOnboardingStore((state) => state.loadOnboarding);
+  const syncOnboardingTo = useOnboardingStore((state) => state.syncTo);
+  const completeOnboarding = useOnboardingStore((state) => state.complete);
   const affordances = useMemo(() => arrangeAffordanceView(gameState), [gameState]);
+  const inspector = useMemo(
+    () => shelfItemInspectorView(gameState, inspectedInstanceId),
+    [gameState, inspectedInstanceId],
+  );
 
-  // Music bed follows rent proximity: the golden-hour loop until the last
-  // morning, then the sparser rent-week variant. Re-runs on focus and whenever
-  // dueInDays crosses the threshold mid-run.
+  // Human ruling 2026-07-14 ("keep just sfx, do not keep double"): normal
+  // gameplay is SFX-ONLY — no music bed under the run, so the receipt sounds
+  // stand alone. Music re-enters exactly once per cycle, as a SIGNAL: the
+  // rent-tension beds fade in when rent looms (rent-EVE on the final day
+  // before rent, rent-week on the due morning). Silence → music IS the
+  // escalation now. Re-runs on focus and whenever dueInDays crosses a
+  // threshold mid-run.
   const rentDueInDays = gameState.rent.dueInDays;
   useFocusEffect(
     useCallback(() => {
-      setMusicTrack(rentDueInDays <= RENT_TENSION_DUE_IN_DAYS ? 'rentWeek' : 'main');
+      setMusicTrack(
+        rentDueInDays > RENT_TENSION_DUE_IN_DAYS
+          ? null
+          : rentDueInDays === RENT_TENSION_DUE_IN_DAYS
+            ? 'rentEve'
+            : 'rentWeek',
+      );
     }, [rentDueInDays]),
   );
+
+  // B-M16 rent-payment beat: fires (via the cascade's dayTotal notification)
+  // only on a rent-due cascade, delayed to land WITH the rent-thud haptic. The
+  // beat drives the chip's heavy settle + the coins drain in RentPaymentLine.
+  const [rentBeat, setRentBeat] = useState(false);
+  const rentBeatTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    setRentBeat(false);
+    return () => {
+      if (rentBeatTimer.current) clearTimeout(rentBeatTimer.current);
+    };
+  }, [cascadeMount]);
+  const onCascadeDayTotal = useCallback(() => {
+    if (!cascadeMount?.rentDue) return;
+    if (rentBeatTimer.current) clearTimeout(rentBeatTimer.current);
+    setRentBeat(false); // replay restarts the beat
+    rentBeatTimer.current = setTimeout(() => setRentBeat(true), motion.cascade.rentThudDelayMs);
+  }, [cascadeMount]);
 
   useEffect(() => {
     if (cascadeMount) return;
     const route = routeForGameState(gameState);
     if (route !== '/run') router.replace(route);
   }, [cascadeMount, gameState, router]);
+
+  useEffect(() => {
+    void loadOnboarding().catch(() => undefined);
+  }, [loadOnboarding]);
+
+  useEffect(() => {
+    if (!onboardingLoaded || cascadeMount) return;
+    if (gameState.phase !== 'arrange' && gameState.phase !== 'restock') return;
+    void syncOnboardingTo(gameState.heldItem ? 'place' : 'open').catch(() => undefined);
+  }, [cascadeMount, gameState.heldItem, gameState.phase, onboardingLoaded, syncOnboardingTo]);
 
   const dispatchAndSave = (action: Action) => {
     const result = dispatchAction(action);
@@ -107,8 +167,8 @@ export default function RunHudScreen() {
     const result = dispatchAction(primary.action);
     if (!result.accepted) return;
     void result.save.catch(() => undefined);
+    void completeOnboarding().catch(() => undefined);
     setCascadeMount(cascadeMountAfterOpenShop(beforeOpenShop, result.gameState));
-    playCascadeSting();
   };
 
   const continueAfterCascade = () => {
@@ -164,8 +224,8 @@ export default function RunHudScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        scrollEnabled={heldFull}
-        showsVerticalScrollIndicator={heldFull}
+        scrollEnabled={heldFull || Boolean(inspector)}
+        showsVerticalScrollIndicator={heldFull || Boolean(inspector)}
       >
       <View style={styles.topBar}>
         <Pressable accessibilityRole="button" hitSlop={12} onPress={() => router.dismissTo('/')}>
@@ -178,10 +238,16 @@ export default function RunHudScreen() {
         <CoinCounter coins={hudState.coins} />
       </View>
 
-      <View style={styles.statusRow}>
-        <RentChip amount={hudState.rent.amount} dueInDays={hudState.rent.dueInDays} />
-        <MovesPips remaining={hudState.moves.freeRemaining} />
-      </View>
+      {/* R-40 clip fix (B-M13): the cascade overlay draws its own shelf HIGHER
+          than this row, so leaving the status row here left the RentChip
+          half-covered behind the scrim. It's hidden while the cascade is up; the
+          rent context is re-rendered fully inside the overlay instead. */}
+      {cascadeMount ? null : (
+        <View style={styles.statusRow}>
+          <RentChip amount={hudState.rent.amount} dueInDays={hudState.rent.dueInDays} />
+          <MovesPips remaining={hudState.moves.freeRemaining} />
+        </View>
+      )}
 
       {!cascadeMount && (build || order || target) ? (
         <BuildSignpost build={build} order={order} target={target} />
@@ -203,8 +269,23 @@ export default function RunHudScreen() {
               onMove={onMove}
               heldItem={gameState.heldItem}
               onPlace={onPlace}
+              onInspect={(item) => setInspectedInstanceId(item.instanceId)}
+              selectedInstanceId={inspectedInstanceId}
             />
-            <AppText variant="body" color={palette.inkFaint} style={styles.hint}>{lastRejectedAction?.message ?? hintFor(gameState)}</AppText>
+            {inspector ? (
+              <ShelfInspector
+                view={inspector}
+                onClose={() => setInspectedInstanceId(null)}
+              />
+            ) : null}
+            <AppText
+              accessibilityLiveRegion="polite"
+              variant="body"
+              color={palette.inkFaint}
+              style={styles.hint}
+            >
+              {lastRejectedAction?.message ?? onboardingRunHint(onboardingLoaded, onboardingStep, gameState) ?? hintFor(gameState)}
+            </AppText>
             {heldFull ? (
               <View style={styles.sellRow}>
                 {sellChoices.map(({ slot, item, price }) => (
@@ -244,6 +325,16 @@ export default function RunHudScreen() {
             { paddingTop: insets.top + spacing.huge, paddingBottom: insets.bottom + layout.screenBottomGap },
           ]}
         >
+          {/* Rent context lives INSIDE the overlay in a stable spot so the day's
+              payout can be read against the rent it owes — a deliberate,
+              complete line, never a half-clipped HUD chip behind the scrim.
+              B-M16: on a rent-due slam the line plays the payment beat. */}
+          <RentPaymentLine
+            amount={hudState.rent.amount}
+            dueInDays={hudState.rent.dueInDays}
+            beat={rentBeat}
+            coinsAfter={gameState.coins}
+          />
           <CascadeLayer
             gameState={cascadeMount.gameState}
             trace={cascadeMount.trace}
@@ -253,12 +344,112 @@ export default function RunHudScreen() {
             autoPlay
             onComplete={continueAfterCascade}
             completeLabel={cascadeMount.nextRoute === '/summary' ? 'See Results ▸' : 'Collect ▸'}
+            onDayTotal={onCascadeDayTotal}
           />
         </View>
       ) : null}
 
-      {/* first-run coachmark — only during arrange, never over a cascade */}
-      {!cascadeMount && gameState.phase === 'arrange' ? <OnboardingHint /> : null}
+    </View>
+  );
+}
+
+/**
+ * B-M16 rent-payment beat: the cascade overlay's rent line. Normally just the
+ * RentChip; when `beat` fires (rent-due dayTotal + the thud delay, timed with
+ * the rent-thud haptic) the chip does ONE heavier settle — a press-down dip and
+ * a spring back (uniform scale + translateY only; Fabric scar respected) — and
+ * a coins pill appears draining from pre-rent (coinsAfter + amount) down to
+ * `coinsAfter`, so the deduction ticks down instead of jumping offscreen.
+ * Reduced motion: no settle, and the pill snaps to the final value (CoinCounter
+ * already snaps under reduced motion). No sim reads beyond props; no new sound
+ * (the future sting drops into the audio gateway, one asset).
+ */
+function RentPaymentLine({
+  amount,
+  dueInDays,
+  beat,
+  coinsAfter,
+}: {
+  amount: number;
+  dueInDays: number;
+  beat: boolean;
+  coinsAfter: number;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const reduced = useReducedMotion();
+  const settle = useSharedValue(0);
+  useEffect(() => {
+    if (!beat || reduced) {
+      settle.value = 0;
+      return;
+    }
+    settle.value = withSequence(
+      withTiming(1, { duration: 90 }),
+      withSpring(0, motion.springs.impact),
+    );
+  }, [beat, reduced, settle]);
+  const settleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - settle.value * 0.06 }, { translateY: settle.value * 3 }],
+  }));
+
+  return (
+    <View style={styles.cascadeRentLine}>
+      <Animated.View style={settleStyle}>
+        <RentChip amount={amount} dueInDays={dueInDays} />
+      </Animated.View>
+      {beat ? <CoinCounter coins={coinsAfter} from={coinsAfter + amount} animate /> : null}
+    </View>
+  );
+}
+
+function ShelfInspector({
+  view,
+  onClose,
+}: {
+  view: ShelfItemInspectorView;
+  onClose: () => void;
+}) {
+  const styles = useThemedStyles(makeStyles);
+  const palette = usePalette();
+  const location = view.slot
+    ? `Row ${view.slot.row + 1}, column ${view.slot.col + 1}`
+    : 'Delivery item';
+  const movementHint = view.item.state.sticky
+    ? 'Stuck in place. Its rule can still affect items next to it.'
+    : 'Drag it, or tap the item and then an empty slot.';
+
+  return (
+    <View
+      accessibilityLabel={`${view.item.name} details`}
+      style={styles.inspector}
+    >
+      <View style={styles.inspectorHeader}>
+        <View style={styles.inspectorTitleWrap}>
+          <AppText variant="heading" color={palette.ink}>{view.item.name}</AppText>
+          <AppText variant="label" color={palette.inkFaint}>
+            {`${location} · value ${view.item.baseValue}`}
+          </AppText>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close item details"
+          hitSlop={4}
+          onPress={onClose}
+          style={({ pressed }) => [styles.inspectorClose, pressed && styles.inspectorClosePressed]}
+        >
+          <AppText variant="heading" color={palette.tealDark}>×</AppText>
+        </Pressable>
+      </View>
+      <View style={styles.inspectorRules}>
+        {view.ruleLines.map((line) => (
+          <AppText key={line} variant="body" color={palette.ink}>
+            {`• ${line}`}
+          </AppText>
+        ))}
+      </View>
+      <AppText variant="label" color={palette.tealDark} style={styles.inspectorHint}>
+        {movementHint}
+      </AppText>
     </View>
   );
 }
@@ -287,12 +478,24 @@ function BuildSignpost({
       style={[
         styles.buildCard,
         build?.active ? styles.buildCardActive : null,
-        accent ? { borderLeftColor: accent, borderLeftWidth: 5 } : null,
       ]}
     >
       <View style={styles.buildHero}>
-        {/* decorative emoji glyph — raw <Text> exception */}
-        <Text style={styles.buildEmoji}>{build ? tagEmoji[build.tag] ?? '🏷️' : '🛒'}</Text>
+        {/* Emoji sits in a soft accent-tinted tile — it echoes the shelf item
+            tiles below and carries the build colour as a gentle wash + ring
+            instead of a loud left-edge stripe. */}
+        <View
+          style={[
+            styles.buildEmojiTile,
+            accent ? { backgroundColor: `${accent}1F`, borderColor: accent } : null,
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={build ? tagIconName(build.tag) : 'cart-outline'}
+            size={24}
+            color={accent ?? palette.ink}
+          />
+        </View>
         <View style={styles.buildHeroText}>
           <AppText variant="label" color={palette.ink} style={styles.buildTitle}>
             {build ? `${build.tag.toUpperCase()} SHELF` : 'YOUR BUILD'}
@@ -322,17 +525,17 @@ function BuildSignpost({
         <View style={styles.goalRow}>
           {order ? (
             <GoalChip
-              icon="📋"
+              icon="basket-outline"
               label={`ORDER · ${order.count}× ${order.tag}`}
-              value={order.met ? `✓ ${order.have}/${order.count}` : `${order.have}/${order.count}`}
+              value={`${order.have}/${order.count}`}
               met={order.met}
             />
           ) : null}
           {target ? (
             <GoalChip
-              icon="🎯"
+              icon="target"
               label={`TARGET · ${target.target}c`}
-              value={target.rewardEarned ? '🔁 free reroll' : 'beat it →'}
+              value={target.rewardEarned ? 'Free reroll' : 'beat it →'}
               met={target.rewardEarned}
             />
           ) : null}
@@ -342,14 +545,27 @@ function BuildSignpost({
   );
 }
 
-function GoalChip({ icon, label, value, met }: { icon: string; label: string; value: string; met: boolean }) {
+function GoalChip({
+  icon,
+  label,
+  value,
+  met,
+}: {
+  icon: ComponentProps<typeof MaterialCommunityIcons>['name'];
+  label: string;
+  value: string;
+  met: boolean;
+}) {
   const styles = useThemedStyles(makeStyles);
   const palette = usePalette();
   return (
     <View style={[styles.goalChip, met ? styles.goalChipMet : null]}>
-      <AppText variant="label" color={palette.ink} numberOfLines={1} style={styles.goalChipLabel}>
-        {`${icon} ${label}`}
-      </AppText>
+      <View style={styles.goalChipLabelRow}>
+        <MaterialCommunityIcons name={icon} size={13} color={palette.ink} />
+        <AppText variant="label" color={palette.ink} numberOfLines={1} style={styles.goalChipLabel}>
+          {label}
+        </AppText>
+      </View>
       <AppText
         variant="label"
         color={met ? palette.tealDark : palette.inkFaint}
@@ -395,6 +611,21 @@ function hintFor(gameState: GameState): string {
   return '';
 }
 
+function onboardingRunHint(
+  loaded: boolean,
+  step: OnboardingStep,
+  gameState: GameState,
+): string | null {
+  if (!loaded) return null;
+  if (step === 'place' && gameState.heldItem) {
+    return 'First placement: put it anywhere for now. Later, tap items to reread rules and move linked items together.';
+  }
+  if (step === 'open' && !gameState.heldItem) {
+    return 'Now Open Shop. Follow each cause in the caption; the complete scoring receipt stays available afterward.';
+  }
+  return null;
+}
+
 function movementLockedSceneState(gameState: GameState): GameState {
   return {
     ...gameState,
@@ -412,4 +643,3 @@ function movementLockedSceneState(gameState: GameState): GameState {
     },
   };
 }
-

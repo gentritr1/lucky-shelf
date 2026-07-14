@@ -13,14 +13,18 @@ import {
 import { createRun, dispatch } from './engine';
 import { hashString } from './rng';
 
+import { withFlagWorld } from './testkit';
+
 const deps = { table: loadItemTable(), combos: loadCombos() };
 
+/** Overlay helper: named vars apply on top of the current world (undefined =
+ *  force OFF via '0'); outermost calls in this file go through
+ *  withPinnedWorld so graduated compiled defaults cannot leak in. */
 function withEnv<T>(vars: Record<string, string | undefined>, run: () => T): T {
   const previous: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(vars)) {
     previous[key] = process.env[key];
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
+    process.env[key] = value ?? '0';
   }
   try {
     return run();
@@ -30,6 +34,10 @@ function withEnv<T>(vars: Record<string, string | undefined>, run: () => T): T {
       else process.env[key] = value;
     }
   }
+}
+
+function withPinnedWorld<T>(vars: Record<string, string | undefined>, run: () => T): T {
+  return withFlagWorld([], () => withEnv(vars, run));
 }
 
 function cheapOfferCount(offers: readonly DeliveryOffer[], ceiling = 4): number {
@@ -50,7 +58,7 @@ function normalRestockOffers(
   salt: string,
   supplierTag: string | null = null,
 ): DeliveryOffer[] {
-  return withEnv({ [WARM_OPENING_ENV_VAR]: undefined }, () =>
+  return withPinnedWorld({}, () =>
     generateOffers(seed, day, 'restock', table, salt, supplierTag, true),
   );
 }
@@ -72,7 +80,7 @@ describe('warm opening offer guarantee', () => {
   });
 
   it('guarantees two cheap day-1 daily-shop offers without changing prices or offer-id shape', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
       const normal = normalRestockOffers('warm-test-0', 1, deps.table, '');
       const warmed = generateOffers('warm-test-0', 1, 'restock', deps.table, '', null, true);
 
@@ -85,7 +93,7 @@ describe('warm opening offer guarantee', () => {
     }));
 
   it('guarantees two day-2 offers under the day-aware ceiling (Fable ruling: flat 4 was unsatisfiable on day 2)', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
       for (let index = 0; index < 10; index += 1) {
         const seed = `warm-day2-${index}`;
         const warmed = generateOffers(seed, 2, 'restock', deps.table, '', null, true);
@@ -99,7 +107,7 @@ describe('warm opening offer guarantee', () => {
     }));
 
   it('is deterministic for same-seed opening shops and rerolls', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
       const first = generateOffers('warm-deterministic', 1, 'restock', deps.table, '', null, true);
       const second = generateOffers('warm-deterministic', 1, 'restock', deps.table, '', null, true);
       const rerollA = generateOffers(
@@ -128,7 +136,7 @@ describe('warm opening offer guarantee', () => {
     }));
 
   it('leaves delivery and day-3 restock generation byte-identical when enabled', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
       const warmDelivery = generateOffers('warm-untouched', 1, 'delivery', deps.table, '', null, true);
       const warmDay3 = generateOffers('warm-untouched', 3, 'restock', deps.table, '', null, true);
 
@@ -143,7 +151,7 @@ describe('warm opening offer guarantee', () => {
     }));
 
   it('degrades gracefully when the weighted pool has fewer than two cheap day-1 items', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
       const cheapIds = offerablePool(deps.table)
         .filter(
           (definition) =>
@@ -167,7 +175,7 @@ describe('warm opening offer guarantee', () => {
     }));
 
   it('keeps day-1 buyout plus reroll guaranteed and duplicate-id safe', () =>
-    withEnv({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
+    withPinnedWorld({ [LOOP_V2_ENV_VAR]: '1', [WARM_OPENING_ENV_VAR]: '1' }, () => {
       let state = createRun('warm-buyout-reroll', deps);
       state = dispatch(state, { type: 'draftItem', offerIndex: 0 }, deps);
       state = dispatch(state, { type: 'placeItem', slot: { row: 0, col: 0 } }, deps);

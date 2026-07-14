@@ -17,8 +17,9 @@ import {
   SaveSchemaVersion,
   createRunPersistence,
   type KeyValueStorage,
+  type RunPersistence,
 } from '../persistence';
-import { createRunStore } from './store';
+import { createRunStore, itemRuleLines, shelfItemInspectorView } from './store';
 
 class MemoryStorage implements KeyValueStorage {
   readonly values = new Map<string, string>();
@@ -56,6 +57,37 @@ function withEnv<T>(env: Record<string, string | undefined>, fn: () => T): T {
 }
 
 describe('run store', () => {
+  it('exposes exact rule prose for offer decisions without leaking sim internals to screens', () => {
+    expect(itemRuleLines(deps.table.get('wine-bottle')!)).toEqual([
+      'Earns +3 for each cheese item next to it',
+    ]);
+    expect(itemRuleLines(deps.table.get('mirror')!)).toEqual([
+      'Copies the value of the item to its left',
+    ]);
+  });
+
+  it('exposes exact rule prose and location for shelf and delivery-tray inspectors', () => {
+    const shelfState = makeState(
+      [{ slot: { row: 1, col: 2 }, itemId: 'wine-bottle' }],
+      { phase: 'arrange' },
+    );
+    const shelfItem = shelfState.shelf.slots.find((entry) => entry.item)?.item;
+    expect(shelfItemInspectorView(shelfState, shelfItem?.instanceId ?? null)).toMatchObject({
+      slot: { row: 1, col: 2 },
+      item: { itemId: 'wine-bottle', name: 'Wine Bottle' },
+      ruleLines: ['Earns +3 for each cheese item next to it'],
+    });
+
+    const heldItem = shelfState.shelf.slots.find((entry) => entry.item)?.item;
+    if (!heldItem) throw new Error('expected held test item');
+    const heldState = { ...shelfState, heldItem, shelf: makeState([]).shelf };
+    expect(shelfItemInspectorView(heldState, heldItem.instanceId)).toMatchObject({
+      slot: null,
+      item: { itemId: 'wine-bottle' },
+    });
+    expect(shelfItemInspectorView(heldState, 'missing')).toBeNull();
+  });
+
   it('dispatches accepted actions through the engine and autosaves the new state', async () => {
     const storage = new MemoryStorage();
     const persistence = createRunPersistence(storage);
@@ -81,6 +113,66 @@ describe('run store', () => {
     expect(saved.status).toBe('loaded');
     expect(hashState(saved.gameState)).toBe(hashState(result.gameState));
     expect(saved.gameState.moves.freeRemaining).toBe(2);
+  });
+
+  it('serializes autosaves so an older snapshot cannot overwrite a newer action', async () => {
+    const pending: Array<{
+      gameState: ReturnType<typeof makeState>;
+      resolve: () => void;
+    }> = [];
+    const persisted: Array<ReturnType<typeof makeState>> = [];
+    const persistence: RunPersistence = {
+      loadActiveRun: async (freshState) => ({ status: 'missing', gameState: freshState }),
+      saveActiveRun: (gameState) =>
+        new Promise<void>((resolve) => {
+          pending.push({
+            gameState,
+            resolve: () => {
+              persisted.push(gameState);
+              resolve();
+            },
+          });
+        }),
+      clearActiveRun: async () => undefined,
+    };
+    const store = createRunStore({
+      deps,
+      persistence,
+      initialState: makeState(
+        [{ slot: { row: 1, col: 1 }, itemId: 'wine-bottle' }],
+        { phase: 'arrange' },
+      ),
+    });
+
+    const first = store
+      .getState()
+      .dispatchAction({ type: 'moveItem', from: { row: 1, col: 1 }, to: { row: 1, col: 0 } });
+    expect(first.accepted).toBe(true);
+    if (!first.accepted) throw new Error(first.rejected.message);
+    const second = store
+      .getState()
+      .dispatchAction({ type: 'moveItem', from: { row: 1, col: 0 }, to: { row: 0, col: 0 } });
+    expect(second.accepted).toBe(true);
+    if (!second.accepted) throw new Error(second.rejected.message);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(pending).toHaveLength(1);
+    expect(store.getState().saveStatus).toBe('saving');
+
+    pending[0]!.resolve();
+    await first.save;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(pending).toHaveLength(2);
+    expect(store.getState().saveStatus).toBe('saving');
+
+    pending[1]!.resolve();
+    await second.save;
+    expect(store.getState().saveStatus).toBe('saved');
+    expect(persisted.map(hashState)).toEqual([
+      hashState(first.gameState),
+      hashState(second.gameState),
+    ]);
+    expect(hashState(persisted.at(-1)!)).toBe(hashState(store.getState().gameState));
   });
 
   it('rejects illegal engine actions without changing state', () => {
@@ -132,6 +224,86 @@ describe('run store', () => {
     expect(hashState(continued)).toBe(hashState(savedState));
     expect(hashState(store.getState().gameState)).toBe(hashState(savedState));
     expect(store.getState().loadStatus).toBe('loaded');
+  });
+
+  it('does not let a stale Continue load replace a newly started run', async () => {
+    let resolveLoad!: (result: Awaited<ReturnType<RunPersistence['loadActiveRun']>>) => void;
+    const oldState = makeState([], {
+      phase: 'arrange',
+      seed: 'old-save',
+      runId: 'run-old-save',
+    });
+    const persistence: RunPersistence = {
+      loadActiveRun: () =>
+        new Promise((resolve) => {
+          resolveLoad = resolve;
+        }),
+      saveActiveRun: async () => undefined,
+      clearActiveRun: async () => undefined,
+    };
+    const store = createRunStore({
+      deps,
+      persistence,
+      initialState: createRun('placeholder-race', deps),
+    });
+
+    const pendingContinue = store.getState().continueRun();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const fresh = store.getState().startNewRun('newer-run');
+    resolveLoad({ status: 'loaded', gameState: oldState });
+    const continued = await pendingContinue;
+    await fresh.save;
+
+    expect(hashState(continued)).toBe(hashState(fresh.gameState));
+    expect(hashState(store.getState().gameState)).toBe(hashState(fresh.gameState));
+    expect(store.getState().loadStatus).toBe('loaded');
+  });
+
+  it('surfaces active-run read failures and recovers on retry', async () => {
+    let shouldFail = true;
+    const persistence: RunPersistence = {
+      async loadActiveRun(freshState) {
+        if (shouldFail) throw new Error('storage unavailable');
+        return { status: 'missing', gameState: freshState };
+      },
+      saveActiveRun: async () => undefined,
+      clearActiveRun: async () => undefined,
+    };
+    const store = createRunStore({ deps, persistence, seedFactory: () => 'load-retry' });
+
+    await expect(store.getState().continueRun()).rejects.toThrow('storage unavailable');
+    expect(store.getState().loadStatus).toBe('failed');
+    expect(store.getState().lastLoadError).toBe('storage unavailable');
+
+    shouldFail = false;
+    await store.getState().continueRun();
+    expect(store.getState().loadStatus).toBe('missing');
+    expect(store.getState().lastLoadError).toBeNull();
+  });
+
+  it('surfaces a failed save and retries the newest state', async () => {
+    let attempts = 0;
+    let savedState: ReturnType<typeof makeState> | null = null;
+    const persistence: RunPersistence = {
+      loadActiveRun: async (freshState) => ({ status: 'missing', gameState: freshState }),
+      async saveActiveRun(gameState) {
+        attempts += 1;
+        if (attempts === 1) throw new Error('disk full');
+        savedState = gameState;
+      },
+      clearActiveRun: async () => undefined,
+    };
+    const store = createRunStore({ deps, persistence, initialState: makeState([], { phase: 'gameOver' }) });
+    const started = store.getState().startNewRun('retry-save');
+
+    await expect(started.save).rejects.toThrow('disk full');
+    expect(store.getState().saveStatus).toBe('failed');
+    expect(store.getState().lastSaveError).toBe('disk full');
+
+    await store.getState().retrySave();
+    expect(store.getState().saveStatus).toBe('saved');
+    expect(store.getState().lastSaveError).toBeNull();
+    expect(hashState(savedState!)).toBe(hashState(store.getState().gameState));
   });
 
   it('starts new runs from pure day-1 delivery with real seeded offers', async () => {
@@ -208,6 +380,40 @@ describe('run store', () => {
       expect(fresh.unlockedItemIds).toEqual(allUnlockableItemIds());
       expect(veteran.unlockedItemIds).toEqual(allUnlockableItemIds());
       expect(veteran.currentOffers).toEqual(fresh.currentOffers);
+    });
+  });
+});
+
+// -----------------------------------------------------------------------------
+// orderHudView flag gate (human ruling 2026-07-11): scoring fires Today's Order
+// ONLY when the synergy flag is off (`!synergyEnabled && order …` in
+// resolveOpenShop), so the HUD chip must hide under tag synergy — otherwise it
+// promises a ×1.5 that never pays. Flag world pinned per the Gate-1 scar.
+// -----------------------------------------------------------------------------
+import { orderHudView } from './store';
+import { withFlagWorld } from '../sim/testkit';
+
+describe('orderHudView synergy gate', () => {
+  const withOrder = () =>
+    makeState([], { dailyOrder: { tag: 'drink', count: 2 } });
+
+  it('shows the chip when synergy is OFF (order can pay)', () => {
+    withFlagWorld([], () => {
+      const view = orderHudView(withOrder());
+      expect(view).not.toBeNull();
+      expect(view?.tag).toBe('drink');
+    });
+  });
+
+  it('hides the chip when TAG_SYNERGY is ON (scoring skips order)', () => {
+    withFlagWorld(['TAG_SYNERGY_ENABLED'], () => {
+      expect(orderHudView(withOrder())).toBeNull();
+    });
+  });
+
+  it('still hides it with no order regardless of flags', () => {
+    withFlagWorld([], () => {
+      expect(orderHudView(makeState([]))).toBeNull();
     });
   });
 });

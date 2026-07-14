@@ -14,3 +14,8 @@ export {
   type ReceiptDepsOptions,
 } from './receiptModel';
 export { visibleReceiptLines, receiptComplete } from './print';
+export {
+  captionForLine,
+  receiptCaptionForStep,
+  type ReceiptCaption,
+} from './caption';

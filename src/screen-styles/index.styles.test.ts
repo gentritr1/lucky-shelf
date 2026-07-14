@@ -66,12 +66,28 @@ function expected(p: Palette) {
     actions: {
       gap: spacing.md,
     },
+    runNotice: {
+      backgroundColor: p.plate,
+      borderRadius: radii.md,
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
     secondaryRow: {
       flexDirection: 'row',
       gap: spacing.md,
     },
     grow: {
       flex: 1,
+    },
+    helpLink: {
+      alignItems: 'center',
+      alignSelf: 'center',
+      backgroundColor: p.plate,
+      borderRadius: radii.pill,
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
     },
   };
 }

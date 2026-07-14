@@ -75,3 +75,39 @@ export function makeState(placedItems: readonly PlacedItem[], overrides?: Partia
     ...overrides,
   };
 }
+
+/**
+ * Pin the full depth-flag world for a test: every flag env key is forced to
+ * '0' (OFF) except the ones the test names — so a test's flag assumptions are
+ * explicit and survive compiled-default flips (RELEASE-PLAN Gate 1.3). Uses
+ * the two-way env semantics from economy.flagEnabled ('0' forces OFF).
+ */
+export function withFlagWorld<T>(
+  on: readonly string[],
+  run: () => T,
+): T {
+  const keys = [
+    'LOOP_V2_ENABLED',
+    'GOAL_LADDER_ENABLED',
+    'SHELF_EXPANSION_ENABLED',
+    'WARM_OPENING_ENABLED',
+    'DAY2_STARTER_ENABLED',
+    'TAG_SYNERGY_ENABLED',
+    'BUILD_STEERING_ENABLED',
+    'SIGNATURE_ITEMS_ENABLED',
+    'UNLOCK_LADDER_ENABLED',
+  ];
+  const previous = new Map<string, string | undefined>();
+  for (const key of keys) {
+    previous.set(key, process.env[key]);
+    process.env[key] = on.includes(key) ? '1' : '0';
+  }
+  try {
+    return run();
+  } finally {
+    for (const [key, value] of previous.entries()) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}

@@ -1,0 +1,362 @@
+import { StyleSheet } from 'react-native';
+
+import { borders, layout, radii, shadows, spacing, type Palette } from '@/ui/tokens';
+
+/**
+ * How-to-Play sheet (ONB-1) as a B-M9 themed factory. All colors read from the
+ * passed `palette`; the mini shelf mock reuses the exact ShelfScene token values
+ * (shelfWood board, woodInset wells, woodDark/woodLight/shadow edges, plank) so
+ * it reads as the real shelf, not a fresh invention.
+ */
+export function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    screen: {
+      backgroundColor: palette.wallCream,
+      flex: 1,
+      paddingHorizontal: layout.screenPadX,
+    },
+    // FlatList itself is full-bleed for edge-to-edge paging; per-page padding
+    // lives on `page` so swipe momentum reads as whole-screen turns.
+    pager: {
+      flex: 1,
+      marginHorizontal: -layout.screenPadX,
+    },
+    page: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: layout.screenPadX,
+    },
+    pageInner: {
+      alignItems: 'center',
+      gap: spacing.xl,
+      maxWidth: 420,
+      width: '100%',
+    },
+    // Full-height page variant (glossary, GLOS-1): claim the page's height and
+    // top-align so the nested vertical ScrollView has a bounded box to fill,
+    // instead of the short centred block the default pages use. A tighter gap
+    // than `pageInner` keeps the title close to the scrolling list.
+    pageFill: {
+      justifyContent: 'flex-start',
+    },
+    pageInnerFill: {
+      flex: 1,
+      gap: spacing.md,
+      justifyContent: 'flex-start',
+    },
+    // Big-visual stage — a soft parchment plinth the illustration sits on.
+    stage: {
+      alignItems: 'center',
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.lg,
+      borderWidth: borders.hairline,
+      gap: spacing.md,
+      justifyContent: 'center',
+      minHeight: 208,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.xl,
+      width: '100%',
+    },
+    heading: {
+      textAlign: 'center',
+    },
+    bodyBlock: {
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    bodyLine: {
+      textAlign: 'center',
+    },
+
+    // --- The Loop: four mini steps with arrows. ---
+    loopRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      justifyContent: 'center',
+    },
+    loopStep: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: borders.hairline,
+      gap: spacing.xxs,
+      minWidth: 68,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
+    },
+    loopArrow: {
+      color: palette.goldDeep,
+      fontSize: 20,
+      fontWeight: '900',
+    },
+
+    // --- Items: sprites with coin values. ---
+    itemRow: {
+      alignItems: 'flex-end',
+      flexDirection: 'row',
+      gap: spacing.lg,
+      justifyContent: 'center',
+    },
+    itemChip: {
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    sprite: {
+      height: 64,
+      width: 64,
+    },
+    coinPill: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: borders.hairline,
+      flexDirection: 'row',
+      gap: spacing.xxs,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+    },
+    coinDot: {
+      backgroundColor: palette.coinGold,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      borderWidth: borders.hairline,
+      height: 10,
+      width: 10,
+    },
+
+    // --- Mini shelf mock (Neighbors / Multipliers). Values mirror ShelfScene. ---
+    miniBoard: {
+      backgroundColor: palette.shelfWood,
+      borderColor: palette.woodDark,
+      borderRadius: radii.lg,
+      borderTopColor: palette.woodLight,
+      borderWidth: borders.frame,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.lg,
+      position: 'relative',
+    },
+    miniWell: {
+      alignItems: 'center',
+      backgroundColor: palette.woodInset,
+      borderColor: palette.woodDark,
+      borderRadius: radii.sm,
+      borderTopColor: palette.shadow,
+      borderWidth: borders.regular,
+      height: 72,
+      justifyContent: 'center',
+      width: 72,
+    },
+    miniPlank: {
+      backgroundColor: palette.woodLight,
+      borderBottomColor: palette.woodDark,
+      borderBottomWidth: borders.strong,
+      borderRadius: radii.xs,
+      borderTopColor: palette.sunlight,
+      borderTopWidth: borders.hairline,
+      bottom: spacing.sm - 4,
+      height: 8,
+      left: spacing.lg,
+      position: 'absolute',
+      right: spacing.lg,
+    },
+    miniSprite: {
+      height: 52,
+      width: 52,
+    },
+    // Gold "pays" arrow sitting between two wells.
+    payArrow: {
+      color: palette.goldDeep,
+      fontSize: 26,
+      fontWeight: '900',
+    },
+
+    // --- Multipliers: gold row-aura band + ×N chips + same-trade sprites. ---
+    // Tag-synergy block (block 2): bare same-trade sprites, sized like the
+    // well sprites so both blocks share one stage without crowding.
+    synergySprite: {
+      height: 52,
+      width: 52,
+    },
+    auraBand: {
+      backgroundColor: palette.auraGold,
+      borderColor: palette.auraGoldEdge,
+      borderRadius: radii.sm,
+      borderWidth: borders.hairline,
+      bottom: spacing.md,
+      left: spacing.sm,
+      opacity: 0.55,
+      position: 'absolute',
+      right: spacing.sm,
+      top: spacing.md,
+    },
+    multChip: {
+      alignItems: 'center',
+      alignSelf: 'center',
+      backgroundColor: palette.goldDeep,
+      borderRadius: radii.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xxs,
+    },
+
+    // --- Named combos: catalog stamp. ---
+    comboStamp: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderColor: palette.goldDeep,
+      borderRadius: radii.md,
+      borderWidth: borders.strong,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+
+    // --- Rent & survival: ember pill. ---
+    rentPill: {
+      alignItems: 'center',
+      backgroundColor: palette.rentEmber,
+      borderColor: palette.emberDark,
+      borderRadius: radii.md,
+      borderWidth: borders.strong,
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    rentGrow: {
+      color: palette.creamBright,
+      fontSize: 22,
+      fontWeight: '900',
+    },
+
+    // --- Daily twists: one row per enabled feature. ---
+    twistList: {
+      gap: spacing.md,
+      width: '100%',
+    },
+    twistRow: {
+      alignItems: 'center',
+      backgroundColor: palette.parchment,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.md,
+      borderWidth: borders.hairline,
+      flexDirection: 'row',
+      gap: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    twistBadge: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minWidth: 44,
+    },
+    twistText: {
+      flex: 1,
+      gap: 2,
+    },
+    twistMult: {
+      color: palette.goldDeep,
+      fontWeight: '900',
+    },
+
+    // --- Glossary (GLOS-1): a scrollable term list, the lookup surface for the
+    // named concepts the run/cascade throw at the player. The ScrollView fills
+    // the fill-page's height (bounded box → scrolls); rows are term heading +
+    // one-line body definition, grouped under quiet small-caps section labels.
+    glossaryScroll: {
+      alignSelf: 'stretch',
+      flex: 1,
+      width: '100%',
+    },
+    glossaryContent: {
+      gap: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    glossaryGroup: {
+      gap: spacing.sm,
+    },
+    glossaryGroupLabel: {
+      letterSpacing: 0.8,
+      paddingBottom: spacing.xxs,
+    },
+    glossaryRow: {
+      gap: 2,
+    },
+
+    // --- Section rail (HTP-2): a tappable map of the pages above the pager, so
+    // How to Play doubles as a rules reference (jump straight to any section, no
+    // six-page swipe). A parchment track echoing the catalog's segmented control;
+    // the active chip wears a creamBright pill, inactive chips are quiet ink text.
+    // A horizontal ScrollView so the full set never has to fit one SE-width line —
+    // `railContent.flexGrow` centres the chips when they fit, lets them scroll
+    // when they don't.
+    rail: {
+      backgroundColor: palette.parchment,
+      borderRadius: radii.pill,
+      flexGrow: 0,
+      marginBottom: spacing.xs,
+    },
+    railContent: {
+      alignItems: 'center',
+      flexGrow: 1,
+      gap: spacing.xxs,
+      justifyContent: 'center',
+      padding: spacing.xs,
+    },
+    chip: {
+      alignItems: 'center',
+      borderRadius: radii.pill,
+      justifyContent: 'center',
+      minHeight: 34,
+      overflow: 'hidden',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    // The active chip's cream pill — an absolute fill faded in under the label
+    // (opacity animated; separate scaleX/scaleY collapse the view on Fabric, and
+    // a per-chip fade needs no track-width measurement a scroll rail can't give).
+    // Mirrors the catalog segmented control's selected pill (creamBright + float).
+    chipPill: {
+      backgroundColor: palette.creamBright,
+      borderRadius: radii.pill,
+      bottom: 0,
+      left: 0,
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      ...shadows.float,
+    },
+    chipLabel: {
+      letterSpacing: 0.6,
+    },
+
+    // --- Page dots. ---
+    dotsRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.sm,
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+    },
+    dot: {
+      backgroundColor: palette.parchmentEdge,
+      borderRadius: radii.pill,
+      height: 8,
+    },
+    dotActive: {
+      backgroundColor: palette.goldDeep,
+    },
+
+    footer: {
+      gap: spacing.sm,
+    },
+  });
+}

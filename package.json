@@ -20,6 +20,7 @@
     "m1": "pnpm typecheck && pnpm fixtures:validate && pnpm test && pnpm fuzz -- --runs 50 && pnpm balance:assert"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "3.1.1",
     "@shopify/react-native-skia": "2.6.9",
     "expo": "~57.0.2",

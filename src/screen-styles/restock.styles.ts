@@ -1,15 +1,16 @@
 import { StyleSheet } from 'react-native';
 
-import { baloo2IconNudge, layout, radii, shadows, spacing, typeScale, type Palette } from '@/ui/tokens';
+import { borders, layout, radii, shadows, spacing, typeScale, type Palette } from '@/ui/tokens';
 
 /**
  * Restock / Daily-Shop sheet as a B-M9 themed factory. Colors read from the passed
  * `palette`; text color/role for block copy moved to the `AppText` call sites.
  * Entries kept here that still carry text styling are the documented raw-<Text>
- * exceptions: the coin-adjacent digits (`shopBuyText`, `rerollCost`) that need the
- * `baloo2IconNudge` optical alignment beside the coin dot, the bespoke
- * `signatureBadgeText` (no type role / font family), and the emoji/glyph icons.
- * Their colors are still parametrized, so high contrast re-themes them. The
+ * exceptions: the coin-adjacent digits (`shopBuyText`, `rerollCost`) on the system
+ * `coin` role — TYPO-1 dropped the old `baloo2IconNudge` translateY here, the
+ * system face (`fonts.ui`) centers them against the coin dot on its own — the
+ * bespoke `signatureBadgeText` (no type role / font family), and the emoji/glyph
+ * icons. Their colors are still parametrized, so high contrast re-themes them. The
  * unreferenced `offerCol`/`costRibbon`/`costText`/`buy`/`buyText` entries are
  * pre-existing dead styles, transcribed verbatim (out of scope to remove here).
  * Byte-identical at default prefs.
@@ -69,6 +70,10 @@ export function makeStyles(palette: Palette) {
     // Daily shop: a robust vertical list of offer rows (thumb | info | buy).
     shopList: {
       gap: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    shopScroller: {
+      flex: 1,
     },
     shopRow: {
       alignItems: 'center',
@@ -79,7 +84,9 @@ export function makeStyles(palette: Palette) {
       flexDirection: 'row',
       gap: spacing.md,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      // Matches the info stack's internal gap (spacing.xs) so the tag chips sit
+      // centered in their band — equal whitespace above and below (B-M13).
+      paddingVertical: spacing.xs,
       ...shadows.card,
     },
     shopThumb: {
@@ -97,16 +104,41 @@ export function makeStyles(palette: Palette) {
     shopThumbGlyph: {
       fontSize: 28,
     },
+    // Tappable half of an offer row (thumb + info) — the Buy button stays a
+    // separate sibling so expanding the rules never fires a purchase (B-M13).
+    shopTap: {
+      alignItems: 'center',
+      flex: 1,
+      flexDirection: 'row',
+      gap: spacing.md,
+    },
     shopInfo: {
       flex: 1,
-      gap: spacing.xxs,
+      // One uniform token for the whole name → rule → tags stack (B-M13 rhythm).
+      gap: spacing.xs,
     },
     shopName: {
+      flexShrink: 1,
       fontSize: 15,
+      // Hug the 15px Baloo2 glyph so its tall default line box (heading's 24)
+      // doesn't inflate the gap down to the rule line (B-M13). `fontSize` here
+      // already opts this label out of text-scaling, so a fixed lineHeight is
+      // consistent (won't clip at 130%).
+      lineHeight: 19,
     },
     shopTags: {
       flexDirection: 'row',
       gap: spacing.xxs,
+    },
+    shopRule: {
+      letterSpacing: 0,
+    },
+    // Selected offer: the app's draft-card selection language (OfferCard.selected) —
+    // a thick teal ring + lift. Static (no spring) so the swap is reduced-motion safe.
+    shopRowSelected: {
+      borderColor: palette.accentTeal,
+      borderWidth: borders.strong + 1,
+      ...shadows.lifted,
     },
     shopRowSignature: {
       backgroundColor: palette.sunlight,
@@ -136,8 +168,7 @@ export function makeStyles(palette: Palette) {
       letterSpacing: 0.4,
     },
     signatureEffect: {
-      fontSize: 11,
-      fontWeight: '700',
+      letterSpacing: 0,
     },
     shopBuy: {
       alignItems: 'center',
@@ -151,12 +182,11 @@ export function makeStyles(palette: Palette) {
       paddingVertical: spacing.sm,
     },
     shopBuyText: {
+      // System-font coin role (TYPO-1): centers against the coin dot, no nudge.
       ...typeScale.coin,
       color: palette.creamBright,
       fontSize: 15,
       lineHeight: 18,
-      // Optically center the Baloo2 digit against the coin dot (shared helper).
-      ...baloo2IconNudge(15),
     },
     offerCol: {
       flex: 1,
@@ -218,11 +248,11 @@ export function makeStyles(palette: Palette) {
       letterSpacing: 0,
     },
     rerollCost: {
+      // System-font coin role (TYPO-1): centers against the coin dot, no nudge.
       ...typeScale.coin,
       color: palette.tealDark,
       fontSize: 14,
       lineHeight: 16,
-      ...baloo2IconNudge(14),
     },
     sellGrid: {
       flexDirection: 'row',
@@ -264,13 +294,44 @@ export function makeStyles(palette: Palette) {
       paddingVertical: 2,
     },
     sellValue: {
-      // Block-centered coin label inside a pill (NOT beside a coin dot), so the
-      // shared icon nudge does not apply. A small manual lift keeps the Baloo2
-      // phrase optically centered in the tight pill; verified on the sim.
+      // Block-centered coin label ("Sell +N") inside a pill. TYPO-1: on the system
+      // face this centers by flexbox alone — the old Baloo2 translateY lift is gone.
       fontSize: 13,
       lineHeight: 16,
-      includeFontPadding: false,
-      transform: [{ translateY: 1 }],
+    },
+    // Fixed detail card under the stock list: the selected offer's full rule prose
+    // + tags in one stable spot (draft.tsx's selected-detail pattern). Content-sized
+    // with a modest floor so the prompt state isn't a sliver; NO fixed height, so at
+    // 130% text it grows (the flex:1 scroller above yields room) instead of clipping.
+    detailCard: {
+      backgroundColor: palette.creamBright,
+      borderColor: palette.parchmentEdge,
+      borderRadius: radii.lg,
+      borderWidth: borders.hairline,
+      gap: spacing.xs,
+      justifyContent: 'center',
+      minHeight: 60,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      ...shadows.card,
+    },
+    detailName: {
+      letterSpacing: 0,
+    },
+    detailRules: {
+      gap: spacing.xxs,
+    },
+    detailRule: {
+      letterSpacing: 0,
+    },
+    detailTags: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xxs,
+    },
+    detailPrompt: {
+      letterSpacing: 0,
+      textAlign: 'center',
     },
     caption: {
       textAlign: 'center',

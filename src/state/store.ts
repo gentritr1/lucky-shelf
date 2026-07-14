@@ -31,6 +31,7 @@ import { formatReceipt, receiptDepsFromGameState, receiptFromTrace } from '../ju
 import type { LoadActiveRunStatus, RunPersistence } from '../persistence';
 import { useCatalogStore, type CatalogStoreState } from './catalogStore';
 import { isDailySeed } from './dailyStore';
+import { describeItemRules } from './describeItemRules';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
@@ -45,15 +46,17 @@ export type DispatchResult =
 
 export interface RunStoreState {
   gameState: GameState;
-  loadStatus: LoadActiveRunStatus | 'idle' | 'loading';
+  loadStatus: LoadActiveRunStatus | 'idle' | 'loading' | 'failed';
   saveStatus: SaveStatus;
   lastRejectedAction: RejectedAction | null;
   rejectedActionCount: number;
   lastSaveError: string | null;
+  lastLoadError: string | null;
   startNewRun(seed?: string): { gameState: GameState; save: Promise<void> };
   startFreshRun(seed?: string): { gameState: GameState; save: Promise<void> };
   continueRun(seedForFallback?: string): Promise<GameState>;
   dispatchAction(action: Action): DispatchResult;
+  retrySave(): Promise<void>;
   clearActiveRun(): Promise<void>;
 }
 
@@ -84,6 +87,14 @@ export interface SellSlotView {
   slot: Slot;
   item: ItemInstance;
   price: number;
+}
+
+/** Rule-inspector view for a shelf or held item. `slot: null` identifies the
+ * delivery tray; screens never need the item table or rule interpreter. */
+export interface ShelfItemInspectorView {
+  item: ItemInstance;
+  slot: Slot | null;
+  ruleLines: string[];
 }
 
 /** The run's build identity for the HUD hero signpost: the leaned-into tag, how
@@ -215,6 +226,9 @@ export const runSelectors = {
   lastRejectedAction: (state: RunStoreState) => state.lastRejectedAction,
   rejectedActionCount: (state: RunStoreState) => state.rejectedActionCount,
   saveStatus: (state: RunStoreState) => state.saveStatus,
+  lastSaveError: (state: RunStoreState) => state.lastSaveError,
+  lastLoadError: (state: RunStoreState) => state.lastLoadError,
+  loadStatus: (state: RunStoreState) => state.loadStatus,
 } as const;
 
 /**
@@ -300,6 +314,35 @@ export function signatureBlurb(item: ItemDefinition): string | null {
   return 'Run-defining signature stock';
 }
 
+/** Exact player-facing rule prose for an offer or shelf inspector. Screens receive
+ * plain strings and never need to import the item table or rule interpreter. */
+export function itemRuleLines(item: ItemDefinition): string[] {
+  return describeItemRules(item, {
+    itemName: (itemId) => selectorItemTable.get(itemId)?.name ?? itemId,
+  });
+}
+
+export function shelfItemInspectorView(
+  gameState: GameState,
+  instanceId: string | null,
+): ShelfItemInspectorView | null {
+  if (!instanceId) return null;
+  const shelfEntry = gameState.shelf.slots.find(
+    (entry) => entry.item?.instanceId === instanceId,
+  );
+  const item = shelfEntry?.item ?? (
+    gameState.heldItem?.instanceId === instanceId ? gameState.heldItem : null
+  );
+  if (!item) return null;
+  const definition = selectorItemTable.get(item.itemId);
+  if (!definition) return null;
+  return {
+    item,
+    slot: shelfEntry?.slot ?? null,
+    ruleLines: itemRuleLines(definition),
+  };
+}
+
 /** Below this coins-to-spare margin, the run's tightest rent payment reads as a
  *  near-miss worth dramatizing on the summary. Kept in the view-model layer so
  *  the screen never reaches into economy/sim for the threshold. */
@@ -314,8 +357,13 @@ export function nearMissView(gameState: GameState): { coinsToSpare: number } | n
   return { coinsToSpare: margin };
 }
 
-/** Today's-Order signpost with live shelf progress, or null when no order. */
+/** Today's-Order signpost with live shelf progress, or null when no order.
+ *  Also null while tag synergy is on: scoring fires order ONLY when the synergy
+ *  flag is off (`!synergyEnabled && order …` in resolveOpenShop), so under the
+ *  graduating set the chip would promise a ×1.5 that never pays (human ruling
+ *  2026-07-11: hide the chip rather than stack the bonuses). */
 export function orderHudView(gameState: GameState): OrderHudView | null {
+  if (tagSynergyEnabled()) return null;
   const order = gameState.dailyOrder;
   if (!order) return null;
   const have = gameState.shelf.slots.filter((slot) => slot.item?.tags.includes(order.tag)).length;
@@ -410,27 +458,43 @@ export function createRunStore(options: RunStoreOptions = {}) {
   const createRunFromCatalog = (seed: string): GameState =>
     createRun(seed, deps, createRunOptionsFromCatalog(seed, getCatalogSnapshot()));
   const initialState = options.initialState ?? createRunFromCatalog(seedFactory());
+  let saveQueue: Promise<void> = Promise.resolve();
+  let latestSaveRequest = 0;
+  let loadGeneration = 0;
 
   return create<RunStoreState>()((set, get) => {
     const saveActiveRun = (gameState: GameState): Promise<void> => {
+      const requestId = ++latestSaveRequest;
       set({ saveStatus: 'saving', lastSaveError: null });
-      const save = getPersistence()
-        .then((persistence) => persistence.saveActiveRun(gameState))
-        .then(
-          () => set({ saveStatus: 'saved', lastSaveError: null }),
-          (error: unknown) => {
+      // AsyncStorage writes are not guaranteed to resolve in call order. Queue
+      // snapshots explicitly so a slow older action can never overwrite a newer
+      // one. A failed write does not poison the queue; the next request retries
+      // from a clean link while preserving its own rejection for the caller.
+      const write = saveQueue
+        .catch(() => undefined)
+        .then(async () => (await getPersistence()).saveActiveRun(gameState));
+      saveQueue = write;
+      return write.then(
+        () => {
+          if (requestId === latestSaveRequest) {
+            set({ saveStatus: 'saved', lastSaveError: null });
+          }
+        },
+        (error: unknown) => {
+          if (requestId === latestSaveRequest) {
             set({
               saveStatus: 'failed',
               lastSaveError: error instanceof Error ? error.message : String(error),
             });
-            throw error;
-          },
-        );
-      return save;
+          }
+          throw error;
+        },
+      );
     };
 
     const setRun = (gameState: GameState): { gameState: GameState; save: Promise<void> } => {
-      set({ gameState, lastRejectedAction: null });
+      loadGeneration += 1;
+      set({ gameState, loadStatus: 'loaded', lastLoadError: null, lastRejectedAction: null });
       return { gameState, save: saveActiveRun(gameState) };
     };
 
@@ -441,6 +505,7 @@ export function createRunStore(options: RunStoreOptions = {}) {
       lastRejectedAction: null,
       rejectedActionCount: 0,
       lastSaveError: null,
+      lastLoadError: null,
 
       startNewRun(seed) {
         return setRun(createRunFromCatalog(seed ?? seedFactory()));
@@ -451,11 +516,30 @@ export function createRunStore(options: RunStoreOptions = {}) {
       },
 
       async continueRun(seedForFallback) {
-        set({ loadStatus: 'loading', lastRejectedAction: null });
-        const fallback = createRunFromCatalog(seedForFallback ?? seedFactory());
-        const result = await (await getPersistence()).loadActiveRun(fallback);
-        set({ gameState: result.gameState, loadStatus: result.status });
-        return result.gameState;
+        const requestGeneration = ++loadGeneration;
+        set({ loadStatus: 'loading', lastLoadError: null, lastRejectedAction: null });
+        try {
+          await saveQueue.catch(() => undefined);
+          const fallback = createRunFromCatalog(seedForFallback ?? seedFactory());
+          const result = await (await getPersistence()).loadActiveRun(fallback);
+          // A New Run, Daily, or accepted action invalidates this request. Never
+          // let an older storage read replace newer in-memory progress.
+          if (requestGeneration !== loadGeneration) return get().gameState;
+          set({
+            gameState: result.gameState,
+            loadStatus: result.status,
+            lastLoadError: null,
+          });
+          return result.gameState;
+        } catch (error: unknown) {
+          if (requestGeneration === loadGeneration) {
+            set({
+              loadStatus: 'failed',
+              lastLoadError: error instanceof Error ? error.message : String(error),
+            });
+          }
+          throw error;
+        }
       },
 
       dispatchAction(action) {
@@ -475,8 +559,18 @@ export function createRunStore(options: RunStoreOptions = {}) {
         }
       },
 
+      retrySave() {
+        return saveActiveRun(get().gameState);
+      },
+
       async clearActiveRun() {
-        await (await getPersistence()).clearActiveRun();
+        loadGeneration += 1;
+        const clear = saveQueue
+          .catch(() => undefined)
+          .then(async () => (await getPersistence()).clearActiveRun());
+        saveQueue = clear;
+        await clear;
+        set({ loadStatus: 'missing', lastLoadError: null });
       },
     };
   });

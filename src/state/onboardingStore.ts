@@ -1,20 +1,35 @@
 import { create } from 'zustand';
 
 /**
- * First-run onboarding flag (kickoff §9 — one hint, no tutorial walls). Shown
- * once, then persisted as seen. Lazily loads AsyncStorage so it stays out of
- * the Node test path; fail-safe (any error → treat as unseen, at worst the
- * hint shows once more).
+ * First-run contextual onboarding (kickoff §9 — no tutorial walls). The current
+ * action is persisted so a resumed run never restarts the tour or explains a
+ * verb the player already completed. Lazily loads AsyncStorage so it stays out
+ * of the Node test path; fail-safe (any error → start at the first action).
  */
 
-// v2: refreshed copy for the redesigned loop (supplier lean, synergy, daily
-// target) — bumping the key re-shows the one-time hint to existing players.
-const ONBOARDING_KEY = 'luckyShelf:onboarding:v2';
+const ONBOARDING_KEY = 'luckyShelf:onboarding:v3';
+
+export type OnboardingStep = 'supplier' | 'draft' | 'place' | 'open' | 'done';
+
+const STEP_ORDER: readonly OnboardingStep[] = ['supplier', 'draft', 'place', 'open', 'done'];
+
+export function isOnboardingStep(value: string | null): value is OnboardingStep {
+  return value !== null && STEP_ORDER.includes(value as OnboardingStep);
+}
+
+export function laterOnboardingStep(
+  current: OnboardingStep,
+  requested: OnboardingStep,
+): OnboardingStep {
+  return STEP_ORDER.indexOf(requested) > STEP_ORDER.indexOf(current) ? requested : current;
+}
 
 export interface OnboardingStoreState {
-  seen: boolean;
+  step: OnboardingStep;
   loaded: boolean;
   loadOnboarding(): Promise<void>;
+  syncTo(step: Exclude<OnboardingStep, 'done'>): Promise<void>;
+  complete(): Promise<void>;
   dismiss(): Promise<void>;
 }
 
@@ -24,25 +39,42 @@ async function storage() {
 }
 
 export const useOnboardingStore = create<OnboardingStoreState>()((set, get) => ({
-  seen: false,
+  step: 'supplier',
   loaded: false,
 
   async loadOnboarding() {
     if (get().loaded) return;
     try {
       const value = await (await storage()).getItem(ONBOARDING_KEY);
-      set({ seen: value === 'seen', loaded: true });
+      set({ step: isOnboardingStep(value) ? value : 'supplier', loaded: true });
     } catch {
-      set({ seen: false, loaded: true });
+      set({ step: 'supplier', loaded: true });
+    }
+  },
+
+  async syncTo(requested) {
+    if (!get().loaded) await get().loadOnboarding();
+    const step = laterOnboardingStep(get().step, requested);
+    if (step === get().step) return;
+    set({ step });
+    try {
+      await (await storage()).setItem(ONBOARDING_KEY, step);
+    } catch {
+      // best-effort; the in-memory stage remains correct for this session
+    }
+  },
+
+  async complete() {
+    if (!get().loaded) await get().loadOnboarding();
+    set({ step: 'done' });
+    try {
+      await (await storage()).setItem(ONBOARDING_KEY, 'done');
+    } catch {
+      // best-effort; the in-memory stage still completes the tour
     }
   },
 
   async dismiss() {
-    set({ seen: true });
-    try {
-      await (await storage()).setItem(ONBOARDING_KEY, 'seen');
-    } catch {
-      // best-effort; the in-memory flag still hides it for this session
-    }
+    await get().complete();
   },
 }));

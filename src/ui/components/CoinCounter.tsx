@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -8,8 +8,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { baloo2IconNudge, borders, motion, palette, radii, shadows, spacing, typeScale } from '../tokens';
+import { borders, motion, shadows, spacing } from '../tokens';
 import { useReducedMotion } from '../prefs';
+import { useThemedStyles } from '../useThemedStyles';
+import { makeStyles } from './CoinCounter.styles';
 
 interface CoinCounterProps {
   coins: number;
@@ -38,6 +40,7 @@ export function CoinCounter({
   variant = 'pill',
 }: CoinCounterProps) {
   const reduced = useReducedMotion();
+  const themed = useThemedStyles(makeStyles);
   const display = useCountUp(coins, { animate: animate && !reduced, from });
 
   const punch = useSharedValue(1);
@@ -63,9 +66,9 @@ export function CoinCounter({
   const isSlam = variant === 'slam';
 
   return (
-    <Animated.View style={[styles.pill, isSlam && styles.pillSlam, punchStyle]}>
-      <View style={[styles.coin, isSlam && styles.coinSlam]} />
-      <Text style={[styles.amount, isSlam && styles.amountSlam]}>{display}</Text>
+    <Animated.View style={[themed.pill, isSlam && styles.pillSlam, punchStyle]}>
+      <View style={[themed.coin, isSlam && styles.coinSlam]} />
+      <Text style={[themed.amount, isSlam && themed.amountSlam]}>{display}</Text>
     </Animated.View>
   );
 }
@@ -113,19 +116,6 @@ function useCountUp(
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: palette.creamBright,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.pill,
-    borderWidth: borders.regular,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    ...shadows.float,
-  },
   pillSlam: {
     borderWidth: borders.strong,
     gap: spacing.md,
@@ -133,32 +123,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     ...shadows.lifted,
   },
-  coin: {
-    backgroundColor: palette.coinGold,
-    borderColor: palette.goldDeep,
-    borderRadius: radii.pill,
-    borderWidth: borders.strong,
-    height: 18,
-    width: 18,
-  },
   coinSlam: {
     height: 28,
     width: 28,
-  },
-  amount: {
-    ...typeScale.coin,
-    color: palette.ink,
-    // Optically center the Baloo2 digit against the coin dot (shared helper).
-    ...baloo2IconNudge(typeScale.coin.fontSize),
-    // Device feel-gate (2026-07-08): the shared helper's +2 sat the digit a hair
-    // low against the 18px dot in the pill; trim to +1 so the numeral reads
-    // dead-centre. Pill-only — the slam keeps the helper's value.
-    ...(Platform.OS === 'ios' ? { transform: [{ translateY: 1 }] } : null),
-  },
-  amountSlam: {
-    ...typeScale.display,
-    color: palette.ink,
-    fontVariant: ['tabular-nums'],
-    ...baloo2IconNudge(typeScale.display.fontSize),
   },
 });

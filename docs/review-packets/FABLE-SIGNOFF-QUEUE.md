@@ -1,5 +1,14 @@
 # Fable sign-off queue — loop-redesign v2 (start here when Fable returns)
 
+> **✅ RESOLVED 2026-07-13 — GATE 1.2 retuned and re-closed by Fable.** The corrected like-for-like
+> gate (which had failed every ceiling arm at 2.248–2.713× vs `[1.3×,2.0×]`) is green again after the
+> Fable-ruled, Opus-implemented, Fable-re-verified retune: `TAG_SYNERGY_LADDER` 1.2/1.4/1.6/1.8 →
+> **1.15/1.22/1.26/1.30** (single lever; band NOT widened), goal table re-derived + out-of-sample
+> validated, all four arms now **1.616–1.92×**, v1 pin untouched, graduating pin updated. Evidence:
+> [GATE12-economy-retune-2026-07-13](GATE12-economy-retune-2026-07-13.md). The companion supplier-opening
+> question is ruled KEEP-unchanged, evidence-gated:
+> [FABLE-RULING-2026-07-13-supplier-opening](FABLE-RULING-2026-07-13-supplier-opening.md).
+
 > **✅ RESOLVED 2026-07-08 — Fable's authoritative pass is done.** See
 > **[FABLE-RULINGS-2026-07-08.md](FABLE-RULINGS-2026-07-08.md)**: all six phases ruled (five
 > APPROVED; goal-ladder CCR approved but its target table gets REQUEST CHANGES — out of band under

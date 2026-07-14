@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { ItemInstance } from '@/contracts';
-import { motion } from '@/ui/tokens';
+import { borders, motion, palette, radii } from '@/ui/tokens';
 import { haptic } from './haptics';
 import { easings } from './motion';
 import { ItemSprite } from './ItemSprite';
@@ -46,6 +46,8 @@ interface DraggableItemProps {
   reduced: boolean;
   glyph: string;
   onCommitMove: (fromIndex: number, toIndex: number) => void;
+  onSelect?: () => void;
+  selected?: boolean;
 }
 
 const IS_WEB = Platform.OS === 'web';
@@ -67,6 +69,8 @@ export function DraggableItem({
   reduced,
   glyph,
   onCommitMove,
+  onSelect,
+  selected = false,
 }: DraggableItemProps) {
   const { grabbedIndex, hoverIndex, hoverLegal, occupancy } = shared;
   const index = slotIndex(layout.cols, row, col);
@@ -82,6 +86,23 @@ export function DraggableItem({
   const sticky = item.state.sticky;
 
   const [active, setActive] = useState(false);
+  const placementTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (placementTimer.current) clearTimeout(placementTimer.current);
+    },
+    [],
+  );
+
+  const playPlacementHaptics = (withDropImpact: boolean) => {
+    if (withDropImpact) haptic('dropSettle');
+    if (placementTimer.current) clearTimeout(placementTimer.current);
+    placementTimer.current = setTimeout(() => {
+      placementTimer.current = null;
+      haptic('placementTick');
+    }, reduced ? 0 : motion.durations.settle);
+  };
 
   // After a committed move the board re-homes this item to its new slot. Its
   // `left/top` jump to the new slot; compensate the drag offset by the same jump
@@ -191,17 +212,23 @@ export function DraggableItem({
         // Dropped back on its own slot — settle the drag offset out.
         tx.value = reduced ? withTiming(0, { duration: 0 }) : withSpring(0, motion.springs.settle);
         ty.value = reduced ? withTiming(0, { duration: 0 }) : withSpring(0, motion.springs.settle);
-        runOnJS(haptic)('placementTick');
+        runOnJS(playPlacementHaptics)(false);
         return;
       }
       // Commit the move NOW — reliably, not on an interruptible settle-spring
       // callback (which could be skipped during rapid rearranging, leaving the
       // visual ahead of the board). The [index] effect settles the item in.
-      runOnJS(haptic)('dropSettle');
-      runOnJS(haptic)('placementTick');
+      runOnJS(playPlacementHaptics)(true);
       runOnJS(onCommitMove)(index, targetIdx);
     })
     .onFinalize(release);
+
+  const select = () => onSelect?.();
+  const tap = Gesture.Tap().onEnd((_event, success) => {
+    'worklet';
+    if (success) runOnJS(select)();
+  });
+  const gesture = Gesture.Exclusive(pan, tap);
 
   const style = useAnimatedStyle(() => ({
     transform: [
@@ -218,8 +245,19 @@ export function DraggableItem({
 
   return (
     <Animated.View
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name}, row ${row + 1}, column ${col + 1}, value ${item.baseValue}`}
+      accessibilityHint={
+        sticky
+          ? 'Double tap to inspect. This item is stuck and cannot move.'
+          : 'Double tap to inspect and choose this item, then activate an empty slot to move it.'
+      }
+      accessibilityState={{ selected }}
+      onAccessibilityTap={select}
       style={[
         styles.item,
+        selected && styles.selected,
         {
           left: home.x,
           top: home.y,
@@ -231,7 +269,7 @@ export function DraggableItem({
         style,
       ]}
     >
-      <GestureDetector gesture={pan}>
+      <GestureDetector gesture={gesture}>
         <Animated.View style={styles.hit} testID={`item-${item.itemId}`}>
           <ItemSprite item={item} glyph={glyph} size={layout.slotSize} />
         </Animated.View>
@@ -243,6 +281,11 @@ export function DraggableItem({
 const styles = StyleSheet.create({
   item: {
     position: 'absolute',
+  },
+  selected: {
+    borderColor: palette.tealDark,
+    borderRadius: radii.md,
+    borderWidth: borders.strong,
   },
   hit: {
     alignItems: 'center',
